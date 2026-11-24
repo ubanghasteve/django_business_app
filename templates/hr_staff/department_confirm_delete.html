@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Delete {{ department.name }} - HR & Staff{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Delete Department{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:department_list' %}" class="text-decoration-none">Departments</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:department_detail' department.pk %}" class="text-decoration-none">{{ department.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Delete</li>
+                </ol>
+            </nav>
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-3 border-danger">
+                        <div class="card-body p-4 text-center">
+                            <div class="text-danger mb-3"><i class="fas fa-exclamation-triangle fa-3x"></i></div>
+                            <h5 class="fw-bold text-dark mb-2">Delete department "{{ department.name }}"?</h5>
+                            <p class="text-muted mb-4">This action cannot be undone. Employees in this department will have their department set to empty.</p>
+                            <form method="post"
+                                  class="d-flex gap-2 justify-content-center flex-wrap hr-dept-delete-form"
+                                  data-offline-queue="true"
+                                  {% if department and department.uuid %}data-record-uuid="{{ department.uuid }}"{% endif %}>
+                                {% csrf_token %}
+                                <a href="{% url 'hr_staff:department_detail' department.pk %}" class="btn btn-outline-secondary rounded-2">Cancel</a>
+                                <button type="submit" class="btn btn-danger rounded-2">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.hr-page-wrap { max-width: 100%; background-color: #f0f2f5; }
+@media (max-width: 575.98px) { .hr-page-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; } }
+</style>
+<script>
+(function() {
+    var form = document.querySelector('.hr-dept-delete-form');
+    if (!form) return;
+    var recordUuid = form.getAttribute('data-record-uuid') || '';
+    form.addEventListener('submit', function(ev) {
+        if (!recordUuid || !window.OfflineSync || !navigator || navigator.onLine) {
+            return;
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+        OfflineSync.wrapDelete('hr_departments', recordUuid, tenantId, function() {
+            // When back online, server-side delete will be applied via bulk sync; just redirect now.
+            return Promise.resolve({ savedOffline: true });
+        }).then(function() {
+            if (window.history && window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "{% url 'hr_staff:department_list' %}";
+            }
+        }).catch(function() {
+            alert('Could not queue delete offline. Please try again when back online.');
+        });
+    });
+})();
+</script>
+{% endblock %}

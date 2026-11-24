@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Stock Adjustment{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; }
+    .btn-secondary { background-color: #6c757d !important; }
+    .btn-warning { background-color: #ffc107 !important; color: #212529 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">Stock Adjustment</h5><p class="text-muted text-sm mb-0">Adjust quantities for store items</p></div>
+        <div class="col-auto"><a href="{% url 'store:list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Select Item</label>
+                            <select name="item_id" class="form-control" required>
+                                <option value="">-- Select Store Item --</option>
+                            </select>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Current Quantity</label>
+                                <input type="text" class="form-control" readonly placeholder="Select item first">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">New Quantity</label>
+                                <input type="number" name="new_quantity" class="form-control" step="0.01" placeholder="Enter new quantity">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reason</label>
+                            <select name="reason" class="form-control">
+                                <option value="correction">Correction</option>
+                                <option value="damage">Damage</option>
+                                <option value="theft">Theft/Loss</option>
+                                <option value="audit">Audit Finding</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes about this adjustment..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Adjustment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header"><h6 class="mb-0">Adjustment Preview</h6></div>
+                <div class="card-body">
+                    <p class="text-muted text-center">Select an item to see the adjustment preview.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

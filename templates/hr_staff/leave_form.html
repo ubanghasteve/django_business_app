@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if create %}New Leave Request{% else %}Edit Leave Request{% endif %} - HR & Staff{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}{% if create %}New Leave Request{% else %}Edit Leave Request{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-leave-form-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:leave_list' %}" class="text-decoration-none">{% if is_employee_portal %}My Leave{% else %}Leave Requests{% endif %}</a></li>
+                    {% if create %}
+                    <li class="breadcrumb-item active" aria-current="page">New Request</li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:leave_detail' leave.pk %}" class="text-decoration-none">Request #{{ leave.pk }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                    {% endif %}
+                </ol>
+            </nav>
+            <div class="hr-leave-form-card">
+                <div class="hr-leave-form-header d-flex align-items-start justify-content-between gap-2">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="hr-leave-form-icon rounded-2 d-flex align-items-center justify-content-center flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="fw-bold text-dark mb-1 hr-leave-form-title">{% if create %}New Leave Request{% else %}Edit Leave Request{% endif %}</h4>
+                            <p class="text-muted small mb-0 hr-leave-form-sub">{% if create %}Submit a new leave request for approval{% else %}Update leave request details{% endif %}</p>
+                        </div>
+                    </div>
+                    <a href="{% if leave %}{% url 'hr_staff:leave_detail' leave.pk %}{% else %}{% url 'hr_staff:leave_list' %}{% endif %}" class="btn btn-link text-secondary p-2 hr-leave-form-close rounded-2" aria-label="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </a>
+                </div>
+
+                <form method="post"
+                      enctype="multipart/form-data"
+                      class="hr-leave-form"
+                      data-sync-model="hr_leaves"
+                      data-sync-redirect="{% if leave %}{% url 'hr_staff:leave_detail' leave.pk %}{% else %}{% url 'hr_staff:leave_list' %}{% endif %}"
+                      {% if leave and leave.uuid %}data-record-uuid="{{ leave.uuid }}"{% endif %}>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger rounded-3">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="hr-leave-form-scroll">
+                        <!-- Employee Information -->
+                        <section class="hr-leave-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-leave-section-title">Employee Information</h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_employee" class="form-label hr-leave-label">Employee Name</label>
+                                    <select name="employee" id="id_employee" class="form-select hr-leave-input {% if form.employee.errors %}is-invalid{% endif %}">
+                                        <option value="">e.g. John Doe</option>
+                                        {% for opt in form.employee.field.queryset %}
+                                        <option value="{{ opt.pk }}" data-employee-id="{{ opt.employee_id|default:'' }}" data-department="{{ opt.department.name|default:'' }}" data-position="{{ opt.position|default:'' }}" {% if form.employee.value == opt.pk %}selected{% endif %}>{{ opt.full_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if form.employee.errors %}<div class="invalid-feedback">{{ form.employee.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_employee_display_id" class="form-label hr-leave-label">Employee ID</label>
+                                    <input type="text" id="id_employee_display_id" class="form-control hr-leave-input hr-leave-readonly" placeholder="e.g. EMP-12345" readonly>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_department_display" class="form-label hr-leave-label">Department</label>
+                                    <input type="text" id="id_department_display" class="form-control hr-leave-input hr-leave-readonly" placeholder="e.g. Engineering" readonly>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_position_display" class="form-label hr-leave-label">Position / Job Title</label>
+                                    <input type="text" id="id_position_display" class="form-control hr-leave-input hr-leave-readonly" placeholder="e.g. Software Engineer" readonly>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Leave Details -->
+                        <section class="hr-leave-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-leave-section-title">Leave Details</h6>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="id_leave_type" class="form-label hr-leave-label">Type of Leave</label>
+                                    <select name="leave_type" id="id_leave_type" class="form-select hr-leave-input {% if form.leave_type.errors %}is-invalid{% endif %}">
+                                        <option value="">Select leave type</option>
+                                        {% for value, label in form.fields.leave_type.choices %}
+                                        <option value="{{ value }}" {% if form.leave_type.value == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if form.leave_type.errors %}<div class="invalid-feedback">{{ form.leave_type.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_start_date" class="form-label hr-leave-label">Start Date</label>
+                                    <div class="hr-leave-date-wrap position-relative">
+                                        <input type="date" name="start_date" id="id_start_date" value="{{ form.start_date.value|default:'' }}" class="form-control hr-leave-input {% if form.start_date.errors %}is-invalid{% endif %}">
+                                        <span class="hr-leave-date-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg></span>
+                                    </div>
+                                    {% if form.start_date.errors %}<div class="invalid-feedback">{{ form.start_date.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_end_date" class="form-label hr-leave-label">End Date</label>
+                                    <div class="hr-leave-date-wrap position-relative">
+                                        <input type="date" name="end_date" id="id_end_date" value="{{ form.end_date.value|default:'' }}" class="form-control hr-leave-input {% if form.end_date.errors %}is-invalid{% endif %}">
+                                        <span class="hr-leave-date-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg></span>
+                                    </div>
+                                    {% if form.end_date.errors %}<div class="invalid-feedback">{{ form.end_date.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label hr-leave-label">Number of Days</label>
+                                    <div class="d-flex align-items-center flex-wrap gap-2">
+                                        <input type="text" id="id_duration_display" class="form-control hr-leave-input hr-leave-readonly flex-grow-1" value="0 day(s)" readonly style="max-width: 140px;">
+                                        <span class="hr-leave-duration-icon text-muted"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span>
+                                        <span class="text-muted small">Automatically calculated from dates</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Reason for Leave -->
+                        <section class="hr-leave-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-leave-section-title">Reason for Leave</h6>
+                            <label for="id_reason" class="form-label hr-leave-label">Reason for Leave</label>
+                            <textarea name="reason" id="id_reason" class="form-control hr-leave-input {% if form.reason.errors %}is-invalid{% endif %}" rows="4" placeholder="Please provide a detailed reason for your leave request...">{{ form.reason.value|default:'' }}</textarea>
+                            {% if form.reason.errors %}<div class="invalid-feedback">{{ form.reason.errors.0 }}</div>{% endif %}
+                        </section>
+
+                        <!-- Supporting Documents -->
+                        <section class="hr-leave-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-leave-section-title">Supporting Documents</h6>
+                            <label for="id_supporting_document" class="hr-leave-upload-zone d-flex flex-column align-items-center justify-content-center py-5 px-3 rounded-3">
+                                <input type="file" name="supporting_document" id="id_supporting_document" class="d-none {% if form.supporting_document.errors %}is-invalid{% endif %}" accept=".pdf,.doc,.docx,image/*">
+                                <span class="hr-leave-upload-icon d-flex align-items-center justify-content-center mb-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="40" height="40"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm3-10.17L14.17 8H13v6h-2V8H9.83L12 5.83zM5 18h14v2H5z"/></svg>
+                                </span>
+                                <span class="text-dark fw-medium mb-1 hr-leave-upload-prompt">Click to upload supporting document</span>
+                                <span class="hr-leave-upload-filename text-success small mb-0" id="hr-leave-filename" style="display: none;"></span>
+                                <span class="hr-leave-upload-types small">PDF, DOC, DOCX, or Images up to 10MB. File is used when you submit.</span>
+                                <span class="hr-leave-upload-required small">Required for sick leave exceeding 2 days</span>
+                                {% if form.supporting_document.errors %}<div class="invalid-feedback d-block">{{ form.supporting_document.errors.0 }}</div>{% endif %}
+                            </label>
+                        </section>
+
+                        <!-- Approval & Supervision -->
+                        <section class="hr-leave-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-leave-section-title">Approval & Supervision</h6>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="id_supervisor_manager" class="form-label hr-leave-label">Supervisor / Manager</label>
+                                    <input type="text" name="supervisor_manager" id="id_supervisor_manager" value="{{ form.supervisor_manager.value|default:'' }}" class="form-control hr-leave-input {% if form.supervisor_manager.errors %}is-invalid{% endif %}" placeholder="e.g. Sarah Johnson">
+                                    <p class="form-text small text-muted mb-0 mt-1">Person who will review and approve this request</p>
+                                    {% if form.supervisor_manager.errors %}<div class="invalid-feedback">{{ form.supervisor_manager.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label for="id_work_handover_to" class="form-label hr-leave-label">Work Handover To</label>
+                                    <input type="text" name="work_handover_to" id="id_work_handover_to" value="{{ form.work_handover_to.value|default:'' }}" class="form-control hr-leave-input {% if form.work_handover_to.errors %}is-invalid{% endif %}" placeholder="e.g. Michael Chen">
+                                    {% if form.work_handover_to.errors %}<div class="invalid-feedback">{{ form.work_handover_to.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label for="id_handover_notes" class="form-label hr-leave-label">Handover Notes</label>
+                                    <textarea name="handover_notes" id="id_handover_notes" class="form-control hr-leave-input {% if form.handover_notes.errors %}is-invalid{% endif %}" rows="3" placeholder="Brief notes about pending tasks or responsibilities during absence...">{{ form.handover_notes.value|default:'' }}</textarea>
+                                    {% if form.handover_notes.errors %}<div class="invalid-feedback">{{ form.handover_notes.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Contact Information During Leave -->
+                        <section class="hr-leave-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-leave-section-title">Contact Information During Leave</h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_contact_number" class="form-label hr-leave-label">Contact Number</label>
+                                    <input type="text" name="contact_number" id="id_contact_number" value="{{ form.contact_number.value|default:'' }}" class="form-control hr-leave-input {% if form.contact_number.errors %}is-invalid{% endif %}" placeholder="+1 (555) 123-4567">
+                                    {% if form.contact_number.errors %}<div class="invalid-feedback">{{ form.contact_number.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_address_during_leave" class="form-label hr-leave-label">Address During Leave</label>
+                                    <input type="text" name="address_during_leave" id="id_address_during_leave" value="{{ form.address_during_leave.value|default:'' }}" class="form-control hr-leave-input {% if form.address_during_leave.errors %}is-invalid{% endif %}" placeholder="e.g. 123 Beach Road, Miami">
+                                    {% if form.address_during_leave.errors %}<div class="invalid-feedback">{{ form.address_during_leave.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_emergency_contact_name" class="form-label hr-leave-label">Emergency Contact Name</label>
+                                    <input type="text" name="emergency_contact_name" id="id_emergency_contact_name" value="{{ form.emergency_contact_name.value|default:'' }}" class="form-control hr-leave-input {% if form.emergency_contact_name.errors %}is-invalid{% endif %}" placeholder="e.g. Jane Doe">
+                                    {% if form.emergency_contact_name.errors %}<div class="invalid-feedback">{{ form.emergency_contact_name.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_emergency_contact_phone" class="form-label hr-leave-label">Emergency Contact Phone</label>
+                                    <input type="text" name="emergency_contact_phone" id="id_emergency_contact_phone" value="{{ form.emergency_contact_phone.value|default:'' }}" class="form-control hr-leave-input {% if form.emergency_contact_phone.errors %}is-invalid{% endif %}" placeholder="+1 (555) 987-6543">
+                                    {% if form.emergency_contact_phone.errors %}<div class="invalid-feedback">{{ form.emergency_contact_phone.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </section>
+
+                        <input type="hidden" name="status" value="{{ form.status.value|default:'pending' }}">
+                    </div>
+
+                    <div class="hr-leave-form-footer d-flex flex-wrap gap-2 justify-content-end pt-4 border-top">
+                        <a href="{% if leave %}{% url 'hr_staff:leave_detail' leave.pk %}{% else %}{% url 'hr_staff:leave_list' %}{% endif %}" class="btn hr-leave-btn-cancel rounded-3">Cancel</a>
+                        <button type="submit" class="btn hr-leave-btn-submit rounded-3 d-inline-flex align-items-center">
+                            <svg class="me-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            {% if create %}Submit Leave Request{% else %}Save Changes{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-leave-form-wrap { background: #fff; max-width: 100%; min-height: 100vh; }
+.hr-leave-form-card { background: #fff; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,.06); max-width: 720px; margin: 0 auto; overflow: hidden; border: 1px solid #eee; }
+.hr-leave-form-header { padding: 1.25rem 1.5rem; }
+.hr-leave-form-icon { width: 48px; height: 48px; background: rgba(40,167,69,.15); color: #28a745; }
+.hr-leave-form-title { font-size: 1.25rem; color: #1a202c; }
+.hr-leave-form-sub { font-size: 0.875rem; color: #67748e; }
+.hr-leave-form-close { text-decoration: none !important; }
+.hr-leave-form-close:hover { background: rgba(0,0,0,.06); color: #1a202c !important; }
+
+.hr-leave-form-scroll {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.5rem;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+.hr-leave-form-section { margin-bottom: 1.75rem; }
+.hr-leave-form-section:last-child { margin-bottom: 0; }
+.hr-leave-section-title { font-size: 1rem; color: #344767; }
+.hr-leave-label { font-size: 0.9375rem; font-weight: 500; color: #344767; margin-bottom: 0.4rem; }
+.hr-leave-input { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.5rem 0.75rem; min-height: 44px; background: #fafafa; }
+.hr-leave-input:focus { border-color: #28a745; box-shadow: 0 0 0 3px rgba(40,167,69,.15); outline: none; background: #fff; }
+.hr-leave-readonly { background: #f0f0f0 !important; color: #555; }
+.hr-leave-date-wrap .hr-leave-input { padding-right: 2.5rem; }
+.hr-leave-date-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #67748e; pointer-events: none; }
+.hr-leave-duration-icon { display: inline-flex; align-items: center; }
+
+/* Upload zone - green dashed */
+.hr-leave-upload-zone { border: 2px dashed #28a745; background: rgba(40,167,69,.04); cursor: pointer; transition: border-color .2s, background .2s; }
+.hr-leave-upload-zone:hover { border-color: #218838; background: rgba(40,167,69,.08); }
+.hr-leave-upload-icon { color: #28a745; }
+.hr-leave-upload-types { color: #28a745; }
+.hr-leave-upload-required { color: #dc3545; margin-top: 0.25rem; }
+
+.hr-leave-form-footer { padding: 1rem 1.5rem; background: #fafafa; }
+.hr-leave-btn-cancel { background: #e9ecef; color: #495057; border: none; padding: 0.5rem 1.25rem; font-weight: 500; }
+.hr-leave-btn-cancel:hover { background: #dee2e6; color: #212529; }
+.hr-leave-btn-submit { background: #28a745 !important; color: #fff !important; border: none !important; padding: 0.5rem 1.25rem; font-weight: 500; }
+.hr-leave-btn-submit:hover { background: #218838 !important; color: #fff !important; }
+
+@media (max-width: 575.98px) {
+  .hr-leave-form-wrap { padding: 0.5rem !important; }
+  .hr-leave-form-header { padding: 1rem; }
+  .hr-leave-form-scroll { padding: 1rem; max-height: none; }
+  .hr-leave-form-icon { width: 42px; height: 42px; }
+  .hr-leave-form-title { font-size: 1.1rem; }
+  .hr-leave-input { min-height: 42px; }
+}
+</style>
+<script>
+(function() {
+    var form = document.querySelector('.hr-leave-form');
+    var fileInput = document.getElementById('id_supporting_document');
+    var submitBtn = form && form.querySelector('button[type="submit"]');
+    var SUPPORTING_DOC_MAX_MB = 10;
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            if (submitBtn.disabled) { e.preventDefault(); return false; }
+            if (fileInput && fileInput.files && fileInput.files.length) {
+                var sizeMB = fileInput.files[0].size / (1024 * 1024);
+                if (sizeMB > SUPPORTING_DOC_MAX_MB) {
+                    e.preventDefault();
+                    var errEl = document.getElementById('hr-leave-file-size-error');
+                    if (!errEl) {
+                        errEl = document.createElement('div');
+                        errEl.id = 'hr-leave-file-size-error';
+                        errEl.className = 'invalid-feedback d-block text-danger mt-2';
+                        errEl.textContent = 'File must be 10MB or less. Please choose a smaller file.';
+                        var zone = document.querySelector('.hr-leave-upload-zone');
+                        if (zone) zone.appendChild(errEl);
+                    }
+                    return false;
+                }
+            }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Submitting...';
+        });
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            var errEl = document.getElementById('hr-leave-file-size-error');
+            if (errEl) errEl.remove();
+            var uploadZone = document.querySelector('.hr-leave-upload-zone');
+            var promptSpan = uploadZone && uploadZone.querySelector('.hr-leave-upload-prompt');
+            var filenameSpan = document.getElementById('hr-leave-filename');
+            if (this.files && this.files.length) {
+                var file = this.files[0];
+                var sizeMB = file.size / (1024 * 1024);
+                if (sizeMB > SUPPORTING_DOC_MAX_MB) {
+                    var msg = document.createElement('div');
+                    msg.id = 'hr-leave-file-size-error';
+                    msg.className = 'invalid-feedback d-block text-danger mt-2';
+                    msg.textContent = 'File must be 10MB or less. Please choose a smaller file.';
+                    if (uploadZone) uploadZone.appendChild(msg);
+                    this.value = '';
+                    if (promptSpan) promptSpan.textContent = 'Click to upload supporting document';
+                    if (filenameSpan) { filenameSpan.textContent = ''; filenameSpan.style.display = 'none'; }
+                    return;
+                }
+                if (promptSpan) promptSpan.textContent = 'Document selected:';
+                if (filenameSpan) { filenameSpan.textContent = file.name; filenameSpan.style.display = 'block'; }
+            } else {
+                if (promptSpan) promptSpan.textContent = 'Click to upload supporting document';
+                if (filenameSpan) { filenameSpan.textContent = ''; filenameSpan.style.display = 'none'; }
+            }
+        });
+    }
+
+    var sel = document.getElementById('id_employee');
+    var empId = document.getElementById('id_employee_display_id');
+    var dept = document.getElementById('id_department_display');
+    var pos = document.getElementById('id_position_display');
+    if (sel) {
+        // Load employee dropdown via API (shell-first: form renders with empty select)
+        var createForm = document.querySelector('.hr-leave-form') && window.location.pathname.indexOf('/leave/create/') !== -1;
+        if (createForm && sel.options.length <= 1) {
+            var url = '/api/hr-staff/employees/?status=active&page_size=500&ordering=first_name,last_name';
+            var empFromUrl = (window.location.search.match(/[?&]employee=(\d+)/) || [])[1];
+            fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var results = data.results || [];
+                    sel.innerHTML = '<option value="">e.g. John Doe</option>';
+                    results.forEach(function(e) {
+                        var opt = document.createElement('option');
+                        opt.value = String(e.id);
+                        opt.setAttribute('data-employee-id', e.employee_id || '');
+                        opt.setAttribute('data-department', e.department_name || '');
+                        opt.setAttribute('data-position', e.position || '');
+                        opt.textContent = e.full_name || (e.first_name + ' ' + e.last_name) || '';
+                        sel.appendChild(opt);
+                    });
+                    if (empFromUrl) sel.value = empFromUrl;
+                    if (empId && dept && pos) updateEmployeeDisplay();
+                })
+                .catch(function() {});
+        }
+        function updateEmployeeDisplay() {
+            var opt = sel.options[sel.selectedIndex];
+            if (opt && opt.value) {
+                empId.value = opt.getAttribute('data-employee-id') || ('EMP-' + opt.value);
+                dept.value = opt.getAttribute('data-department') || '';
+                pos.value = opt.getAttribute('data-position') || '';
+            } else {
+                empId.value = ''; dept.value = ''; pos.value = '';
+            }
+        }
+        sel.addEventListener('change', updateEmployeeDisplay);
+        updateEmployeeDisplay();
+    }
+    var start = document.getElementById('id_start_date');
+    var end = document.getElementById('id_end_date');
+    var duration = document.getElementById('id_duration_display');
+    if (start && end && duration) {
+        function updateDuration() {
+            var s = start.value, e = end.value;
+            if (s && e) {
+                var a = new Date(s), b = new Date(e);
+                var days = Math.round((b - a) / 86400000) + 1;
+                duration.value = days + ' day(s)';
+            } else duration.value = '0 day(s)';
+        }
+        start.addEventListener('change', updateDuration);
+        end.addEventListener('change', updateDuration);
+        updateDuration();
+    }
+    var scrollEl = document.querySelector('.hr-leave-form-scroll');
+    if (scrollEl) {
+        scrollEl.addEventListener('wheel', function(e) {
+            var top = scrollEl.scrollTop;
+            var max = scrollEl.scrollHeight - scrollEl.clientHeight;
+            var down = e.deltaY > 0;
+            if (max <= 0) return;
+            if (down && top >= max) return;
+            if (!down && top <= 0) return;
+            e.preventDefault();
+            scrollEl.scrollTop += e.deltaY;
+        }, { passive: false });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}File Details - {{ payroll_file.title }}{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}File Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:files_list' %}" class="text-decoration-none">Files</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Details</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="file-icon-large rounded-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background-color: {{ payroll_file.file_type|file_color }}20;">
+                                <i class="{{ payroll_file.file_type|file_icon }} fa-2x" style="color: {{ payroll_file.file_type|file_color }};"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">{{ payroll_file.title }}</h5>
+                                <p class="text-muted small mb-0">{{ payroll_file.original_filename }}</p>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if payroll_file.is_starred %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-star"></i> Starred</span>
+                            {% endif %}
+                            {% if payroll_file.is_archived %}
+                            <span class="badge bg-secondary">Archived</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if payroll_file.description %}
+                    <p class="text-muted">{{ payroll_file.description }}</p>
+                    {% endif %}
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted small">File Size</span>
+                                    <span class="fw-semibold">{{ payroll_file.file_size_display }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted small">File Type</span>
+                                    <span class="fw-semibold">{{ payroll_file.get_file_type_display }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted small">MIME Type</span>
+                                    <span class="fw-semibold small">{{ payroll_file.mime_type|default:"N/A" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-light rounded-3 p-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted small">Views</span>
+                                    <span class="fw-semibold">{{ payroll_file.view_count }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted small">Downloads</span>
+                                    <span class="fw-semibold">{{ payroll_file.download_count }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted small">Uploaded</span>
+                                    <span class="fw-semibold">{{ payroll_file.created_at|date:"M d, Y" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'payroll:file_download' payroll_file.id %}" class="btn btn-primary">
+                            <i class="fas fa-download me-1"></i> Download
+                        </a>
+                        <a href="{% url 'payroll:file_edit' payroll_file.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-edit me-1"></i> Edit
+                        </a>
+                        <a href="{% url 'payroll:files_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to Files
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if payroll_file.notes %}
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h6 class="fw-bold">Notes</h6>
+                </div>
+                <div class="card-body pt-2">
+                    <p class="mb-0">{{ payroll_file.notes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h6 class="fw-bold mb-0">File Information</h6>
+                </div>
+                <div class="card-body pt-2">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted border-0">Category</td>
+                            <td class="border-0">
+                                {% if payroll_file.category %}
+                                <span class="badge rounded-pill" style="background-color: {{ payroll_file.category.color }}20; color: {{ payroll_file.category.color }};">
+                                    {{ payroll_file.category.name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Employee</td>
+                            <td class="border-0">
+                                {% if payroll_file.employee %}
+                                {{ payroll_file.employee.full_name }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Period</td>
+                            <td class="border-0">{{ payroll_file.period_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Payroll Run</td>
+                            <td class="border-0">
+                                {% if payroll_file.payroll_run %}
+                                <a href="{% url 'payroll:payroll_summary' payroll_file.payroll_run.period.id %}">
+                                    {{ payroll_file.payroll_run }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if payroll_file.tags %}
+                        <tr>
+                            <td class="text-muted border-0">Tags</td>
+                            <td class="border-0">
+                                {% for tag in payroll_file.tags|split:"," %}
+                                <span class="badge bg-secondary">{{ tag|strip }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td class="text-muted border-0">Uploaded By</td>
+                            <td class="border-0">{{ payroll_file.created_by|default:"System" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Last Updated</td>
+                            <td class="border-0">{{ payroll_file.updated_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if access_logs %}
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h6 class="fw-bold mb-0">Recent Activity</h6>
+                </div>
+                <div class="card-body pt-2">
+                    <ul class="list-unstyled mb-0">
+                        {% for log in access_logs %}
+                        <li class="d-flex gap-2 mb-2">
+                            <i class="fas {% if log.action == 'download' %}fa-download{% elif log.action == 'view' %}fa-eye{% elif log.action == 'delete' %}fa-trash{% else %}fa-history{% endif %} text-muted mt-1"></i>
+                            <div>
+                                <div class="small">
+                                    <span class="fw-semibold">{{ log.user|default:"System" }}</span>
+                                    <span class="text-muted">{{ log.get_action_display }}</span>
+                                </div>
+                                <small class="text-muted">{{ log.created_at|date:"M d, Y H:i" }}</small>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.file-icon-large i { font-size: 2rem; }
+</style>
+{% endblock %}

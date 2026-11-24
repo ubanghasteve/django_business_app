@@ -1,0 +1,10 @@
+from django.apps import AppConfig
+
+
+class WaybillsConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'apps.waybills'
+    verbose_name = 'Waybills'
+
+    def ready(self):
+        import apps.waybills.signals

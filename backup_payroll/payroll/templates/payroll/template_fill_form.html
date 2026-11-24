@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}{% if entry %}Edit{% else %}Fill{% endif %} Payroll - {{ template.name }}{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Dynamic Payroll Form{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:template_list' %}" class="text-decoration-none">Templates</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:template_detail' template.id %}" class="text-decoration-none">{{ template.name|truncatechars:30 }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% if entry %}Edit{% else %}Fill{% endif %}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">
+                <i class="fas fa-edit text-primary me-2"></i>
+                {% if entry %}Edit{% else %}Fill{% endif %} Payroll - {{ template.name }}
+            </h4>
+            <p class="text-muted mb-0 small">Dynamically generated form based on your template</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'payroll:template_detail' template.id %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Back to Template
+            </a>
+        </div>
+    </div>
+
+    <form method="post" id="payrollForm">
+        {% csrf_token %}
+        
+        <div class="card border-0 shadow-sm rounded-3 mb-4">
+            <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                <h5 class="fw-bold mb-0">Payroll Details</h5>
+            </div>
+            <div class="card-body pt-2">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" required
+                               placeholder="e.g., January 2024 Payroll"
+                               value="{% if entry %}{{ entry.title }}{% else %}{{ template.name }}{% endif %}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Month <span class="text-danger">*</span></label>
+                        <select name="period_month" class="form-select" required>
+                            <option value="">Select Month</option>
+                            {% for m in months %}
+                            <option value="{{ m.value }}" {% if entry.period_month == m.value %}selected{% endif %}>{{ m.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Year <span class="text-danger">*</span></label>
+                        <select name="period_year" class="form-select" required>
+                            <option value="">Select Year</option>
+                            {% for y in years %}
+                            <option value="{{ y }}" {% if entry.period_year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-3 mb-4">
+            <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fw-bold mb-0">Employee Payroll Data</h5>
+                    <button type="button" class="btn btn-primary btn-sm" id="addRowBtn">
+                        <i class="fas fa-plus me-1"></i> Add Employee
+                    </button>
+                </div>
+            </div>
+            <div class="card-body pt-2">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0" id="payrollTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                {% for col in template.columns %}
+                                <th class="{% if col.required %}text-danger{% endif %}">
+                                    {{ col.label }}
+                                    {% if col.required %}<span class="text-danger">*</span>{% endif %}
+                                </th>
+                                {% endfor %}
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            {% if entry and entry.data.rows %}
+                            {% for row in entry.data.rows %}
+                            <tr class="data-row">
+                                <td class="text-center row-number">{{ forloop.counter }}</td>
+                                {% for col in template.columns %}
+                                <td>
+                                    {% if col.type == 'decimal' or col.type == 'number' %}
+                                    <input type="number" step="0.01" name="row_{{ forloop.parentloop.counter0 }}_{{ col.key }}" 
+                                           class="form-control form-control-sm" value="{{ row|get_item:col.key|default_if_none:'' }}">
+                                    {% elif col.type == 'integer' %}
+                                    <input type="number" name="row_{{ forloop.parentloop.counter0 }}_{{ col.key }}" 
+                                           class="form-control form-control-sm" value="{{ row|get_item:col.key|default_if_none:'' }}">
+                                    {% else %}
+                                    <input type="text" name="row_{{ forloop.parentloop.counter0 }}_{{ col.key }}" 
+                                           class="form-control form-control-sm" value="{{ row|get_item:col.key|default_if_none:'' }}">
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-row">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr class="data-row">
+                                <td class="text-center row-number">1</td>
+                                {% for col in template.columns %}
+                                <td>
+                                    {% if col.type == 'decimal' or col.type == 'number' %}
+                                    <input type="number" step="0.01" name="row_0_{{ col.key }}" 
+                                           class="form-control form-control-sm" placeholder="0.00">
+                                    {% elif col.type == 'integer' %}
+                                    <input type="number" name="row_0_{{ col.key }}" 
+                                           class="form-control form-control-sm">
+                                    {% else %}
+                                    <input type="text" name="row_0_{{ col.key }}" 
+                                           class="form-control form-control-sm">
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-row">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if not entry %}
+                <div class="mt-3 text-center">
+                    <button type="button" class="btn btn-outline-primary" id="addRowBtn2">
+                        <i class="fas fa-plus me-1"></i> Add Another Employee
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end mb-4">
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-save me-2"></i> Save Payroll Entry
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+let rowCounter = {{ entry.data.rows|length|default:1 }};
+
+function addNewRow() {
+    rowCounter++;
+    const tbody = document.getElementById('tableBody');
+    const template = {{ template.columns|safe }};
+    
+    let html = '<tr class="data-row"><td class="text-center row-number">' + rowCounter + '</td>';
+    
+    for (let i = 0; i < template.length; i++) {
+        const col = template[i];
+        let inputType = 'text';
+        let step = '';
+        
+        if (col.type === 'decimal' || col.type === 'number') {
+            inputType = 'number';
+            step = '0.01';
+        } else if (col.type === 'integer') {
+            inputType = 'number';
+            step = '1';
+        }
+        
+        html += '<td><input type="' + inputType + '" ' + 
+                (step ? 'step="' + step + '" ' : '') +
+                'name="row_' + rowCounter + '_' + col.key + '" ' +
+                'class="form-control form-control-sm" placeholder="0.00"></td>';
+    }
+    
+    html += '<td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-row"><i class="fas fa-trash"></i></button></td></tr>';
+    
+    tbody.insertAdjacentHTML('beforeend', html);
+    updateRowNumbers();
+}
+
+function updateRowNumbers() {
+    const rows = document.querySelectorAll('.data-row');
+    rows.forEach((row, index) => {
+        row.querySelector('.row-number').textContent = index + 1;
+        
+        const inputs = row.querySelectorAll('input');
+        inputs.forEach(input => {
+            const nameParts = input.name.split('_');
+            if (nameParts.length >= 3) {
+                input.name = 'row_' + index + '_' + nameParts.slice(2).join('_');
+            }
+        });
+    });
+}
+
+document.getElementById('addRowBtn').addEventListener('click', addNewRow);
+document.getElementById('addRowBtn2')?.addEventListener('click', addNewRow);
+
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-row')) {
+        const row = e.target.closest('tr');
+        const tbody = document.getElementById('tableBody');
+        
+        if (tbody.querySelectorAll('.data-row').length > 1) {
+            row.remove();
+            updateRowNumbers();
+        } else {
+            alert('You must have at least one row.');
+        }
+    }
+});
+
+document.getElementById('payrollForm').addEventListener('submit', function(e) {
+    const tbody = document.getElementById('tableBody');
+    const rows = tbody.querySelectorAll('.data-row');
+    
+    if (rows.length === 0) {
+        e.preventDefault();
+        alert('Please add at least one employee row.');
+        return;
+    }
+});
+</script>
+{% endblock %}
+
+{% load payroll_tags %}

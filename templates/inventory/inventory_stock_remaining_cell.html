@@ -1,0 +1,9 @@
+{% load inventory_extras %}
+<button type="button"
+        class="btn btn-sm btn-link p-0 text-decoration-none stock-remaining-dd-btn w-100 text-end"
+        data-pk="{{ obj.pk }}"
+        aria-expanded="false"
+        title="Stock value remaining log (updates with Quantity In, Out, Waste, and price)">
+    <span class="stock-remaining-amount-display fw-semibold text-primary">{{ user_currency_symbol|default:"₦" }}{{ obj.stock_balance_remaining|format_number }}</span>
+    <i class="fas fa-caret-down ms-1 text-muted small" aria-hidden="true"></i>
+</button>

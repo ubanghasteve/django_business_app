@@ -1,0 +1,102 @@
+{% load static humanize %}
+<div class="payroll-top-nav d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+        <div class="payroll-portal-logo rounded-3 d-flex align-items-center justify-content-center text-white fw-bold">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div>
+            <h5 class="mb-0 fw-bold">Payroll Portal</h5>
+            <small class="text-muted">Manage employee compensation</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'payroll:dashboard' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-primary bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                </div>
+                <span class="small fw-semibold">Dashboard</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:payroll_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-info bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                </div>
+                <span class="small fw-semibold">Runs</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:payroll_run' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-success bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="small fw-semibold">Run Payroll</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:employee_profiles_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-warning bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                </div>
+                <span class="small fw-semibold">Profiles</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:loans_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-danger bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>
+                </div>
+                <span class="small fw-semibold">Loans</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:salary_advances_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-secondary bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                </div>
+                <span class="small fw-semibold">Advances</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:bonuses_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-success bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+                <span class="small fw-semibold">Bonuses</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:files_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-primary bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+                </div>
+                <span class="small fw-semibold">Files</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:template_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-info bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zm-6-6h4v4h-4v-4z"/></svg>
+                </div>
+                <span class="small fw-semibold">Templates</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:entry_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-success bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                </div>
+                <span class="small fw-semibold">Entries</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:structures_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none" style="width: 130px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-dark bg-opacity-10 rounded-2 d-flex align-items-center justify-content-center">
+                    <svg class="payroll-nav-card-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </div>
+                <span class="small fw-semibold">Settings</span>
+            </div>
+        </a>
+    </div>
+</div>

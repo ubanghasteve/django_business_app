@@ -1,0 +1,9 @@
+{% load inventory_extras %}
+<button type="button"
+        class="btn btn-sm btn-link p-0 text-decoration-none balance-dd-btn w-100 text-end"
+        data-pk="{{ obj.pk }}"
+        aria-expanded="false"
+        title="Balance calculation log (updates with each Quantity In receipt and price change)">
+    <span class="balance-amount-display fw-semibold">{{ user_currency_symbol|default:"₦" }}{{ obj.total_amount|format_number }}</span>
+    <i class="fas fa-caret-down ms-1 text-muted small" aria-hidden="true"></i>
+</button>

@@ -1,0 +1,647 @@
+{% extends 'base.html' %}
+{% load humanize inventory_extras %}
+{% block title %}Product Ledger - {{ product.product_name }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">Product Ledger / Report: {{ product.product_name }}</h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="report-refresh-btn" title="Refresh to show latest data from inventory"><i class="fas fa-sync-alt me-1"></i><span id="report-refresh-label">Refresh</span></button>
+                {% if perms.inventory.print_inventory or perms.inventory.download_inventory %}
+                {% if perms.inventory.print_inventory %}
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#productReportPrintDownloadModal" title="Print this product report">
+                    <i class="fas fa-print me-1"></i>Print
+                </button>
+                {% endif %}
+                {% if perms.inventory.download_inventory %}
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#productReportPrintDownloadModal" title="Open print view to print or save as PDF">
+                    <i class="fas fa-file-pdf me-1"></i>Download
+                </button>
+                {% endif %}
+                {% endif %}
+                <a href="{% url 'inventory:list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to inventory</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">
+                This report uses the <strong>same totals and ledgers</strong> as the main inventory table
+                (<a href="{% url 'inventory:list' %}">inventory list</a>).
+                <strong>{{ stock_formula }}</strong> — Balance qty equals Net Qty.
+                Receipts, waste logs, and withdrawals below are the same records shown in each ▾ dropdown on the list.
+            </p>
+
+            <style>
+            .ledger-filters {
+                border: 1px solid #cbd3da;
+                border-radius: 10px;
+                padding: 12px 14px;
+                margin-bottom: 1rem;
+                background-color: #ffffff;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            }
+            .ledger-filters .form-control,
+            .ledger-filters .form-select {
+                border-radius: 6px;
+                border: 1px solid #adb5bd;
+                background-color: #ffffff;
+            }
+            .report-current-row-box {
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6 !important;
+                border-radius: 8px;
+            }
+            .report-ledger-card .form-control,
+            .report-ledger-card .form-select {
+                border: 1px solid #adb5bd;
+                border-radius: 4px;
+            }
+            </style>
+
+            <form method="get" class="mb-3 ledger-filters" id="productReportFilterForm">
+                <p class="small text-muted mb-2 mb-md-1">Filter movement snapshots (optional)</p>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="Search remark, user, status…">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="approval_status" class="form-select form-select-sm">
+                            <option value="">All approval</option>
+                            {% for v,l in approval_choices %}
+                            <option value="{{ v }}" {% if approval_status_filter == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="stock_status" class="form-select form-select-sm">
+                            <option value="">All stock</option>
+                            {% for v,l in stock_choices %}
+                            <option value="{{ v }}" {% if stock_status_filter == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" aria-label="From date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" aria-label="To date">
+                    </div>
+                </div>
+                <input type="hidden" name="receipt_supplier" value="{{ receipt_supplier }}">
+                <input type="hidden" name="receipt_date_from" value="{{ receipt_date_from }}">
+                <input type="hidden" name="receipt_date_to" value="{{ receipt_date_to }}">
+                <input type="hidden" name="waste_reason" value="{{ waste_reason }}">
+                <input type="hidden" name="waste_date_from" value="{{ waste_date_from }}">
+                <input type="hidden" name="waste_date_to" value="{{ waste_date_to }}">
+                <input type="hidden" name="issue_recipient" value="{{ issue_recipient }}">
+                <input type="hidden" name="issue_date_from" value="{{ issue_date_from }}">
+                <input type="hidden" name="issue_date_to" value="{{ issue_date_to }}">
+                <div class="row g-2 mt-2">
+                    <div class="col-md-2">
+                        <input type="text" name="min_quantity" value="{{ min_quantity }}" class="form-control form-control-sm" placeholder="Min rem. qty">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="max_quantity" value="{{ max_quantity }}" class="form-control form-control-sm" placeholder="Max rem. qty">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">Filter snapshots</button>
+                        <a href="?" class="btn btn-sm btn-outline-secondary">Reset all</a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="report-current-row-box mb-3 py-3 px-3">
+                <h6 class="mb-1 text-dark fw-semibold">Current row (live — matches inventory list)</h6>
+                <p class="small text-muted mb-2">{{ stock_formula }}. {{ balance_note }}</p>
+                <div class="row g-3 small text-dark">
+                    <div class="col-6 col-md-2"><strong>Quantity In</strong><br><span class="text-success fw-semibold" id="report-current-qty-in">{% if product.quantity_in_input %}{{ product.quantity_in_input }}{% else %}{{ product.quantity_in|format_number }}{% endif %}</span><br><span class="text-muted" id="report-count-receipts">{{ receipt_count }} receipt{{ receipt_count|pluralize }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Quantity Out</strong><br><span class="text-danger fw-semibold" id="report-current-qty-out">{% if product.quantity_out_input %}{{ product.quantity_out_input }}{% else %}{{ product.quantity_out|format_number }}{% endif %}</span><br><span class="text-muted" id="report-count-issues">{{ issue_count }} withdrawal{{ issue_count|pluralize }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Waste</strong><br><span class="text-warning fw-semibold" id="report-current-waste">{{ product.waste|format_number }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</span><br><span class="text-muted" id="report-count-waste">{{ waste_log_count }} waste log{{ waste_log_count|pluralize }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Net Qty</strong><br><span class="fw-bold text-primary" id="report-current-net-qty">{{ product.net_quantity|format_number }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</span></div>
+                    <div class="col-6 col-md-2"><strong>Balance qty</strong><br><span class="fw-bold text-dark" id="report-current-balance-qty">{{ product.balance_quantity|format_number }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</span></div>
+                    <div class="col-6 col-md-2"><strong>Actual usable</strong><br><span class="text-dark" id="report-current-actual-qty">{{ product.actual_quantity|format_number }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</span><br><span class="text-muted small">In − Waste</span></div>
+                    <div class="col-6 col-md-2"><strong>Unit Price</strong><br><span id="report-current-unit-price">{{ user_currency_symbol|default:"₦" }}{% if product.unit_price_input %}{{ product.unit_price_input }}{% else %}{{ product.unit_price|format_number }}{% endif %}</span></div>
+                    <div class="col-6 col-md-2"><strong>Balance (value)</strong><br><span id="report-current-balance">{{ user_currency_symbol|default:"₦" }}{{ product.total_amount|format_number }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Stock value left</strong><br><span id="report-current-stock-value">{{ user_currency_symbol|default:"₦" }}{{ product.stock_balance_remaining|format_number }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Waste value</strong><br><span class="text-warning" id="report-current-waste-value">{{ user_currency_symbol|default:"₦" }}{{ product.waste_value|format_number }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Low stock at</strong><br><span id="report-current-threshold">{% if product.low_stock_threshold_input %}{{ product.low_stock_threshold_input }}{% else %}{{ product.low_stock_threshold|format_number }}{% endif %}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</span></div>
+                    <div class="col-6 col-md-2"><strong>Approval</strong><br><span class="badge bg-{% if product.approval_status == 'approved' %}success{% elif product.approval_status == 'rejected' %}danger{% else %}warning text-dark{% endif %}" id="report-current-approval">{{ product.get_approval_status_display }}</span></div>
+                    <div class="col-6 col-md-2"><strong>Stock status</strong><br><span class="badge bg-{% if product.stock_status == 'in_stock' %}success{% elif product.stock_status == 'low_stock' %}warning text-dark{% else %}secondary{% endif %}" id="report-current-stock">{{ product.get_stock_status_display }}</span></div>
+                </div>
+            </div>
+
+            <div class="card mb-3 border-success report-ledger-card">
+                <div class="card-header py-2 bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-truck-loading me-1"></i>Quantity in — receipt log</h6>
+                </div>
+                <div class="card-body py-2">
+                    <form method="get" class="row g-2 mb-2" id="receiptReportFilterForm">
+                        {% include 'inventory/product_report_filter_hidden.html' with skip_receipt=1 %}
+                        <div class="col-md-4">
+                            <input type="text" name="receipt_supplier" value="{{ receipt_supplier }}" class="form-control form-control-sm" placeholder="Supplier / source">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" name="receipt_date_from" value="{{ receipt_date_from }}" class="form-control form-control-sm" aria-label="Receipt from">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" name="receipt_date_to" value="{{ receipt_date_to }}" class="form-control form-control-sm" aria-label="Receipt to">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+                        </div>
+                    </form>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0 ledger-log-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width:50px;">S/N</th>
+                                    <th>Date &amp; time</th>
+                                    <th>Qty</th>
+                                    <th class="text-end">Unit price</th>
+                                    <th class="text-end">Value</th>
+                                    <th>Available after</th>
+                                    <th>Supplier</th>
+                                    <th>Remark</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="product-receipts-tbody">
+                                {% include 'inventory/product_report_receipts_partial.html' %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3 border-warning report-ledger-card">
+                <div class="card-header py-2 bg-warning">
+                    <h6 class="mb-0"><i class="fas fa-trash-alt me-1"></i>Waste — incident log</h6>
+                </div>
+                <div class="card-body py-2">
+                    <form method="get" class="row g-2 mb-2" id="wasteReportFilterForm">
+                        {% include 'inventory/product_report_filter_hidden.html' with skip_waste=1 %}
+                        <div class="col-md-3">
+                            <select name="waste_reason" class="form-select form-select-sm">
+                                <option value="">All reasons</option>
+                                {% for v,l in waste_reason_choices %}
+                                <option value="{{ v }}" {% if waste_reason == v %}selected{% endif %}>{{ l }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" name="waste_date_from" value="{{ waste_date_from }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" name="waste_date_to" value="{{ waste_date_to }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+                        </div>
+                    </form>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0 ledger-log-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width:50px;">S/N</th>
+                                    <th>Date &amp; time</th>
+                                    <th>Qty</th>
+                                    <th class="text-end">Unit price</th>
+                                    <th class="text-end">Value</th>
+                                    <th>Reason</th>
+                                    <th>Left after</th>
+                                    <th>Details</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="product-waste-tbody">
+                                {% include 'inventory/product_report_waste_partial.html' %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3 border-danger report-ledger-card">
+                <div class="card-header py-2 bg-danger text-white">
+                    <h6 class="mb-0"><i class="fas fa-share-square me-1"></i>Quantity out — withdrawal log</h6>
+                </div>
+                <div class="card-body py-2">
+                    <form method="get" class="row g-2 mb-2" id="issueReportFilterForm">
+                        {% include 'inventory/product_report_filter_hidden.html' with skip_issue=1 %}
+                        <div class="col-md-4">
+                            <input type="text" name="issue_recipient" value="{{ issue_recipient }}" class="form-control form-control-sm" placeholder="Customer / client name">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" name="issue_date_from" value="{{ issue_date_from }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" name="issue_date_to" value="{{ issue_date_to }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+                        </div>
+                    </form>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0 ledger-log-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width:50px;">S/N</th>
+                                    <th>Date &amp; time</th>
+                                    <th>Qty</th>
+                                    <th class="text-end">Unit price</th>
+                                    <th class="text-end">Value</th>
+                                    <th>Left after</th>
+                                    <th>Customer</th>
+                                    <th>Remark</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="product-issues-tbody">
+                                {% include 'inventory/product_report_issues_partial.html' %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if perms.inventory.change_inventory %}
+                    <p class="small text-muted mb-0 mt-2">Add receipts, waste, or withdrawals from the <a href="{% url 'inventory:list' %}">inventory list</a> — this page updates automatically. Action shows who recorded each log entry.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-2">Movement history (system snapshots)</h6>
+            <p class="small text-muted">Each row is a snapshot when totals on the inventory row changed. Times show <strong>AM/PM</strong>. Ledger tables above are the detailed source of truth for each receipt, waste incident, and withdrawal.</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover inventory-ledger-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>S/N</th>
+                            <th>Date</th>
+                            <th>Quantity In</th>
+                            <th>Quantity Out</th>
+                            <th>Waste</th>
+                            <th>Net Qty</th>
+                            <th>Unit Price</th>
+                            <th>Balance</th>
+                            <th>Stock Balance Remaining</th>
+                            <th>Stock Status</th>
+                            <th>Approval Status</th>
+                            <th>User</th>
+                            <th>Remark</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-ledger-tbody">
+                        {% include 'inventory/product_report_rows_partial.html' %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="small text-muted mb-0">Net Qty in this history is Quantity In − Waste − Quantity Out, and never goes below zero — same as the inventory list.</p>
+
+            {% if page_obj %}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                {% include 'inventory/inventory_list_pagination_partial.html' %}
+            </div>
+            {% endif %}
+
+            <div class="row mt-4" id="report-summary-cards">
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Quantity In</small>
+                            <div class="fw-bold text-success" id="card-total-qty-in">{{ total_qty_in|format_number|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Quantity Out</small>
+                            <div class="fw-bold text-danger" id="card-total-qty-out">{{ total_qty_out|format_number|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card h-100" style="background-color: #fff3cd;">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Waste</small>
+                            <div class="fw-bold text-warning" id="card-total-waste">{{ total_waste|format_number|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Actual usable (In − Waste)</small>
+                            <div class="fw-bold" id="card-actual-qty">{{ actual_quantity|format_number|default:"0" }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card border-primary h-100">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Net Qty (In − Waste − Out)</small>
+                            <div class="fw-bold text-primary" id="card-net-qty">{{ net_quantity|format_number|default:"0" }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Balance qty (available)</small>
+                            <div class="fw-bold" id="card-balance-qty">{{ balance_quantity|format_number|default:"0" }}{% if product.unit_label %} {{ product.unit_label }}{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light h-100">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Stock value remaining</small>
+                            <div class="fw-bold" id="card-total-stock-value">{{ user_currency_symbol|default:"₦" }}{{ total_stock_value_remaining|format_number|default:"0.00" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card h-100" style="background-color: #f8d7da;">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total waste value</small>
+                            <div class="fw-bold text-danger" id="card-total-waste-value">{{ user_currency_symbol|default:"₦" }}{{ total_waste_value|format_number|default:"0.00" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if perms.inventory.print_inventory or perms.inventory.download_inventory %}
+<!-- Modal: Print / Download this product report -->
+<div class="modal fade" id="productReportPrintDownloadModal" tabindex="-1" aria-labelledby="productReportPrintDownloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productReportPrintDownloadModalLabel"><i class="fas fa-print me-2"></i>Print or Download Product Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Download the full ledger for <strong>{{ product.product_name }}</strong> (receipts, waste, issues, and movement history). Includes company details and logo, fit to A4.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="product-report-range-type">Date range</label>
+                    <select id="product-report-range-type" class="form-select form-select-sm">
+                        <option value="all">All records</option>
+                        <option value="day">Today</option>
+                        <option value="week">This week (Mon–Sun)</option>
+                        <option value="month">This month</option>
+                        <option value="quarter">This quarter</option>
+                        <option value="year">This year</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                </div>
+                <div id="product-report-period-date-wrap" class="mb-3" style="display:none;">
+                    <label class="form-label small">Date</label>
+                    <input type="date" id="product-report-period-date" class="form-control form-control-sm">
+                </div>
+                <div id="product-report-custom-range-wrap" class="mb-3 row g-2" style="display:none;">
+                    <div class="col-6">
+                        <label class="form-label small">From</label>
+                        <input type="date" id="product-report-date-from" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">To</label>
+                        <input type="date" id="product-report-date-to" class="form-control form-control-sm">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if perms.inventory.print_inventory %}
+                <a href="#" id="product-report-print-btn" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-print me-1"></i>Print</a>
+                {% endif %}
+                {% if perms.inventory.download_inventory %}
+                <a href="#" id="product-report-pdf-btn" class="btn btn-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-file-pdf me-1"></i>Print / Save as PDF</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var listPrintUrl = "{% url 'inventory:product_report_print' product.pk %}";
+    var modal = document.getElementById('productReportPrintDownloadModal');
+    var rangeSelect = document.getElementById('product-report-range-type');
+    var periodWrap = document.getElementById('product-report-period-date-wrap');
+    var periodInput = document.getElementById('product-report-period-date');
+    var customWrap = document.getElementById('product-report-custom-range-wrap');
+    var dateFromInput = document.getElementById('product-report-date-from');
+    var dateToInput = document.getElementById('product-report-date-to');
+    var printBtn = document.getElementById('product-report-print-btn');
+    var pdfBtn = document.getElementById('product-report-pdf-btn');
+
+    function todayStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function updateRangeVisibility() {
+        var v = rangeSelect ? rangeSelect.value : 'all';
+        if (periodWrap) periodWrap.style.display = (v && v !== 'all' && v !== 'custom') ? 'block' : 'none';
+        if (customWrap) customWrap.style.display = (v === 'custom') ? 'flex' : 'none';
+        if (v === 'day' || v === 'week' || v === 'month' || v === 'quarter' || v === 'year') {
+            if (periodInput && !periodInput.value) periodInput.value = todayStr();
+        }
+    }
+    function buildQueryString() {
+        var v = rangeSelect ? rangeSelect.value : 'all';
+        var params = new URLSearchParams();
+        params.set('range_type', v);
+        if (v === 'custom') {
+            if (dateFromInput && dateFromInput.value) params.set('date_from', dateFromInput.value);
+            if (dateToInput && dateToInput.value) params.set('date_to', dateToInput.value);
+        } else if (v && v !== 'all' && periodInput && periodInput.value) {
+            params.set('period_date', periodInput.value);
+        }
+        return params.toString();
+    }
+    function updatePrintDownloadUrls() {
+        var qs = buildQueryString();
+        var href = listPrintUrl + (qs ? '?' + qs : '');
+        if (printBtn) printBtn.href = href;
+        if (pdfBtn) pdfBtn.href = href;
+    }
+    if (rangeSelect) rangeSelect.addEventListener('change', function() { updateRangeVisibility(); updatePrintDownloadUrls(); });
+    if (periodInput) periodInput.addEventListener('change', updatePrintDownloadUrls);
+    if (dateFromInput) dateFromInput.addEventListener('change', updatePrintDownloadUrls);
+    if (dateToInput) dateToInput.addEventListener('change', updatePrintDownloadUrls);
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            updateRangeVisibility();
+            updatePrintDownloadUrls();
+        });
+    }
+    updateRangeVisibility();
+    updatePrintDownloadUrls();
+})();
+</script>
+{% endif %}
+
+<script>
+(function() {
+    var tbody = document.getElementById('product-ledger-tbody');
+    var issuesTbody = document.getElementById('product-issues-tbody');
+    var receiptsTbody = document.getElementById('product-receipts-tbody');
+    var wasteTbody = document.getElementById('product-waste-tbody');
+    var currencySymbol = '{{ user_currency_symbol|default:"₦" }}';
+    if (!tbody) return;
+
+    function getRefreshUrl() {
+        var params = new URLSearchParams(window.location.search);
+        params.set('format', 'json');
+        return window.location.pathname + '?' + params.toString();
+    }
+    function formatNumber(val) {
+        var n = parseFloat(String(val).replace(/,/g, ''));
+        if (isNaN(n)) return '0.00';
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function withUnit(val, unit, inputField) {
+        if (inputField && String(inputField).trim() !== '') return String(inputField);
+        var t = formatNumber(val);
+        if (unit && t.indexOf(unit) === -1) t += ' ' + unit;
+        return t;
+    }
+
+    var refreshInProgress = false;
+    function refreshLedger() {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        fetch(getRefreshUrl(), {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            cache: 'no-store',
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function(data) {
+            if (!data.success && data.rows_html === undefined && !data.total_qty_in) return;
+            if (data.rows_html && tbody) tbody.innerHTML = data.rows_html;
+            if (data.issues_html && issuesTbody) issuesTbody.innerHTML = data.issues_html;
+            if (data.receipts_html && receiptsTbody) receiptsTbody.innerHTML = data.receipts_html;
+            if (data.waste_html && wasteTbody) wasteTbody.innerHTML = data.waste_html;
+
+            var unit = data.unit_label || '';
+            var el;
+
+            el = document.getElementById('card-total-qty-in');
+            if (el) el.textContent = withUnit(data.total_qty_in, unit, data.quantity_in_input);
+            el = document.getElementById('card-total-qty-out');
+            if (el) el.textContent = withUnit(data.total_qty_out, unit, data.quantity_out_input);
+            el = document.getElementById('card-total-waste');
+            if (el && data.total_waste !== undefined) el.textContent = withUnit(data.total_waste, unit);
+            el = document.getElementById('card-actual-qty');
+            if (el && data.actual_quantity !== undefined) el.textContent = withUnit(data.actual_quantity, unit);
+            el = document.getElementById('card-net-qty');
+            if (el && data.net_quantity !== undefined) el.textContent = withUnit(data.net_quantity, unit);
+            el = document.getElementById('card-balance-qty');
+            if (el && data.balance_quantity !== undefined) el.textContent = withUnit(data.balance_quantity, unit);
+            el = document.getElementById('card-total-stock-value');
+            if (el && data.total_stock_value_remaining !== undefined) el.textContent = currencySymbol + formatNumber(data.total_stock_value_remaining);
+            el = document.getElementById('card-total-waste-value');
+            if (el && data.total_waste_value !== undefined) el.textContent = currencySymbol + formatNumber(data.total_waste_value);
+
+            el = document.getElementById('report-current-qty-in');
+            if (el) el.textContent = withUnit(data.total_qty_in, unit, data.quantity_in_input);
+            el = document.getElementById('report-current-qty-out');
+            if (el) el.textContent = withUnit(data.total_qty_out, unit, data.quantity_out_input);
+            el = document.getElementById('report-current-waste');
+            if (el && data.waste !== undefined) el.textContent = withUnit(data.waste, unit);
+            el = document.getElementById('report-current-net-qty');
+            if (el && data.net_quantity !== undefined) el.textContent = withUnit(data.net_quantity, unit);
+            el = document.getElementById('report-current-balance-qty');
+            if (el && data.balance_quantity !== undefined) el.textContent = withUnit(data.balance_quantity, unit);
+            el = document.getElementById('report-current-actual-qty');
+            if (el && data.actual_quantity !== undefined) el.textContent = withUnit(data.actual_quantity, unit);
+            el = document.getElementById('report-current-balance');
+            if (el && data.total_amount !== undefined) el.textContent = currencySymbol + formatNumber(data.total_amount);
+            el = document.getElementById('report-current-stock-value');
+            if (el && data.total_stock_value_remaining !== undefined) el.textContent = currencySymbol + formatNumber(data.total_stock_value_remaining);
+            el = document.getElementById('report-current-waste-value');
+            if (el && data.waste_value !== undefined) el.textContent = currencySymbol + formatNumber(data.waste_value);
+            el = document.getElementById('report-current-unit-price');
+            if (el) el.textContent = currencySymbol + ((data.unit_price_input && String(data.unit_price_input).trim() !== '') ? data.unit_price_input : formatNumber(data.unit_price));
+            el = document.getElementById('report-current-threshold');
+            if (el) {
+                var thr = (data.low_stock_threshold_input && String(data.low_stock_threshold_input).trim() !== '') ? data.low_stock_threshold_input : formatNumber(data.low_stock_threshold);
+                el.textContent = thr + (unit ? ' ' + unit : '');
+            }
+            el = document.getElementById('report-current-approval');
+            if (el && data.approval_status_display !== undefined) {
+                el.textContent = data.approval_status_display;
+                el.className = 'badge bg-' + (data.approval_status === 'approved' ? 'success' : data.approval_status === 'rejected' ? 'danger' : 'warning text-dark');
+            }
+            el = document.getElementById('report-current-stock');
+            if (el && data.stock_status_display !== undefined) {
+                el.textContent = data.stock_status_display;
+                el.className = 'badge bg-' + (data.stock_status === 'in_stock' ? 'success' : data.stock_status === 'low_stock' ? 'warning text-dark' : 'secondary');
+            }
+            if (data.receipt_count !== undefined) {
+                el = document.getElementById('report-count-receipts');
+                if (el) el.textContent = data.receipt_count + ' receipt' + (data.receipt_count === 1 ? '' : 's');
+            }
+            if (data.issue_count !== undefined) {
+                el = document.getElementById('report-count-issues');
+                if (el) el.textContent = data.issue_count + ' withdrawal' + (data.issue_count === 1 ? '' : 's');
+            }
+            if (data.waste_log_count !== undefined) {
+                el = document.getElementById('report-count-waste');
+                if (el) el.textContent = data.waste_log_count + ' waste log' + (data.waste_log_count === 1 ? '' : 's');
+            }
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone();
+        }).catch(function() {
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone(true);
+        }).finally(function() {
+            refreshInProgress = false;
+        });
+    }
+
+    var POLL_FAST_MS = 2000;
+    var POLL_SLOW_MS = 10000;
+    var pollTimer = null;
+    function scheduleNext(intervalMs) {
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(function run() {
+            refreshLedger();
+            pollTimer = setTimeout(run, document.hidden ? POLL_SLOW_MS : POLL_FAST_MS);
+        }, intervalMs);
+    }
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = setTimeout(function run() {
+                refreshLedger();
+                pollTimer = setTimeout(run, POLL_SLOW_MS);
+            }, POLL_SLOW_MS);
+        } else {
+            refreshLedger();
+            scheduleNext(POLL_FAST_MS);
+        }
+    });
+    scheduleNext(500);
+
+    var refreshBtn = document.getElementById('report-refresh-btn');
+    var refreshLabel = document.getElementById('report-refresh-label');
+    window._reportRefreshDone = function(isError) {
+        if (refreshLabel) refreshLabel.textContent = isError ? 'Try again' : 'Updated';
+        setTimeout(function() { if (refreshLabel) refreshLabel.textContent = 'Refresh'; }, 1500);
+    };
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (refreshInProgress) return;
+            if (refreshLabel) refreshLabel.textContent = 'Refreshing…';
+            refreshLedger();
+        });
+    }
+})();
+</script>
+{% endblock %}

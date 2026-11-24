@@ -1,0 +1,503 @@
+{% load static %}
+{% with current=hr_current_page|default:'dashboard' %}
+<nav class="hr-top-nav navbar navbar-expand navbar-light bg-white border-bottom shadow-sm rounded-top mb-0" aria-label="HR Portal navigation">
+    <div class="container-fluid hr-top-nav-inner px-2 px-sm-3 px-md-4 py-2 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2">
+        <a class="d-flex align-items-center text-decoration-none flex-shrink-0" href="{% if perms.hr_staff.view_hr_dashboard %}{% url 'hr_staff:dashboard' %}{% else %}{% url 'hr_staff:employee_portal_dashboard' %}{% endif %}">
+            <div class="hr-portal-logo d-flex align-items-center justify-content-center rounded-2 me-2">
+                <svg class="hr-nav-card-svg text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:1.25rem;height:1.25rem;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            </div>
+            <div class="min-w-0">
+                <span class="fw-bold text-dark d-block lh-1 hr-top-nav-brand">HR Portal</span>
+                <span class="small text-muted d-block lh-1 hr-top-nav-sub">Staff Management System</span>
+            </div>
+        </a>
+        <div class="d-flex align-items-center flex-nowrap overflow-x-auto hr-top-nav-links gap-1">
+            <a href="{% if perms.hr_staff.view_hr_dashboard %}{% url 'hr_staff:dashboard' %}{% else %}{% url 'hr_staff:employee_portal_dashboard' %}{% endif %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'dashboard' or current == 'portal_dashboard' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">{% if perms.hr_staff.view_hr_dashboard %}Dashboard{% else %}My dashboard{% endif %}</span>
+            </a>
+            {% if is_employee_portal %}
+            <a href="{% url 'hr_staff:employee_portal_dashboard' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'portal_dashboard' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">My Profile</span>
+            </a>
+            <a href="{% url 'hr_staff:leave_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'leave' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">My Leave</span>
+            </a>
+            {% else %}
+            <a href="{% url 'hr_staff:employee_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'employees' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">Employees</span>
+            </a>
+            <a href="{% url 'hr_staff:department_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'departments' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">Departments</span>
+            </a>
+            <a href="{% url 'hr_staff:leave_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'leave' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">Leave</span>
+            </a>
+            <a href="{% url 'hr_staff:attendance_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'attendance' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">Attendance</span>
+            </a>
+            <div class="dropdown">
+                <a class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 dropdown-toggle {% if current == 'performance' or current == 'performance_goals' %}hr-top-nav-link-active{% else %}text-body{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    <span class="fw-medium hr-top-nav-link-text">Performance</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:performance_review_list' %}">Reviews</a></li>
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:performance_goal_list' %}">Goals</a></li>
+                </ul>
+            </div>
+            <a href="{% url 'hr_staff:training_course_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'training' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">Training</span>
+            </a>
+            <a href="{% url 'hr_staff:document_list' %}" class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 {% if current == 'documents' %}hr-top-nav-link-active{% else %}text-body{% endif %}">
+                <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                <span class="fw-medium hr-top-nav-link-text">Documents</span>
+            </a>
+            <div class="dropdown">
+                <a class="hr-top-nav-link d-flex align-items-center px-2 px-sm-3 py-2 rounded-2 text-decoration-none flex-shrink-0 text-body dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <svg class="me-1 me-sm-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-2V9h-2V7h4v10z"/></svg>
+                    <span class="fw-medium hr-top-nav-link-text">More</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:job_seeker_list' %}">
+                        <svg class="me-2" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                        Employee Records
+                    </a></li>
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:leave_policy_list' %}">Leave Policies</a></li>
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:attendance_reports' %}">Attendance Reports</a></li>
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:hr_analytics' %}">HR Analytics</a></li>
+                    <li><a class="dropdown-item" href="{% url 'hr_staff:org_chart' %}">Org Chart</a></li>
+                </ul>
+            </div>
+            {% endif %}
+            <a class="btn btn-link text-body p-2 flex-shrink-0" href="#" role="button" data-bs-toggle="modal" data-bs-target="#hrNotificationsModal" aria-label="Notifications">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" class="hr-nav-icon-blue"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+            </a>
+            <a class="btn btn-link text-body p-2 flex-shrink-0" href="#" role="button" data-bs-toggle="modal" data-bs-target="#hrMessagesModal" aria-label="Messages">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" class="hr-nav-icon-blue"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </a>
+            <a class="btn btn-link text-body p-2 d-flex align-items-center flex-shrink-0" href="{% url 'accounts:profile' %}" aria-label="Profile"><i class="fas fa-user-circle fa-lg"></i></a>
+        </div>
+    </div>
+</nav>
+<!-- Notifications Modal: real-time from /api/hr-staff/notifications/ -->
+<div class="modal fade" id="hrNotificationsModal" tabindex="-1" aria-labelledby="hrNotificationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-3 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="hrNotificationsModalLabel">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24" class="hr-modal-icon-blue"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                    Notifications
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4" id="hrNotificationsModalBody">
+                <div class="text-center text-muted py-4 hr-notifications-placeholder">
+                    <p class="mb-0">Loading notifications…</p>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
+                <a href="{% if perms.hr_staff.view_hr_dashboard %}{% url 'hr_staff:dashboard' %}{% else %}{% url 'hr_staff:employee_portal_dashboard' %}{% endif %}" class="btn btn-primary rounded-2">View all</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Messages Modal: real-time from /messaging/api/conversations/ -->
+<div class="modal fade" id="hrMessagesModal" tabindex="-1" aria-labelledby="hrMessagesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-3 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="hrMessagesModalLabel">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24" class="hr-modal-icon-blue"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                    Messages
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4" id="hrMessagesModalBody">
+                <div class="text-center text-muted py-4 hr-messages-placeholder">
+                    <p class="mb-0">Loading conversations…</p>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Close</button>
+                <a href="{% url 'messaging:inbox' %}" class="btn btn-primary rounded-2">View all</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Ensure nav is above any overlay so links and dropdowns stay clickable */
+.hr-top-nav { position: relative; z-index: 1000; }
+.hr-top-nav .hr-portal-logo { width: 40px; height: 40px; background: #1976d2; border-radius: 0.375rem; }
+.hr-nav-icon-blue { color: #1976d2; }
+.hr-modal-icon-blue { color: #1976d2; flex-shrink: 0; }
+.hr-top-nav-link { transition: background-color .15s, color .15s; }
+.hr-top-nav-link:hover { background-color: rgba(0,0,0,.04); color: #344767 !important; }
+.hr-top-nav-link-active { background-color: rgba(25,118,210,.1) !important; color: #1976d2 !important; }
+.hr-top-nav-link-active:hover { color: #1565c0 !important; }
+.hr-notification-item, .hr-message-item { border-bottom: 1px solid #eee; padding: 0; position: relative; }
+.hr-notification-item:last-child, .hr-message-item:last-child { border-bottom: none; }
+.hr-notification-link, .hr-message-link { padding: 0.75rem 0; }
+.hr-notification-link:hover, .hr-message-link:hover { background-color: rgba(25, 118, 210, 0.06); }
+.hr-notification-time { display: block; margin-top: 0.25rem; }
+
+/* Nav links container */
+.hr-top-nav-links { 
+    -webkit-overflow-scrolling: touch; 
+    scrollbar-width: thin; 
+    min-width: 0; 
+    position: relative; 
+    z-index: 1; 
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+/* Dropdown styling - show outside nav */
+.hr-top-nav-links .dropdown {
+    position: relative;
+}
+
+.hr-top-nav-links .dropdown-menu {
+    position: fixed;
+    z-index: 9999;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem 0.75rem 0.5rem 0.75rem;
+    min-width: 200px;
+    margin-top: 0.5rem;
+    max-height: 172px;
+    overflow-y: scroll !important;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    list-style: none;
+    margin-left: 0;
+    padding-left: 0;
+}
+/* Always-visible scrollbar inside dropdown card */
+.hr-top-nav-links .dropdown-menu {
+    scrollbar-width: auto;
+    scrollbar-color: #475569 #e2e8f0;
+}
+.hr-top-nav-links .dropdown-menu::-webkit-scrollbar { width: 12px; }
+.hr-top-nav-links .dropdown-menu::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 0 6px 6px 0;
+    margin: 4px 0;
+}
+.hr-top-nav-links .dropdown-menu::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 6px;
+    min-height: 40px;
+}
+.hr-top-nav-links .dropdown-menu::-webkit-scrollbar-thumb:hover { background: #334155; }
+.hr-top-nav-links .dropdown-menu::-webkit-scrollbar-corner { background: #e2e8f0; }
+
+.hr-top-nav-links .dropdown-item {
+    border-radius: 8px;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4a5568;
+    margin: 0.125rem 0;
+    transition: all 0.15s ease;
+}
+
+.hr-top-nav-links .dropdown-item:hover,
+.hr-top-nav-links .dropdown-item:focus {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    color: #667eea;
+}
+
+.hr-top-nav-links .dropdown-item.active,
+.hr-top-nav-links .dropdown-item:active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+/* Remove 300ms tap delay on mobile so dropdowns open immediately */
+.hr-top-nav-links [data-bs-toggle="dropdown"] {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
+
+/* Dropdown arrow */
+.hr-top-nav-links .dropdown-toggle::after {
+    display: inline-block;
+    margin-left: 0.35rem;
+    vertical-align: 0.2rem;
+    content: "";
+    border-top: 0.35em solid;
+    border-right: 0.35em solid transparent;
+    border-left: 0.35em solid transparent;
+}
+
+.hr-top-nav-links .dropdown-toggle:not(.btn)::after {
+    border-top-color: #6b7280;
+}
+
+/* Mobile styles */
+@media (max-width: 575.98px) {
+    .hr-top-nav { flex-wrap: wrap; }
+    .hr-top-nav-inner { 
+        flex-direction: column; 
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .hr-top-nav-links { 
+        width: 100%; 
+        padding-bottom: 4px;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+    }
+    .hr-top-nav-brand { font-size: 0.95rem; }
+    .hr-top-nav-sub { font-size: 0.7rem; }
+    
+    /* Mobile dropdown - centered, touch-friendly with scrolling */
+    .hr-top-nav-links .dropdown-menu {
+        position: fixed !important;
+        top: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: auto !important;
+        width: calc(100% - 2rem) !important;
+        max-width: 280px !important;
+        max-height: 200px !important;
+        margin: 0.5rem 0 !important;
+        transform: translateX(-50%) !important;
+        z-index: 99999 !important;
+        overflow-y: scroll !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+        scrollbar-width: auto !important;
+    }
+    
+    /* Custom scrollbar for dropdown */
+    .hr-top-nav-links .dropdown-menu::-webkit-scrollbar {
+        width: 6px;
+    }
+    .hr-top-nav-links .dropdown-menu::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    .hr-top-nav-links .dropdown-menu::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 3px;
+    }
+    
+    /* Right align for "More" dropdown on mobile */
+    .hr-top-nav-links .dropdown-menu.dropdown-menu-end {
+        left: auto !important;
+        right: 1rem !important;
+        transform: none !important;
+    }
+    
+    /* Large touch-friendly items */
+    .hr-top-nav-links .dropdown-item {
+        padding: 0.875rem 1rem !important;
+        font-size: 1rem !important;
+        min-height: 48px !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    /* Larger dropdown toggle on mobile */
+    .hr-top-nav-links .dropdown-toggle {
+        padding: 0.5rem 0.75rem !important;
+        min-height: 44px !important;
+    }
+}
+</style>
+<script>
+(function() {
+    // Ensure HR nav horizontal scroll works on first load (no hard refresh needed)
+    function ensureNavScroll() {
+        var el = document.querySelector('.hr-top-nav-links');
+        if (el) {
+            el.style.overflowX = 'auto';
+            el.style.overflowY = 'visible';
+            el.style.webkitOverflowScrolling = 'touch';
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensureNavScroll);
+    } else {
+        ensureNavScroll();
+    }
+
+    // Keep scroll inside dropdown menu: stop wheel/touch from closing dropdown or scrolling page
+    document.addEventListener('wheel', function(e) {
+        var menu = e.target.closest('.hr-top-nav-links .dropdown-menu.show');
+        if (menu) { e.stopPropagation(); }
+    }, { passive: true, capture: true });
+    document.addEventListener('touchmove', function(e) {
+        var menu = e.target.closest('.hr-top-nav-links .dropdown-menu.show');
+        if (menu) { e.stopPropagation(); }
+    }, { passive: true, capture: true });
+
+    // Fix dropdowns to appear outside the nav container
+    function initDropdowns() {
+        var isMobile = window.innerWidth <= 575.98;
+        
+        var toggles = document.querySelectorAll('.hr-top-nav-links [data-bs-toggle="dropdown"]');
+        toggles.forEach(function(toggle) {
+            toggle.addEventListener('show.bs.dropdown', function() {
+                var menu = toggle.nextElementSibling;
+                if (!menu) return;
+                
+                // On mobile, let CSS handle positioning
+                if (isMobile) return;
+                
+                var navRect = document.querySelector('.hr-top-nav-links').getBoundingClientRect();
+                var toggleRect = toggle.getBoundingClientRect();
+                
+                // Position dropdown below the toggle
+                menu.style.position = 'fixed';
+                menu.style.top = (toggleRect.bottom + 4) + 'px';
+                
+                // Check if should be right-aligned
+                if (menu.classList.contains('dropdown-menu-end')) {
+                    menu.style.left = 'auto';
+                    menu.style.right = (navRect.right - toggleRect.right) + 'px';
+                } else {
+                    menu.style.left = (toggleRect.left) + 'px';
+                    menu.style.right = 'auto';
+                }
+            });
+            
+            // Handle resize
+            window.addEventListener('resize', function() {
+                isMobile = window.innerWidth <= 575.98;
+            });
+        });
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDropdowns);
+    } else {
+        initDropdowns();
+    }
+
+    var csrfToken = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    function getCookie(n) {
+        var v = document.cookie.match('(?:^|;)\\s*' + n.replace(/[\\.*+?^${}()|[\]\\\\]/g, '\\\\$&') + '\\s*=\\s*([^;]*)');
+        return v ? decodeURIComponent(v[1]) : '';
+    }
+    var csrf = csrfToken || getCookie('csrftoken');
+
+    function hrFetch(url, opts) {
+        opts = opts || {};
+        opts.credentials = 'same-origin';
+        opts.cache = 'no-store';
+        opts.headers = opts.headers || {};
+        opts.headers['X-Requested-With'] = 'XMLHttpRequest';
+        if (csrf && (opts.method || 'GET') !== 'GET') opts.headers['X-CSRFToken'] = csrf;
+        return fetch(url, opts);
+    }
+
+    function formatDateTime(isoStr) {
+        if (!isoStr) return '';
+        try {
+            var d = new Date(isoStr);
+            if (isNaN(d.getTime())) return isoStr;
+            var opts = { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+            return d.toLocaleDateString(undefined, opts);
+        } catch (e) { return isoStr; }
+    }
+
+    function renderNotifications(data) {
+        var body = document.getElementById('hrNotificationsModalBody');
+        if (!body) return;
+        var list = (data && data.notifications) ? data.notifications : [];
+        if (list.length === 0) {
+            body.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0">You have no new notifications.</p><p class="small mb-0 mt-1">When you do, they\'ll show up here.</p></div>';
+            return;
+        }
+        var html = '<ul class="list-unstyled mb-0">';
+        list.forEach(function(n) {
+            var dateTime = n.created_display || formatDateTime(n.timestamp);
+            var url = n.action_url;
+            var title = (n.title || 'Notification').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var msg = (n.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var inner = '<span class="fw-medium d-block">' + title + '</span><span class="small text-muted d-block">' + msg + '</span><span class="small text-muted hr-notification-time">' + dateTime + '</span>';
+            if (url) {
+                html += '<li class="hr-notification-item"><a href="' + url + '" class="hr-notification-link text-decoration-none text-dark d-block stretched-link">' + inner + '</a></li>';
+            } else {
+                html += '<li class="hr-notification-item"><div class="hr-notification-link">' + inner + '</div></li>';
+            }
+        });
+        html += '</ul>';
+        body.innerHTML = html;
+    }
+
+    function loadHrNotifications() {
+        hrFetch('/api/hr-staff/notifications/').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+            if (data) renderNotifications(data);
+            else renderNotifications({ notifications: [] });
+        }).catch(function() { renderNotifications({ notifications: [] }); });
+    }
+
+    function renderMessages(data) {
+        var body = document.getElementById('hrMessagesModalBody');
+        if (!body) return;
+        var list = (data && data.conversations) ? data.conversations : [];
+        if (list.length === 0) {
+            body.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0">You have no conversations.</p><p class="small mb-0 mt-1"><a href="{% url "messaging:inbox" %}">Start a conversation</a></p></div>';
+            return;
+        }
+        var html = '<ul class="list-unstyled mb-0">';
+        list.slice(0, 10).forEach(function(c) {
+            var url = '/messaging/conversation/' + c.id + '/';
+            var name = (c.name || 'Conversation').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var unread = c.unread_count ? ' <span class="badge bg-primary ms-1">' + c.unread_count + '</span>' : '';
+            var lastAt = formatDateTime(c.last_message_at);
+            html += '<li class="hr-message-item"><a class="hr-message-link text-decoration-none text-dark d-block stretched-link" href="' + url + '"><span class="fw-medium">' + name + '</span>' + unread + '<span class="small text-muted d-block mt-1">' + (lastAt ? 'Last activity: ' + lastAt : '') + '</span></a></li>';
+        });
+        html += '</ul>';
+        body.innerHTML = html;
+    }
+
+    function loadHrMessages() {
+        hrFetch('/messaging/api/conversations/').then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+            if (data) renderMessages(data);
+            else renderMessages({ conversations: [] });
+        }).catch(function() { renderMessages({ conversations: [] }); });
+    }
+
+    var notifInterval, msgInterval;
+    // Polling is only needed while a modal is open; use a conservative interval to avoid extra load.
+    var POLL_MS = 15000;
+    document.getElementById('hrNotificationsModal') && document.getElementById('hrNotificationsModal').addEventListener('shown.bs.modal', function() {
+        loadHrNotifications();
+        if (notifInterval) clearInterval(notifInterval);
+        notifInterval = setInterval(loadHrNotifications, POLL_MS);
+    });
+    document.getElementById('hrNotificationsModal') && document.getElementById('hrNotificationsModal').addEventListener('hidden.bs.modal', function() {
+        if (notifInterval) { clearInterval(notifInterval); notifInterval = null; }
+    });
+    document.getElementById('hrMessagesModal') && document.getElementById('hrMessagesModal').addEventListener('shown.bs.modal', function() {
+        loadHrMessages();
+        if (msgInterval) clearInterval(msgInterval);
+        msgInterval = setInterval(loadHrMessages, POLL_MS);
+    });
+    document.getElementById('hrMessagesModal') && document.getElementById('hrMessagesModal').addEventListener('hidden.bs.modal', function() {
+        if (msgInterval) { clearInterval(msgInterval); msgInterval = null; }
+    });
+    // Initial data is loaded on-demand when each modal is opened, to keep page load fast.
+})();
+</script>
+{% endwith %}

@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Journal Entry{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Create Journal Entry</h1>
+            <p class="text-muted">Create a new double-entry journal posting.</p>
+        </div>
+        <div>
+            <a href="{% url 'accounting:journal_page' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to Journal
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">Journal Entry Details</h5>
+        </div>
+        <div class="card-body">
+            <form id="journalForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" name="date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Description *</label>
+                        <input type="text" name="description" class="form-control" placeholder="Enter description" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Reference</label>
+                        <input type="text" name="reference" class="form-control" placeholder="e.g. JE-001">
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Journal Lines</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addJournalLine()">
+                <i class="fas fa-plus"></i> Add Line
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="journalLinesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40%;">Account</th>
+                            <th>Description</th>
+                            <th style="width: 15%;">Debit</th>
+                            <th style="width: 15%;">Credit</th>
+                            <th style="width: 5%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="journalLines">
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="2" class="text-end fw-bold">Totals:</td>
+                            <td class="text-end fw-bold" id="totalDebit">0.00</td>
+                            <td class="text-end fw-bold" id="totalCredit">0.00</td>
+                            <td></td>
+                        </tr>
+                        <tr id="balanceRow">
+                            <td colspan="3" class="text-end">Balance:</td>
+                            <td class="text-end" id="balanceStatus"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'accounting:journal_page' %}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="button" class="btn btn-primary" onclick="saveJournal()">
+                    <i class="fas fa-save"></i> Post Journal Entry
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let lineIndex = 0;
+const accounts = {{ accounts_json|safe }};
+
+function getCsrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function addJournalLine(accountId = '', description = '', debit = '', credit = '') {
+    const tbody = document.getElementById('journalLines');
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>
+            <select name="lines[${lineIndex}][account]" class="form-select" required onchange="updateTotals()">
+                <option value="">Select Account</option>
+                ${accounts.map(a => `<option value="${a.id}" ${accountId == a.id ? 'selected' : ''}>${a.code} - ${a.name}</option>`).join('')}
+            </select>
+        </td>
+        <td>
+            <input type="text" name="lines[${lineIndex}][description]" class="form-control" value="${description}" placeholder="Line description">
+        </td>
+        <td>
+            <input type="number" step="0.01" min="0" name="lines[${lineIndex}][debit]" class="form-control text-end" value="${debit || '0.00'}" oninput="updateTotals()">
+        </td>
+        <td>
+            <input type="number" step="0.01" min="0" name="lines[${lineIndex}][credit]" class="form-control text-end" value="${credit || '0.00'}" oninput="updateTotals()">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeLine(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(row);
+    lineIndex++;
+    updateTotals();
+}
+
+function removeLine(btn) {
+    btn.closest('tr').remove();
+    updateTotals();
+}
+
+function updateTotals() {
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    document.querySelectorAll('#journalLines tr').forEach(row => {
+        const debitInput = row.querySelector('input[name*="[debit]"]');
+        const creditInput = row.querySelector('input[name*="[credit]"]');
+        
+        if (debitInput && debitInput.value) {
+            totalDebit += parseFloat(debitInput.value) || 0;
+        }
+        if (creditInput && creditInput.value) {
+            totalCredit += parseFloat(creditInput.value) || 0;
+        }
+    });
+    
+    document.getElementById('totalDebit').textContent = totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    document.getElementById('totalCredit').textContent = totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    
+    const balanceStatus = document.getElementById('balanceStatus');
+    const diff = totalDebit - totalCredit;
+    if (Math.abs(diff) < 0.01) {
+        balanceStatus.innerHTML = '<span class="badge bg-success">Balanced</span>';
+    } else {
+        balanceStatus.innerHTML = `<span class="badge bg-danger">Off by ${Math.abs(diff).toFixed(2)}</span>`;
+    }
+}
+
+function saveJournal() {
+    const form = document.getElementById('journalForm');
+    const fd = new FormData(form);
+    const payload = {
+        date: fd.get('date'),
+        description: fd.get('description'),
+        reference: fd.get('reference'),
+        lines: [],
+    };
+
+    document.querySelectorAll('#journalLines tr').forEach((row, idx) => {
+        const accountSelect = row.querySelector('select[name*="[account]"]');
+        const descInput = row.querySelector('input[name*="[description]"]');
+        const debitInput = row.querySelector('input[name*="[debit]"]');
+        const creditInput = row.querySelector('input[name*="[credit]"]');
+        
+        if (accountSelect && accountSelect.value) {
+            payload.lines.push({
+                account: accountSelect.value,
+                description: descInput ? descInput.value : '',
+                debit: debitInput ? (parseFloat(debitInput.value) || 0) : 0,
+                credit: creditInput ? (parseFloat(creditInput.value) || 0) : 0,
+            });
+        }
+    });
+
+    if (payload.lines.length < 2) {
+        alert('At least two journal lines are required.');
+        return;
+    }
+
+    const totalDebit = payload.lines.reduce((sum, l) => sum + l.debit, 0);
+    const totalCredit = payload.lines.reduce((sum, l) => sum + l.credit, 0);
+    
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        alert('Journal entry must be balanced. Debits and credits must equal.');
+        return;
+    }
+
+    fetch('{% url "accounting_api:api_journal_create" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrf(),
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.detail) {
+            alert('Error: ' + data.detail);
+        } else {
+            window.location.href = '{% url "accounting:journal_page" %}';
+        }
+    })
+    .catch(err => {
+        console.error('Error posting journal:', err);
+        alert('Failed to save journal entry. Please try again.');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    addJournalLine();
+    addJournalLine();
+});
+</script>
+{% endblock %}

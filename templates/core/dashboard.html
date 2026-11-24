@@ -1,0 +1,2280 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Dashboard | {{ block.super }}{% endblock title %}
+
+{% block extra_css %}
+<!-- Chart.js for dashboard charts (local so it works when CDN is blocked or offline) -->
+<script src="{% static 'js/plugins/chartjs.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <!-- Welcome Header -->
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <div class="welcome-text">
+        <h1 class="welcome-title">
+          <span class="greeting" id="greeting">Good day</span>, 
+          <span class="user-name">{{ user_display_name|default:user.email|title }}</span>!
+        </h1>
+        <p class="welcome-subtitle">Welcome to your business dashboard</p>
+      </div>
+      <div class="welcome-actions">
+        {% if perms.invoices.add_invoice %}
+        <a href="{% url 'invoices:create' %}" class="btn btn-primary">
+          <i class="fas fa-plus"></i>
+          New Invoice
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- App Search (top of dashboard, RBAC-aware; no page reload for suggestions) -->
+    <div class="dashboard-search">
+      <label for="appSearchInput" class="dashboard-search-label">Quick app search</label>
+      <div class="dashboard-search-input-wrapper">
+        <span class="dashboard-search-icon">
+          <i class="fas fa-search"></i>
+        </span>
+        <input
+          type="text"
+          id="appSearchInput"
+          class="dashboard-search-input"
+          placeholder="Search apps (Invoices, Clients, HR, Inventory…) "
+          autocomplete="off"
+        >
+        <div class="dashboard-search-results" id="appSearchResults" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats Cards (only show stats user has permission to see) -->
+  <div class="stats-grid">
+    {% if perms.invoices.view_invoice %}
+    <div class="stat-card" data-full-value="{{ total_invoices|default:0|intcomma }}" data-label="Total Invoices" data-icon="fa-file-invoice" data-color="linear-gradient(135deg, #667eea, #764ba2)">
+      <div class="stat-icon">
+        <i class="fas fa-file-invoice"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.total_invoices">{{ total_invoices|default:0|intcomma }}</h3>
+        <p class="stat-label">Total Invoices</p>
+      </div>
+    </div>
+    
+    <div class="stat-card" title="Amount actually received this month (unpaid = 0, part payments = amount paid only)." data-full-value="{{ currency_symbol|default:'₦' }}{{ monthly_revenue|default:0|floatformat:2|intcomma }}" data-label="Monthly Revenue" data-icon="fa-chart-line" data-color="linear-gradient(135deg, #f093fb, #f5576c)">
+      <div class="stat-icon">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.monthly_revenue" data-realtime-format="currency">{{ currency_symbol|default:'₦' }}{{ monthly_revenue|default:0|floatformat:2|intcomma }}</h3>
+        <p class="stat-label">Monthly Revenue</p>
+      </div>
+    </div>
+    
+    <div class="stat-card" title="Amount customers still owe (balance due). Unpaid = full total; part-paid = remaining balance." data-full-value="{{ currency_symbol|default:'₦' }}{{ outstanding_invoices|default:0|floatformat:2|intcomma }}" data-label="Outstanding" data-icon="fa-clock" data-color="linear-gradient(135deg, #43e97b, #38f9d7)">
+      <div class="stat-icon">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.outstanding_invoices" data-realtime-format="currency">{{ currency_symbol|default:'₦' }}{{ outstanding_invoices|default:0|floatformat:2|intcomma }}</h3>
+        <p class="stat-label">Outstanding</p>
+      </div>
+    </div>
+    
+    <div class="stat-card" title="Revenue from invoices dated today (amount received only; unpaid invoices = 0)." data-full-value="{{ currency_symbol|default:'₦' }}{{ today_revenue|default:0|floatformat:2|intcomma }}" data-label="Today's Revenue" data-icon="fa-sun" data-color="linear-gradient(135deg, #fa709a, #fee140)">
+      <div class="stat-icon">
+        <i class="fas fa-sun"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.today_revenue" data-realtime-format="currency">{{ currency_symbol|default:'₦' }}{{ today_revenue|default:0|floatformat:2|intcomma }}</h3>
+        <p class="stat-label">Today's Revenue</p>
+      </div>
+    </div>
+    
+    <div class="stat-card" title="Overpayments: amount to refund to customers (amount_paid &gt; grand_total)." data-full-value="{{ currency_symbol|default:'₦' }}{{ refund_due|default:0|floatformat:2|intcomma }}" data-label="Refund due (to customer)" data-icon="fa-hand-holding-usd" data-color="linear-gradient(135deg, #a8edea, #fed6e3)">
+      <div class="stat-icon">
+        <i class="fas fa-hand-holding-usd"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.refund_due" data-realtime-format="currency">{{ currency_symbol|default:'₦' }}{{ refund_due|default:0|floatformat:2|intcomma }}</h3>
+        <p class="stat-label">Refund due (to customer)</p>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if perms.quotations.view_quotation %}
+    <div class="stat-card" data-full-value="{{ total_quotations|default:0|intcomma }}" data-label="Total Quotations" data-icon="fa-file-alt" data-color="linear-gradient(135deg, #667eea, #764ba2)">
+      <div class="stat-icon">
+        <i class="fas fa-file-alt"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.total_quotations">{{ total_quotations|default:0|intcomma }}</h3>
+        <p class="stat-label">Total Quotations</p>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if perms.waybills.view_waybill %}
+    <div class="stat-card" data-full-value="{{ total_waybills|default:0|intcomma }}" data-label="Total Waybills" data-icon="fa-truck-loading" data-color="linear-gradient(135deg, #11998e, #38ef7d)">
+      <div class="stat-icon">
+        <i class="fas fa-truck-loading"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.total_waybills">{{ total_waybills|default:0|intcomma }}</h3>
+        <p class="stat-label">Total Waybills</p>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if perms.clients.view_client %}
+    <div class="stat-card" data-full-value="{{ total_clients|default:0|intcomma }}" data-label="Total Clients" data-icon="fa-users" data-color="linear-gradient(135deg, #4facfe, #00f2fe)">
+      <div class="stat-icon">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number" data-realtime-key="core.total_clients">{{ total_clients|default:0|intcomma }}</h3>
+        <p class="stat-label">Total Clients</p>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if perms.documents.view_document and total_documents is not None %}
+    <div class="stat-card" data-full-value="{{ total_documents|default:0|intcomma }}" data-label="Documents (Tax)" data-icon="fa-file-invoice" data-color="linear-gradient(135deg, #11998e, #38ef7d)">
+      <div class="stat-icon">
+        <i class="fas fa-file-invoice"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number">{{ total_documents|default:0|intcomma }}</h3>
+        <p class="stat-label">Documents (Tax)</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Stat Detail Modal -->
+  <div class="stat-modal-overlay" id="statModal">
+    <div class="stat-modal">
+      <div class="stat-modal-icon" id="modalIcon">
+        <i class="fas fa-file-invoice" id="modalIconContent"></i>
+      </div>
+      <div class="stat-modal-number" id="modalNumber">₦0.00</div>
+      <div class="stat-modal-label" id="modalLabel">Label</div>
+      <button class="stat-modal-close" onclick="closeStatModal()">Close</button>
+    </div>
+  </div>
+
+  <!-- Charts Section (only show if user has permission to view invoice/revenue data) -->
+  {% if perms.invoices.view_invoice or perms.quotations.view_quotation or perms.waybills.view_waybill %}
+  <div class="charts-section">
+    {% if perms.invoices.view_invoice %}
+    <div class="chart-container">
+      <div class="chart-header">
+        <h3>Revenue Trend</h3>
+        <p>Monthly revenue over the last 6 months</p>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if perms.invoices.view_invoice or perms.quotations.view_quotation or perms.waybills.view_waybill %}
+    <div class="chart-container">
+      <div class="chart-header">
+        <h3>Business Overview</h3>
+        <p>Invoices, quotations, and waybills</p>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="overviewChart"></canvas>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if perms.invoices.view_invoice %}
+    <div class="chart-container">
+      <div class="chart-header">
+        <h3>Payment Status (Pie)</h3>
+        <p>Invoices by payment status: Unpaid, Partial, Paid</p>
+      </div>
+      <div class="chart-wrapper chart-wrapper--equal">
+        <canvas id="paymentStatusPieChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <div class="chart-header">
+        <h3>Revenue by Month (Bar)</h3>
+        <p>Monthly revenue over the last 6 months</p>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="revenueBarChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <div class="chart-header">
+        <h3>Invoice Amount Distribution (Histogram)</h3>
+        <p>Number of invoices by amount range (grand total)</p>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="histogramChart"></canvas>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Quick Actions -->
+  <div class="actions-section">
+    <div class="section-header">
+      <h2>Quick Actions</h2>
+      <p>Common tasks and shortcuts</p>
+    </div>
+    
+    <div class="actions-grid">
+      {% if perms.invoices.add_invoice %}
+      <a href="{% url 'invoices:create' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-plus-circle"></i>
+        </div>
+        <div class="action-content">
+          <h4>Create Invoice</h4>
+          <p>Generate a new invoice for your client</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if perms.invoices.view_invoice %}
+      <a href="{% url 'invoices:list' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-list"></i>
+        </div>
+        <div class="action-content">
+          <h4>View Invoices</h4>
+          <p>Manage and track all your invoices</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if perms.requisitions.view_requisition %}
+      <a href="{% url 'requisitions:list' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-clipboard-list"></i>
+        </div>
+        <div class="action-content">
+          <h4>View Requisitions</h4>
+          <p>Manage requisitions</p>
+        </div>
+      </a>
+      {% endif %}
+      {% if perms.requisitions.add_requisition %}
+      <a href="{% url 'requisitions:create' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-plus-circle"></i>
+        </div>
+        <div class="action-content">
+          <h4>Create Requisition</h4>
+          <p>Create a new requisition</p>
+        </div>
+      </a>
+      {% endif %}
+
+      {% if perms.staff_offences.view_staffoffenceregister %}
+      <a href="{% url 'staff_offences:list' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="action-content">
+          <h4>Staff Offences</h4>
+          <p>Monthly offence registers</p>
+        </div>
+      </a>
+      {% endif %}
+      {% if perms.staff_offences.add_staffoffenceregister %}
+      <a href="{% url 'staff_offences:create' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-plus-circle"></i>
+        </div>
+        <div class="action-content">
+          <h4>Create Offence</h4>
+          <p>Record staff offences on one page</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if perms.quotations.add_quotation %}
+      <a href="{% url 'quotations:quotation_create' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="action-content">
+          <h4>Create Quotation</h4>
+          <p>Send quotes to potential clients</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if perms.clients.add_client %}
+      <a href="{% url 'clients:client_create' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-user-plus"></i>
+        </div>
+        <div class="action-content">
+          <h4>Add Client</h4>
+          <p>Add a new client to your database</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if perms.documents.add_document %}
+      <a href="{% url 'documents:upload' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-file-upload"></i>
+        </div>
+        <div class="action-content">
+          <h4>Upload Document</h4>
+          <p>Upload a PDF or image for tax analysis</p>
+        </div>
+      </a>
+      {% endif %}
+      {% if perms.documents.view_document %}
+      <a href="{% url 'documents:list' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="action-content">
+          <h4>Documents (Tax)</h4>
+          <p>View and manage uploaded documents</p>
+        </div>
+      </a>
+      {% endif %}
+      {% if perms.documents.view_tax_report %}
+      <a href="{% url 'reports:tax_dashboard' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-calculator"></i>
+        </div>
+        <div class="action-content">
+          <h4>Tax Reports</h4>
+          <p>View tax dashboard and period reports</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if user_can_access_company_profile %}
+      <a href="{% url 'core:company_profile' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-building"></i>
+        </div>
+        <div class="action-content">
+          <h4>Company Profile</h4>
+          <p>Update your business information</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if user_can_access_company_profile %}
+      <a href="{% url 'core:bank_accounts' %}" class="action-card">
+        <div class="action-icon">
+          <i class="fas fa-university"></i>
+        </div>
+        <div class="action-content">
+          <h4>Bank Accounts</h4>
+          <p>Manage your bank account details</p>
+        </div>
+      </a>
+      {% endif %}
+      
+      {% if user_can_manage_users %}
+      <a href="{% url 'accounts:security_dashboard' %}" class="action-card">
+        <div class="action-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="action-content">
+          <h4>Security</h4>
+          <p>Monitor logins, devices & activity</p>
+        </div>
+      </a>
+      {% if perms.accounts.add_subuser %}
+      <a href="{% url 'accounts:subuser_create' %}" class="action-card">
+        <div class="action-icon" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+          <i class="fas fa-user-plus"></i>
+        </div>
+        <div class="action-content">
+          <h4>Add Team Member</h4>
+          <p>Invite team members to access this account</p>
+        </div>
+      </a>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="activity-section">
+    <div class="section-header">
+      <h2>Recent Activity</h2>
+      <p>Latest updates and activities</p>
+    </div>
+    
+    <div class="activity-list" id="activityList">
+      {% if recent_activities %}
+        {% for activity in recent_activities %}
+          <a href="{{ activity.url }}" class="activity-item activity-link">
+            <div class="activity-icon activity-{{ activity.type }}">
+              <i class="fas {{ activity.icon|default:'fa-info-circle' }}"></i>
+            </div>
+            <div class="activity-content">
+              <p class="activity-title">{{ activity.title }}</p>
+              <p class="activity-description">{{ activity.description }}</p>
+              {% if activity.amount %}
+                <span class="activity-amount">₦{{ activity.amount|floatformat:0 }}</span>
+              {% endif %}
+              <span class="activity-time">{{ activity.timestamp|timesince }} ago</span>
+            </div>
+            <div class="activity-arrow">
+              <i class="fas fa-chevron-right"></i>
+            </div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <div class="activity-item">
+          <div class="activity-icon">
+            <i class="fas fa-info-circle"></i>
+          </div>
+          <div class="activity-content">
+            <p>Welcome to your dashboard! Start by creating your first invoice.</p>
+            <span class="activity-time">Just now</span>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+  <!-- Request Full Access modal (for Company Profile Viewer users – footer "Contact the developer" opens this) -->
+  {% if show_contact_developer_in_footer %}
+  <div class="modal fade" id="requestFullAccessModal" tabindex="-1" aria-labelledby="requestFullAccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="requestFullAccessModalLabel">Contact the Developer</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">For more information, updates, or support, please contact the developer using one of the options below.</p>
+        </div>
+        <div class="modal-footer flex-wrap">
+          <a href="https://wa.me/2347014676188?text=Hello%2C%20I%20just%20registered%20on%20the%20Business%20App%20and%20would%20like%20my%20account%20activated%20for%20full%20access." target="_blank" rel="noopener noreferrer" class="btn btn-success me-2 mb-1">
+            <i class="fab fa-whatsapp me-2"></i>WhatsApp
+          </a>
+          <a href="https://wa.me/2348143180213?text=Hello%2C%20I%20just%20registered%20on%20the%20Business%20App%20and%20would%20like%20my%20account%20activated%20for%20full%20access." target="_blank" rel="noopener noreferrer" class="btn btn-success me-2 mb-1">
+            <i class="fab fa-whatsapp me-2"></i>WhatsApp (alt)
+          </a>
+          <a href="mailto:info.abgpaulas@gmail.com?subject=Account%20Activation%20Request&body=Hello%2C%20I%20just%20registered%20on%20the%20Business%20App%20and%20would%20like%20my%20account%20activated%20for%20full%20access." class="btn btn-outline-primary mb-1">
+            <i class="fas fa-envelope me-2"></i>Email
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+<!-- Dashboard Styles -->
+<style>
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Welcome Section */
+.welcome-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+}
+
+.welcome-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.dashboard-search {
+  margin-top: 20px;
+  max-width: 520px;
+  width: 100%;
+}
+
+.dashboard-search-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 3px rgba(15, 23, 42, 0.6);
+  margin-bottom: 6px;
+}
+
+.dashboard-search-input-wrapper {
+  position: relative;
+}
+
+.dashboard-search-input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 0.95rem;
+  outline: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+.dashboard-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dashboard-search-input:focus {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.dashboard-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+
+.dashboard-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
+  padding: 6px 0;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 30;
+  display: none;
+}
+
+.dashboard-search-results.is-visible {
+  display: block;
+}
+
+.dashboard-search-result-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dashboard-search-result-item:hover,
+.dashboard-search-result-item:focus-visible {
+  background: #f3f4ff;
+}
+
+.dashboard-search-result-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #ffffff;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.dashboard-search-result-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dashboard-search-result-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-search-result-desc {
+  font-size: 0.78rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-search-result-meta {
+  margin-left: auto;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+
+.dashboard-search-empty {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.welcome-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.greeting {
+  opacity: 0.9;
+}
+
+.user-name {
+  background: linear-gradient(45deg, #ffd700, #ffed4e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.welcome-actions .btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.welcome-actions .btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.stat-card:nth-child(1) .stat-icon {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.stat-card:nth-child(2) .stat-icon {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+}
+
+.stat-card:nth-child(3) .stat-icon {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+
+.stat-card:nth-child(4) .stat-icon {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+}
+
+.stat-content {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: #2d3748;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #718096;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Charts Section */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.chart-container {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.chart-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #2d3748;
+}
+
+.chart-header p {
+  font-size: 0.9rem;
+  color: #718096;
+  margin: 0 0 20px 0;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 300px;
+}
+
+/* Actions Section */
+.actions-section {
+  margin-bottom: 32px;
+}
+
+.section-header {
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #2d3748;
+}
+
+.section-header p {
+  font-size: 1rem;
+  color: #718096;
+  margin: 0;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.action-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  text-decoration: none;
+  color: inherit;
+}
+
+.action-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  flex-shrink: 0;
+}
+
+.action-content h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #2d3748;
+}
+
+.action-content p {
+  font-size: 0.9rem;
+  color: #718096;
+  margin: 0;
+}
+
+/* Activity Section */
+.activity-section {
+  margin-bottom: 32px;
+}
+
+.activity-list {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.3s ease;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-link {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  padding: 12px;
+  margin: -12px;
+  transition: all 0.3s ease;
+}
+
+.activity-link:hover {
+  background-color: #f8f9fa;
+  transform: translateX(4px);
+  text-decoration: none;
+  color: inherit;
+}
+
+.activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: white;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  flex-shrink: 0;
+}
+
+.activity-icon.activity-invoice {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+
+.activity-icon.activity-quotation {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+}
+
+.activity-icon.activity-client {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+}
+
+.activity-icon.activity-waybill {
+  background: linear-gradient(135deg, #fa709a, #fee140);
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  margin: 0 0 4px 0;
+  color: #2d3748;
+  line-height: 1.4;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.activity-description {
+  margin: 0 0 6px 0;
+  color: #718096;
+  line-height: 1.4;
+  font-size: 0.85rem;
+}
+
+.activity-amount {
+  display: inline-block;
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.activity-time {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  display: block;
+}
+
+.activity-arrow {
+  display: flex;
+  align-items: center;
+  color: #cbd5e0;
+  font-size: 20px;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.activity-link:hover .activity-arrow {
+  opacity: 1;
+  color: #667eea;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+  
+  .welcome-section {
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .dashboard-search {
+    max-width: 100%;
+  }
+  
+  .welcome-title {
+    font-size: 2rem;
+  }
+  
+  .welcome-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .stat-card {
+    padding: 20px;
+  }
+  
+  .charts-section {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .chart-wrapper {
+    height: 250px;
+  }
+  
+  .actions-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .action-card {
+    padding: 16px;
+  }
+  
+  .section-header h2 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Stat card click indicator for mobile */
+.stat-card {
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.stat-card:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.stat-card::after {
+  content: '';
+  display: none;
+}
+
+/* Medium screens - 2x2 grid */
+@media (min-width: 768px) and (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  
+  .stat-card {
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .stat-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 20px;
+  }
+  
+  .stat-number {
+    font-size: 1.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+}
+
+/* Small screens - 2x2 grid with truncation and tap to view */
+@media (max-width: 767px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 14px 10px;
+    gap: 8px;
+  }
+  
+  .stat-card::after {
+    content: 'Tap to view';
+    display: block;
+    font-size: 0.5rem;
+    color: #a0aec0;
+    margin-top: 4px;
+    opacity: 0.7;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  
+  .stat-number {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+  }
+  
+  .stat-label {
+    font-size: 0.65rem;
+  }
+  
+  .stat-content {
+    width: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 12px;
+  }
+  
+  .welcome-section {
+    padding: 16px;
+  }
+  
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  
+  .stats-grid {
+    gap: 8px;
+  }
+  
+  .stat-card {
+    padding: 12px 8px;
+    gap: 6px;
+  }
+  
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .stat-number {
+    font-size: 0.85rem;
+  }
+  
+  .stat-label {
+    font-size: 0.6rem;
+  }
+}
+
+/* Stat Detail Modal - Mobile Friendly */
+.stat-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.stat-modal-overlay.active {
+  display: flex;
+}
+
+.stat-modal {
+  background: white;
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 300px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  animation: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.stat-modal-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 32px;
+  color: white;
+}
+
+.stat-modal-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 8px;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.stat-modal-label {
+  font-size: 1rem;
+  color: #718096;
+  margin-bottom: 24px;
+  font-weight: 500;
+}
+
+.stat-modal-close {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 14px 40px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 48px;
+}
+
+.stat-modal-close:hover,
+.stat-modal-close:active {
+  transform: scale(0.98);
+  opacity: 0.95;
+}
+
+/* Mobile specific modal adjustments */
+@media (max-width: 480px) {
+  .stat-modal {
+    max-width: 280px;
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+  
+  .stat-modal-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+  
+  .stat-modal-number {
+    font-size: 1.5rem;
+  }
+  
+  .stat-modal-label {
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+  
+  .stat-modal-close {
+    padding: 12px 36px;
+    font-size: 0.95rem;
+  }
+}
+  
+  .action-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .action-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+  
+  .activity-link {
+    padding: 8px;
+    margin: -8px;
+  }
+  
+  .activity-arrow {
+    display: none;
+  }
+  
+  .activity-link:hover {
+    transform: none;
+  }
+}
+
+/* Loading States */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Smooth Animations */
+* {
+  transition: all 0.3s ease;
+}
+
+/* Focus States for Accessibility */
+.action-card:focus,
+.stat-card:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .stat-card,
+  .chart-container,
+  .action-card,
+  .activity-list {
+    background: #1a202c;
+    border-color: #2d3748;
+  }
+  
+  .stat-number,
+  .action-content h4,
+  .activity-content p {
+    color: #e2e8f0;
+  }
+  
+  .stat-label,
+  .action-content p,
+  .activity-time {
+    color: #a0aec0;
+  }
+}
+</style>
+
+<!-- Dashboard JavaScript -->
+<script>
+// Stat Modal Functions
+function openStatModal(fullValue, label, icon, color) {
+  const modal = document.getElementById('statModal');
+  const modalNumber = document.getElementById('modalNumber');
+  const modalLabel = document.getElementById('modalLabel');
+  const modalIcon = document.getElementById('modalIcon');
+  const modalIconContent = document.getElementById('modalIconContent');
+  
+  modalNumber.textContent = fullValue;
+  modalLabel.textContent = label;
+  modalIconContent.className = 'fas ' + icon;
+  modalIcon.style.background = color;
+  
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeStatModal() {
+  const modal = document.getElementById('statModal');
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Add click handlers to stat cards
+  const statCards = document.querySelectorAll('.stat-card');
+  statCards.forEach(card => {
+    card.addEventListener('click', function() {
+      const fullValue = this.dataset.fullValue;
+      const label = this.dataset.label;
+      const icon = this.dataset.icon;
+      const color = this.dataset.color;
+      openStatModal(fullValue, label, icon, color);
+    });
+  });
+  
+  // Close modal when clicking overlay
+  const modalOverlay = document.getElementById('statModal');
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeStatModal();
+      }
+    });
+  }
+  
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeStatModal();
+    }
+  });
+  
+  // Set dynamic greeting based on device's local time (updates so it stays correct if page is left open)
+  setDynamicGreeting();
+  // Update greeting every minute so it stays correct across morning/afternoon/evening
+  setInterval(setDynamicGreeting, 60000);
+
+  // Initialize app search (RBAC-aware, client-side suggestions)
+  initializeAppSearch();
+
+  // Initialize charts
+  initializeCharts();
+
+  // Real-time dashboard refresh: charts and stat cards (every 15s; first refresh after 3s)
+  if (typeof window.refreshDashboardData === 'function') {
+    setTimeout(window.refreshDashboardData, 3000);
+    setInterval(window.refreshDashboardData, 15000);
+  }
+
+  // Load recent activity
+  loadRecentActivity();
+});
+
+function setDynamicGreeting() {
+  // Use device's local time so the greeting matches the user's actual time of day
+  const now = new Date();
+  const hour = now.getHours();
+  const greetingElement = document.getElementById('greeting');
+
+  let greeting;
+  if (hour < 12) {
+    greeting = 'Good morning';
+  } else if (hour < 17) {
+    greeting = 'Good afternoon';
+  } else {
+    greeting = 'Good evening';
+  }
+
+  if (greetingElement) greetingElement.textContent = greeting;
+}
+
+window.dashboardCharts = window.dashboardCharts || {};
+var DASHBOARD_CURRENCY = "{{ currency_symbol|default:'₦'|escapejs }}";
+
+// Build RBAC-aware app search index using same rules as sidebar navigation
+window.dashboardAppSearchIndex = (function() {
+  var apps = [];
+
+  apps.push({
+    key: 'dashboard',
+    label: 'Dashboard',
+    url: "{% url 'core:dashboard' %}",
+    icon: 'fas fa-tachometer-alt',
+    description: 'Overview, stats and recent activity',
+    tags: ['home', 'main', 'overview', 'start']
+  });
+
+  {% if account_has_full_access and perms.invoices.view_invoice %}
+  apps.push({
+    key: 'invoices',
+    label: 'Invoices',
+    url: "{% url 'invoices:list' %}",
+    icon: 'fas fa-file-invoice',
+    description: 'Create and manage invoices',
+    tags: ['sales', 'billing', 'payments', 'invoice']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.invoices.view_invoicetemplate %}
+  apps.push({
+    key: 'invoice_templates',
+    label: 'Invoice Templates',
+    url: "{% url 'invoices:template_list' %}",
+    icon: 'fas fa-palette',
+    description: 'Manage invoice layouts & designs',
+    tags: ['template', 'design', 'branding']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.receipts.view_receipt %}
+  apps.push({
+    key: 'receipts',
+    label: 'Receipts',
+    url: "{% url 'receipts:list' %}",
+    icon: 'fas fa-receipt',
+    description: 'Issue and track receipts',
+    tags: ['payments', 'proof', 'receipt']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.requisitions.view_requisition %}
+  apps.push({
+    key: 'requisitions',
+    label: 'Requisitions',
+    url: "{% url 'requisitions:list' %}",
+    icon: 'fas fa-clipboard-list',
+    description: 'Manage requisitions',
+    tags: ['request', 'procurement', 'requisition']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.staff_offences.view_staffoffenceregister %}
+  apps.push({
+    key: 'staff_offences',
+    label: 'Staff Offences',
+    url: "{% url 'staff_offences:list' %}",
+    icon: 'fas fa-exclamation-triangle',
+    description: 'Monthly staff offence registers',
+    tags: ['hr', 'offence', 'staff', 'discipline']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.waybills.view_waybill %}
+  apps.push({
+    key: 'waybills',
+    label: 'Waybills',
+    url: "{% url 'waybills:list' %}",
+    icon: 'fas fa-truck',
+    description: 'Manage delivery waybills',
+    tags: ['logistics', 'delivery', 'shipping']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.job_orders.view_product or account_has_full_access and perms.job_orders.view_order %}
+  apps.push({
+    key: 'job_orders',
+    label: 'Job Orders',
+    url: "{% url 'job_orders:products' %}",
+    icon: 'fas fa-briefcase',
+    description: 'Job orders and work tracking',
+    tags: ['jobs', 'orders', 'projects', 'work']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.job_orders.view_jobordertemplate %}
+  apps.push({
+    key: 'job_order_layouts',
+    label: 'Job Order Layouts',
+    url: "{% url 'job_orders:layout_list' %}",
+    icon: 'fas fa-table',
+    description: 'Job order layouts & templates',
+    tags: ['layout', 'template', 'job order']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.quotations.view_quotation %}
+  apps.push({
+    key: 'quotations',
+    label: 'Quotations',
+    url: "{% url 'quotations:quotation_list' %}",
+    icon: 'fas fa-file-invoice-dollar',
+    description: 'Send and manage quotations',
+    tags: ['quote', 'pricing', 'sales']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.store.view_store %}
+  apps.push({
+    key: 'store',
+    label: 'Store',
+    url: "{% url 'store:list' %}",
+    icon: 'fas fa-store',
+    description: 'Manage store inventory and records',
+    tags: ['warehouse', 'stock', 'store', 'items']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.inventory.view_inventory %}
+  apps.push({
+    key: 'inventory',
+    label: 'Inventory',
+    url: "{% url 'inventory:list' %}",
+    icon: 'fas fa-boxes',
+    description: 'Track stock and inventory',
+    tags: ['stock', 'products', 'warehouse']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.expense.view_expense %}
+  apps.push({
+    key: 'expense',
+    label: 'Expense',
+    url: "{% url 'expense:list' %}",
+    icon: 'fas fa-money-bill-wave',
+    description: 'Record and monitor expenses',
+    tags: ['spend', 'costs', 'cash out']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.clients.view_client %}
+  apps.push({
+    key: 'clients',
+    label: 'Clients',
+    url: "{% url 'clients:client_list' %}",
+    icon: 'fas fa-users',
+    description: 'Manage client records',
+    tags: ['customers', 'contacts', 'crm']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.accounting.view_transaction %}
+  apps.push({
+    key: 'accounting',
+    label: 'Accounting',
+    url: "{% url 'accounting:dashboard' %}",
+    icon: 'fas fa-chart-bar',
+    description: 'Accounting dashboard & reports',
+    tags: ['finance', 'transactions', 'profit', 'loss']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.documents.view_document %}
+  apps.push({
+    key: 'documents',
+    label: 'Documents (Tax)',
+    url: "{% url 'documents:list' %}",
+    icon: 'fas fa-file-invoice',
+    description: 'Upload and manage documents for tax analysis',
+    tags: ['tax', 'upload', 'documents', 'ocr', 'invoice']
+  });
+  {% endif %}
+  {% if account_has_full_access and perms.documents.view_tax_report %}
+  apps.push({
+    key: 'tax_reports',
+    label: 'Tax Reports',
+    url: "{% url 'reports:tax_dashboard' %}",
+    icon: 'fas fa-calculator',
+    description: 'Tax dashboard and period reports',
+    tags: ['tax', 'vat', 'reports', 'revenue', 'expenses']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.payroll.view_payroll or perms.payroll.run_payroll or perms.payroll.approve_payroll %}
+  apps.push({
+    key: 'payroll',
+    label: 'Payroll',
+    url: "{% url 'payroll:dashboard' %}",
+    icon: 'fas fa-money-check-alt',
+    description: 'Manage payroll and employee compensation',
+    tags: ['salary', 'wages', 'payslip', 'compensation']
+  });
+  {% endif %}
+
+  {% if perms.videocalls.view_videocallroom %}
+  apps.push({
+    key: 'video_calls',
+    label: 'Video Calls',
+    url: "{% url 'videocalls:lobby' %}",
+    icon: 'fas fa-users',
+    description: 'Start and join video meetings',
+    tags: ['meetings', 'zoom', 'conference', 'video']
+  });
+  {% endif %}
+
+  {% if perms.videocalls.view_callrecording %}
+  apps.push({
+    key: 'my_recordings',
+    label: 'My Recordings',
+    url: "{% url 'videocalls:local_recordings' %}",
+    icon: 'fas fa-folder-open',
+    description: 'View your recorded meetings',
+    tags: ['recordings', 'videos', 'archives']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.smart_attendance.view_attendance_dashboard %}
+  apps.push({
+    key: 'attendance',
+    label: 'Attendance',
+    url: "{% url 'smart_attendance:dashboard' %}",
+    icon: 'fas fa-user-check',
+    description: 'Track and manage employee attendance',
+    tags: ['presence', 'check-in', 'time', 'clock']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.smart_attendance.view_biometricdevice %}
+  apps.push({
+    key: 'devices',
+    label: 'Devices',
+    url: "{% url 'smart_attendance:devices' %}",
+    icon: 'fas fa-fingerprint',
+    description: 'Manage biometric attendance devices',
+    tags: ['biometric', 'finger', 'scanner', 'hardware']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.messaging.view_conversation %}
+  apps.push({
+    key: 'messaging',
+    label: 'Messaging',
+    url: "{% url 'messaging:inbox' %}",
+    icon: 'fas fa-comments',
+    description: 'In-app messaging and conversations',
+    tags: ['chat', 'messages', 'communication']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.mailing.use_bulk_mailing %}
+  apps.push({
+    key: 'bulk_mailing',
+    label: 'Bulk Mailing',
+    url: "{% url 'mailing:bulk_send' %}",
+    icon: 'fas fa-paper-plane',
+    description: 'Send bulk emails and campaigns',
+    tags: ['email', 'campaign', 'newsletter']
+  });
+  {% endif %}
+
+  {% if perms.hr_staff.view_hr_dashboard or perms.hr_staff.view_own_hr_dashboard %}
+  apps.push({
+    key: 'hr_staff',
+    label: 'HR & Staff',
+    url: "{% if perms.hr_staff.view_hr_dashboard %}{% url 'hr_staff:dashboard' %}{% else %}{% url 'hr_staff:employee_portal_dashboard' %}{% endif %}",
+    icon: 'fas fa-user-tie',
+    description: 'HR dashboard and employee portal',
+    tags: ['hr', 'staff', 'employees', 'payroll']
+  });
+  {% endif %}
+
+  {% if request.user.is_authenticated %}
+  apps.push({
+    key: 'notifications',
+    label: 'Notifications',
+    url: "{% url 'notifications:list' %}",
+    icon: 'fas fa-bell',
+    description: 'View all notifications',
+    tags: ['alerts', 'updates', 'activity']
+  });
+  {% endif %}
+
+  apps.push({
+    key: 'profile',
+    label: 'My Profile',
+    url: "{% url 'accounts:profile' %}",
+    icon: 'fas fa-user',
+    description: 'View and update your profile',
+    tags: ['account', 'user', 'settings', 'profile']
+  });
+
+  {% if account_has_full_access and perms.accounts.view_useractivity %}
+  apps.push({
+    key: 'security',
+    label: 'Security',
+    url: "{% url 'accounts:security_dashboard' %}",
+    icon: 'fas fa-shield-alt',
+    description: 'Login, devices and security',
+    tags: ['security', 'login', 'devices', 'audit']
+  });
+  {% endif %}
+
+  {% if account_has_full_access and perms.accounts.view_subuser %}
+  apps.push({
+    key: 'team_members',
+    label: 'Team Members',
+    url: "{% url 'accounts:subuser_list' %}",
+    icon: 'fas fa-user-plus',
+    description: 'Manage team member access',
+    tags: ['team', 'users', 'staff', 'access']
+  });
+  {% endif %}
+
+  {% if user_can_access_company_profile %}
+  apps.push({
+    key: 'company_profile',
+    label: 'Company Profile',
+    url: "{% url 'core:company_profile' %}",
+    icon: 'fas fa-building',
+    description: 'Business information and branding',
+    tags: ['company', 'settings', 'branding', 'profile']
+  });
+
+  apps.push({
+    key: 'bank_accounts',
+    label: 'Bank Accounts',
+    url: "{% url 'core:bank_accounts' %}",
+    icon: 'fas fa-university',
+    description: 'Manage your bank account details',
+    tags: ['bank', 'accounts', 'payments', 'payouts']
+  });
+  {% endif %}
+
+  return apps;
+})();
+
+function initializeCharts() {
+  if (typeof Chart === 'undefined') {
+    console.warn('[Dashboard] Chart.js not loaded; charts skipped.');
+    return;
+  }
+  var currencySymbol = DASHBOARD_CURRENCY;
+  var revenueLabels = {{ revenue_trend_labels_json|default:'[]'|safe }};
+  var revenueData = {{ revenue_trend_data_json|default:'[]'|safe }};
+  var overviewLabels = {{ chart_overview_labels_json|default:'[]'|safe }};
+  var overviewData = {{ chart_overview_data_json|default:'[]'|safe }};
+  var paymentStatusPieLabels = {{ invoice_status_pie_labels_json|default:'[]'|safe }};
+  var paymentStatusPieData = {{ invoice_status_pie_data_json|default:'[]'|safe }};
+  var histogramLabels = {{ histogram_labels_json|default:'[]'|safe }};
+  var histogramData = {{ histogram_data_json|default:'[]'|safe }};
+
+  // Revenue Chart (real 6-month capped revenue; RBAC: only shown if user can view invoices)
+  const revenueCtx = document.getElementById('revenueChart');
+  if (revenueCtx && Array.isArray(revenueLabels) && Array.isArray(revenueData)) {
+    window.dashboardCharts.revenue = new Chart(revenueCtx, {
+      type: 'line',
+      data: {
+        labels: revenueLabels,
+        datasets: [{
+          label: 'Revenue',
+          data: revenueData,
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          tension: 0.4,
+          fill: true,
+          borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(0, 0, 0, 0.1)'
+            },
+            ticks: {
+              callback: function(value) {
+                return currencySymbol + value.toLocaleString();
+              }
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        },
+        elements: {
+          point: {
+            radius: 6,
+            hoverRadius: 8,
+            backgroundColor: '#667eea'
+          }
+        }
+      }
+    });
+  }
+
+  // Business Overview (real counts; RBAC: only segments for modules user can view)
+  const overviewCtx = document.getElementById('overviewChart');
+  if (overviewCtx && Array.isArray(overviewLabels) && Array.isArray(overviewData)) {
+    var overviewColors = ['#667eea', '#f093fb', '#4facfe'];
+    window.dashboardCharts.overview = new Chart(overviewCtx, {
+      type: 'doughnut',
+      data: {
+        labels: overviewLabels,
+        datasets: [{
+          data: overviewData,
+          backgroundColor: overviewLabels.map(function(_, i) { return overviewColors[i % overviewColors.length]; }),
+          borderWidth: 0,
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true
+            }
+          }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  // Payment Status Pie Chart (Unpaid, Partial, Paid)
+  const paymentPieCtx = document.getElementById('paymentStatusPieChart');
+  if (paymentPieCtx && Array.isArray(paymentStatusPieLabels) && Array.isArray(paymentStatusPieData)) {
+    window.dashboardCharts.paymentPie = new Chart(paymentPieCtx, {
+      type: 'pie',
+      data: {
+        labels: paymentStatusPieLabels,
+        datasets: [{
+          data: paymentStatusPieData,
+          backgroundColor: ['#f5576c', '#f093fb', '#43e97b'],
+          borderWidth: 0,
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 20, usePointStyle: true }
+          }
+        }
+      }
+    });
+  }
+
+  // Revenue Bar Chart (same 6-month data as line)
+  const revenueBarCtx = document.getElementById('revenueBarChart');
+  if (revenueBarCtx && Array.isArray(revenueLabels) && Array.isArray(revenueData)) {
+    window.dashboardCharts.revenueBar = new Chart(revenueBarCtx, {
+      type: 'bar',
+      data: {
+        labels: revenueLabels,
+        datasets: [{
+          label: 'Revenue',
+          data: revenueData,
+          backgroundColor: 'rgba(102, 126, 234, 0.7)',
+          borderColor: '#667eea',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0, 0, 0, 0.1)' },
+            ticks: {
+              callback: function(value) {
+                return currencySymbol + value.toLocaleString();
+              }
+            }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // Histogram: Invoice amount distribution
+  const histogramCtx = document.getElementById('histogramChart');
+  if (histogramCtx && Array.isArray(histogramLabels) && Array.isArray(histogramData)) {
+    window.dashboardCharts.histogram = new Chart(histogramCtx, {
+      type: 'bar',
+      data: {
+        labels: histogramLabels,
+        datasets: [{
+          label: 'Number of Invoices',
+          data: histogramData,
+          backgroundColor: 'rgba(79, 172, 254, 0.7)',
+          borderColor: '#4facfe',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0, 0, 0, 0.1)' }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+}
+
+function initializeAppSearch() {
+  var input = document.getElementById('appSearchInput');
+  var resultsEl = document.getElementById('appSearchResults');
+  var index = window.dashboardAppSearchIndex || [];
+
+  if (!input || !resultsEl || !Array.isArray(index) || !index.length) {
+    return;
+  }
+
+  var currentResults = [];
+
+  function hideResults() {
+    resultsEl.classList.remove('is-visible');
+    resultsEl.innerHTML = '';
+  }
+
+  function scoreApp(app, query) {
+    var q = query.toLowerCase();
+    if (!q) return 0;
+
+    var label = (app.label || '').toLowerCase();
+    var tags = Array.isArray(app.tags) ? app.tags.map(function(t) { return String(t).toLowerCase(); }) : [];
+
+    var score = 0;
+
+    // Strong weight: label starts with query
+    if (label.startsWith(q)) {
+      score += 100;
+    } else if (label.indexOf(q) !== -1) {
+      score += 60;
+    }
+
+    // Tag matches (synonyms)
+    tags.forEach(function(tag) {
+      if (tag.startsWith(q)) {
+        score += 40;
+      } else if (tag.indexOf(q) !== -1) {
+        score += 20;
+      }
+    });
+
+    return score;
+  }
+
+  function renderResults(results) {
+    if (!results.length) {
+      resultsEl.innerHTML = '<div class="dashboard-search-empty">No apps found. Try a different word.</div>';
+      resultsEl.classList.add('is-visible');
+      return;
+    }
+
+    var html = results.map(function(app) {
+      var category = (app.category || '').toString().trim();
+      return (
+        '<button type="button" class="dashboard-search-result-item" data-url="' + app.url + '">' +
+          '<span class="dashboard-search-result-icon"><i class="' + app.icon + '"></i></span>' +
+          '<span class="dashboard-search-result-main">' +
+            '<span class="dashboard-search-result-label">' + app.label + '</span>' +
+            (app.description ? '<span class="dashboard-search-result-desc">' + app.description + '</span>' : '') +
+          '</span>' +
+          (category ? '<span class="dashboard-search-result-meta">' + category + '</span>' : '') +
+        '</button>'
+      );
+    }).join('');
+
+    resultsEl.innerHTML = html;
+    resultsEl.classList.add('is-visible');
+
+    resultsEl.querySelectorAll('.dashboard-search-result-item').forEach(function(btn, idx) {
+      btn.addEventListener('click', function() {
+        var url = this.getAttribute('data-url');
+        if (url) {
+          window.location.href = url;
+        }
+      });
+    });
+  }
+
+  function runSearch() {
+    var query = input.value || '';
+    var trimmed = query.trim();
+
+    if (!trimmed) {
+      hideResults();
+      return;
+    }
+
+    var scored = index.map(function(app) {
+      return { app: app, score: scoreApp(app, trimmed) };
+    }).filter(function(item) {
+      return item.score > 0;
+    });
+
+    // If no positive scores but there is input, fall back to loose contains
+    if (!scored.length) {
+      var q = trimmed.toLowerCase();
+      scored = index.map(function(app) {
+        var label = (app.label || '').toLowerCase();
+        var tags = Array.isArray(app.tags) ? app.tags.map(function(t) { return String(t).toLowerCase(); }) : [];
+        var match = label.indexOf(q) !== -1 || tags.some(function(tag) { return tag.indexOf(q) !== -1; });
+        return { app: app, score: match ? 10 : 0 };
+      }).filter(function(item) { return item.score > 0; });
+    }
+
+    // Sort by score then label
+    scored.sort(function(a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      var la = (a.app.label || '').toLowerCase();
+      var lb = (b.app.label || '').toLowerCase();
+      return la < lb ? -1 : la > lb ? 1 : 0;
+    });
+
+    currentResults = scored.slice(0, 10).map(function(item) { return item.app; });
+    renderResults(currentResults);
+  }
+
+  input.addEventListener('input', function() {
+    runSearch();
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      if (currentResults.length) {
+        var url = currentResults[0].url;
+        if (url) {
+          e.preventDefault();
+          window.location.href = url;
+        }
+      }
+    } else if (e.key === 'Escape') {
+      hideResults();
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target === input || input.contains(e.target) || resultsEl.contains(e.target)) {
+      return;
+    }
+    hideResults();
+  });
+}
+
+function getDashboardCurrencySymbol() {
+  var meta = document.querySelector('meta[name="currency-symbol"]');
+  return (meta && meta.getAttribute('content')) || DASHBOARD_CURRENCY || '₦';
+}
+
+function formatDashboardCurrency(num) {
+  var n = Number(num);
+  if (isNaN(n)) n = 0;
+  return getDashboardCurrencySymbol() + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function applyCoreMetricsFromPayload(payload) {
+  var core = payload && payload.core;
+  if (!core || typeof core !== 'object') return;
+  document.querySelectorAll('[data-realtime-key]').forEach(function(el) {
+    var key = el.getAttribute('data-realtime-key');
+    var format = el.getAttribute('data-realtime-format') || '';
+    var val;
+    if (key === 'core.total_invoices') val = core.total_invoices;
+    else if (key === 'core.monthly_revenue') val = core.monthly_revenue;
+    else if (key === 'core.total_clients') val = core.total_clients;
+    else if (key === 'core.outstanding_invoices') val = core.outstanding_invoices;
+    else if (key === 'core.today_revenue') val = core.today_revenue;
+    else if (key === 'core.refund_due') val = core.refund_due;
+    else if (key === 'core.total_quotations') val = core.total_quotations;
+    else if (key === 'core.total_waybills') val = core.total_waybills;
+    else return;
+    if (val === undefined || val === null) return;
+    var text = format === 'currency' ? formatDashboardCurrency(val) : String(val);
+    el.textContent = text;
+    var card = el.closest('.stat-card');
+    if (card && format === 'currency' && card.dataset.fullValue !== undefined) card.dataset.fullValue = text;
+  });
+}
+
+function updateChartsFromApi(payload) {
+  if (typeof Chart === 'undefined' || !window.dashboardCharts) return;
+  var sym = getDashboardCurrencySymbol();
+  if (payload.revenue_trend_labels && payload.revenue_trend_data && window.dashboardCharts.revenue) {
+    window.dashboardCharts.revenue.data.labels = payload.revenue_trend_labels;
+    window.dashboardCharts.revenue.data.datasets[0].data = payload.revenue_trend_data;
+    window.dashboardCharts.revenue.update('none');
+  }
+  if (payload.chart_overview_labels && payload.chart_overview_data && window.dashboardCharts.overview) {
+    window.dashboardCharts.overview.data.labels = payload.chart_overview_labels;
+    window.dashboardCharts.overview.data.datasets[0].data = payload.chart_overview_data;
+    window.dashboardCharts.overview.update('none');
+  }
+  if (payload.invoice_status_pie_data && window.dashboardCharts.paymentPie) {
+    window.dashboardCharts.paymentPie.data.datasets[0].data = payload.invoice_status_pie_data;
+    window.dashboardCharts.paymentPie.update('none');
+  }
+  if (payload.revenue_trend_labels && payload.revenue_trend_data && window.dashboardCharts.revenueBar) {
+    window.dashboardCharts.revenueBar.data.labels = payload.revenue_trend_labels;
+    window.dashboardCharts.revenueBar.data.datasets[0].data = payload.revenue_trend_data;
+    window.dashboardCharts.revenueBar.update('none');
+  }
+  if (payload.histogram_labels && payload.histogram_data && window.dashboardCharts.histogram) {
+    window.dashboardCharts.histogram.data.labels = payload.histogram_labels;
+    window.dashboardCharts.histogram.data.datasets[0].data = payload.histogram_data;
+    window.dashboardCharts.histogram.update('none');
+  }
+}
+
+function refreshDashboardData() {
+  fetch('/dashboard/api/summaries/dashboard/full/', {
+    method: 'GET',
+    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+    credentials: 'same-origin'
+  }).then(function(res) {
+    if (!res.ok) return null;
+    return res.json();
+  }).then(function(data) {
+    if (!data || typeof data !== 'object') return;
+    applyCoreMetricsFromPayload(data);
+    updateChartsFromApi(data);
+  }).catch(function() {});
+}
+
+window.refreshDashboardData = refreshDashboardData;
+
+function loadRecentActivity() {
+  // Activities are now loaded server-side, but we can add real-time updates here if needed
+  console.log('Recent activities loaded from server');
+}
+
+// Add smooth scrolling for better UX
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  });
+});
+
+// Add loading states for buttons
+document.querySelectorAll('.btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    if (this.href && !this.href.includes('#')) {
+      this.classList.add('loading');
+      this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    }
+  });
+});
+</script>
+{% endblock content %}
+
+{% block footer_extra %}
+  {% if show_contact_developer_in_footer %}
+    <button type="button" class="btn btn-contact-developer" data-bs-toggle="modal" data-bs-target="#requestFullAccessModal" id="footerContactDeveloperBtn">
+      <i class="fas fa-headset" aria-hidden="true"></i> Contact the developer
+    </button>
+  {% endif %}
+{% endblock %}

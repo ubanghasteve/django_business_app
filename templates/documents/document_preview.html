@@ -1,0 +1,1034 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Preview - {{ document.title|default:document.original_filename }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.css">
+<style>
+    .preview-container {
+        background-color: #f5f5f5;
+        min-height: calc(100vh - 180px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .preview-header {
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 15px 20px;
+    }
+    
+    .preview-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .preview-iframe {
+        width: 100%;
+        height: calc(100vh - 250px);
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        background: white;
+    }
+    
+    .file-icon-large {
+        font-size: 5rem;
+        color: #6c757d;
+    }
+    
+    .preview-not-available {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        max-width: 500px;
+    }
+    
+    .file-type-badge {
+        font-size: 1.2rem;
+        padding: 8px 20px;
+        border-radius: 20px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .loading-spinner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #0d6efd;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .progress-bar-container {
+        width: 300px;
+        max-width: 100%;
+    }
+    
+    .excel-preview-container {
+        width: 100%;
+        height: calc(100vh - 250px);
+        overflow: auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+        scroll-behavior: smooth;
+    }
+    
+    .sheet-list {
+        display: flex;
+        gap: 5px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        flex-wrap: wrap;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        flex-shrink: 0;
+    }
+    
+    .sheet-btn {
+        padding: 5px 15px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    
+    .sheet-btn:hover {
+        background: #e9ecef;
+    }
+    
+    .sheet-btn.active {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    
+    #sheetContent {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+        scroll-behavior: smooth;
+    }
+    
+    #sheetContent table.table-preview {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    table.table-preview {
+        border-collapse: collapse;
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+        font-size: 0.85rem;
+        -webkit-touch-callout: default;
+    }
+    
+    table.table-preview colgroup {
+        display: table-column-group;
+    }
+    
+    table.table-preview col {
+        display: table-column;
+    }
+    
+    table.table-preview thead th {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        white-space: nowrap;
+        min-width: 150px;
+    }
+    
+    table.table-preview tbody td {
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+        vertical-align: top;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        white-space: normal;
+        min-width: 150px;
+        max-width: 500px;
+        line-height: 1.5;
+    }
+    
+    table.table-preview tr:nth-child(even) {
+        background: #fafafa;
+    }
+    
+    table.table-preview tr:hover td {
+        background: #f0f7ff;
+    }
+    
+    table.table-preview td.number-cell,
+    table.table-preview th.number-cell {
+        text-align: right;
+        white-space: nowrap;
+    }
+    
+    table.table-preview td.currency-cell,
+    table.table-preview th.currency-cell {
+        text-align: right;
+        white-space: nowrap;
+        font-family: 'Courier New', monospace;
+    }
+    
+    table.table-preview .null-cell,
+    table.table-preview .empty-cell {
+        color: #999;
+        font-style: italic;
+    }
+    
+    .excel-preview-container::-webkit-scrollbar,
+    #sheetContent::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .excel-preview-container::-webkit-scrollbar-track,
+    #sheetContent::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 5px;
+    }
+    
+    .excel-preview-container::-webkit-scrollbar-thumb,
+    #sheetContent::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 5px;
+        border: 2px solid #f1f1f1;
+    }
+    
+    .excel-preview-container::-webkit-scrollbar-thumb:hover,
+    #sheetContent::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+    
+    .excel-preview-container::-webkit-scrollbar-corner,
+    #sheetContent::-webkit-scrollbar-corner {
+        background: #f1f1f1;
+    }
+    
+    .excel-preview-container,
+    #sheetContent {
+        scrollbar-width: thin;
+        scrollbar-color: #c1c1c1 #f1f1f1;
+    }
+    
+    .scroll-hint-left,
+    .scroll-hint-right,
+    .scroll-hint-top,
+    .scroll-hint-bottom {
+        position: absolute;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .pdf-preview-container canvas {
+        background: white;
+    }
+    
+    .pdf-preview-container {
+        background: #525659;
+        padding: 20px;
+    }
+    
+    .word-preview-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .word-preview-container #wordContent h1 { font-size: 2em; margin: 0.67em 0; }
+    .word-preview-container #wordContent h2 { font-size: 1.5em; margin: 0.83em 0; }
+    .word-preview-container #wordContent h3 { font-size: 1.17em; margin: 1em 0; }
+    .word-preview-container #wordContent p { margin: 1em 0; }
+    .word-preview-container #wordContent ul, .word-preview-container #wordContent ol { margin: 1em 0; padding-left: 40px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="preview-container">
+    <!-- Header -->
+    <div class="preview-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <div>
+                    {% if document.file_type == 'pdf' %}
+                        <i class="fas fa-file-pdf text-danger fs-3"></i>
+                    {% elif document.file_type == 'excel' %}
+                        <i class="fas fa-file-excel text-success fs-3"></i>
+                    {% elif document.file_type == 'word' %}
+                        <i class="fas fa-file-word text-primary fs-3"></i>
+                    {% elif document.file_type == 'image' %}
+                        <i class="fas fa-file-image text-info fs-3"></i>
+                    {% elif document.file_type == 'csv' %}
+                        <i class="fas fa-file-csv text-secondary fs-3"></i>
+                    {% else %}
+                        <i class="fas fa-file-alt text-secondary fs-3"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1 small">
+                            <li class="breadcrumb-item"><a href="{% url 'documents:list' %}">Documents</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'documents:detail' document.pk %}">{{ document.title|truncatechars:30|default:document.original_filename|truncatechars:30 }}</a></li>
+                            <li class="breadcrumb-item active">Preview</li>
+                        </ol>
+                    </nav>
+                    <h4 class="mb-0 fw-bold text-dark">{{ document.title|default:document.original_filename }}</h4>
+                    <small class="text-muted">
+                        {{ document.original_filename }} • {{ document.file_size_display }}
+                    </small>
+                </div>
+            </div>
+            <div class="btn-group">
+                {% if document.can_preview %}
+                <button class="btn btn-outline-primary" onclick="window.location.reload()">
+                    <i class="fas fa-redo me-2"></i>Refresh
+                </button>
+                {% endif %}
+                <a href="{% url 'documents:download' document.pk %}" class="btn btn-primary">
+                    <i class="fas fa-download me-2"></i>Download
+                </a>
+                <a href="{% url 'documents:detail' document.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Content -->
+    <div class="preview-content">
+        {% if preview_type == 'native' %}
+            <iframe 
+                src="{{ file_url }}" 
+                class="preview-iframe"
+                title="File Preview">
+            </iframe>
+            
+        {% elif preview_type == 'google_docs' %}
+            <div class="text-center w-100">
+                <div class="mb-3">
+                    <span class="badge bg-primary file-type-badge">
+                        <i class="fas fa-file-{{ document.file_type }} me-2"></i>
+                        {{ document.get_document_type_display|upper }}
+                    </span>
+                </div>
+                <iframe 
+                    src="{{ preview_url }}" 
+                    class="preview-iframe"
+                    title="File Preview via Office Online">
+                </iframe>
+            </div>
+            
+        {% elif preview_type == 'embed' %}
+            <div class="text-center w-100">
+                <iframe 
+                    src="{{ embed_url }}" 
+                    class="preview-iframe"
+                    title="Embedded File Preview">
+                </iframe>
+            </div>
+            
+        {% elif preview_type == 'iframe_data' %}
+            <iframe 
+                src="{{ file_url }}" 
+                class="preview-iframe"
+                title="PDF Preview">
+            </iframe>
+            
+        {% elif preview_type == 'image_data' %}
+            <div class="text-center w-100 p-4">
+                <img src="data:{{ document.mime_type }};base64,{{ file_data }}" 
+                     alt="{{ document.title }}" 
+                     class="img-fluid rounded"
+                     style="max-height: calc(100vh - 250px);">
+            </div>
+            
+        {% elif preview_type == 'client_side' %}
+            <div class="text-center w-100">
+                {% if document.file_type == 'excel' or document.file_type == 'csv' %}
+                <div class="excel-preview-container" id="excelPreview">
+                    <div class="sheet-list" id="sheetTabs"></div>
+                    <div id="sheetContent" style="padding: 15px; overflow: auto;"></div>
+                </div>
+                {% elif document.file_type == 'word' %}
+                <div id="wordPreviewContainer" class="word-preview-container" style="padding: 20px; max-height: calc(100vh - 250px); overflow: auto; background: white;">
+                    <div id="wordLoadingIndicator" class="text-center py-5">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Loading Word document preview...</p>
+                    </div>
+                    <div id="wordContent" style="display: none;"></div>
+                    <div id="wordError" style="display: none;" class="alert alert-warning"></div>
+                </div>
+                {% elif document.file_type == 'pdf' %}
+                <div id="pdfLoadingIndicator" class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p>Loading PDF preview...</p>
+                </div>
+                {% endif %}
+            </div>
+            
+        {% else %}
+            <div class="preview-not-available">
+                <div class="mb-4">
+                    {% if document.file_type == 'pdf' %}
+                        <i class="fas fa-file-pdf text-danger file-icon-large"></i>
+                    {% elif document.file_type == 'excel' %}
+                        <i class="fas fa-file-excel text-success file-icon-large"></i>
+                    {% elif document.file_type == 'word' %}
+                        <i class="fas fa-file-word text-primary file-icon-large"></i>
+                    {% elif document.file_type == 'image' %}
+                        <i class="fas fa-file-image text-info file-icon-large"></i>
+                    {% elif document.file_type == 'csv' %}
+                        <i class="fas fa-file-csv text-secondary file-icon-large"></i>
+                    {% else %}
+                        <i class="fas fa-file-alt text-secondary file-icon-large"></i>
+                    {% endif %}
+                </div>
+                
+                <h4 class="mb-3 text-dark">Preview Not Available</h4>
+                
+                <p class="text-muted mb-4">
+                    This file type <strong>({{ document.get_document_type_display|default:document.file_type|upper }})</strong> cannot be previewed directly in your browser.
+                </p>
+                
+                <p class="small text-muted mb-4">
+                    <strong>Alternative options:</strong>
+                </p>
+                
+                <div class="action-buttons">
+                    <a href="{% url 'documents:download' document.pk %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-download me-2"></i>Download File
+                    </a>
+                    
+                    {% if document.file_type == 'excel' %}
+                    <a href="https://products.aspose.app/cells/viewer" target="_blank" class="btn btn-outline-success btn-lg">
+                        <i class="fas fa-external-link-alt me-2"></i>View Online (Excel)
+                    </a>
+                    {% elif document.file_type == 'word' %}
+                    <a href="https://products.aspose.app/words/viewer" target="_blank" class="btn btn-outline-success btn-lg">
+                        <i class="fas fa-external-link-alt me-2"></i>View Online (Word)
+                    </a>
+                    {% endif %}
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="text-start">
+                    <h6 class="text-dark mb-2">File Information:</h6>
+                    <ul class="list-unstyled text-muted small">
+                        <li><strong>Filename:</strong> {{ document.original_filename }}</li>
+                        <li><strong>File Type:</strong> {{ document.get_document_type_display|default:document.file_type|upper }}</li>
+                        <li><strong>Size:</strong> {{ document.file_size_display }}</li>
+                        <li><strong>MIME Type:</strong> {{ document.mime_type }}</li>
+                    </ul>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    {% if preview_type == 'google_docs' %}
+    <div class="alert alert-info mx-3 mb-3">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle me-3 fs-4"></i>
+            <div>
+                <strong>Using Office Online Viewer</strong>
+                <p class="mb-0 small">
+                    This file is being viewed using Microsoft's secure document viewer. 
+                    If the preview doesn't load, please check that your file is accessible from the internet 
+                    or download the file to view it locally.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Show loading indicator while iframe loads
+    const iframe = document.querySelector('.preview-iframe');
+    if (iframe) {
+        iframe.onload = function() {
+            const loading = document.querySelector('.loading-overlay');
+            if (loading) loading.style.display = 'none';
+        };
+        
+        iframe.onerror = function() {
+            console.log('Iframe failed to load');
+        };
+    }
+    
+    {% if preview_type == 'google_docs' %}
+    setTimeout(function() {
+        const iframe = document.querySelector('.preview-iframe');
+        if (iframe && iframe.contentWindow && iframe.contentWindow.document.body.innerHTML === '') {
+            console.log('Office Viewer may not have loaded properly');
+        }
+    }, 5000);
+    {% endif %}
+    
+    {% if preview_type == 'client_side' and document.file_type == 'excel' %}
+    function initExcelPreview() {
+        if (typeof XLSX === 'undefined') {
+            setTimeout(initExcelPreview, 100);
+            return;
+        }
+        
+        {% if file_data %}
+        try {
+            const binaryString = atob('{{ file_data }}');
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const workbook = XLSX.read(bytes, {type: 'array'});
+            
+            const sheetTabs = document.getElementById('sheetTabs');
+            const sheetContent = document.getElementById('sheetContent');
+            
+            function renderSheet(sheetName) {
+                const sheet = workbook.Sheets[sheetName];
+                if (!sheet) return;
+                
+                const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+                
+                let html = '<table class="table-preview"><colgroup>';
+                
+                for (let i = 0; i <= range.e.c; i++) {
+                    html += '<col style="min-width: 120px; width: 150px;">';
+                }
+                html += '</colgroup><thead><tr>';
+                
+                for (let i = 0; i <= range.e.c; i++) {
+                    const cell = sheet[XLSX.utils.encode_cell({r: 0, c: i})];
+                    const headerText = cell ? (cell.w || cell.v || '') : '';
+                    html += `<th>${escapeHtml(String(headerText))}</th>`;
+                }
+                html += '</tr></thead><tbody>';
+                
+                for (let r = 1; r <= range.e.r; r++) {
+                    html += '<tr>';
+                    for (let c = 0; c <= range.e.c; c++) {
+                        const cellRef = XLSX.utils.encode_cell({r: r, c: c});
+                        const cell = sheet[cellRef];
+                        const value = cell ? (cell.w || cell.v || '') : '';
+                        const cellType = cell ? cell.t : 's';
+                        
+                        let cellClass = '';
+                        if (value === '' || value === null || value === undefined) {
+                            cellClass = 'null-cell';
+                        } else if (cellType === 'n' && !isNaN(value)) {
+                            cellClass = 'number-cell';
+                            if (value.toString().includes('.') || value > 1000) {
+                                cellClass = 'currency-cell';
+                            }
+                        }
+                        
+                        html += `<td class="${cellClass}">${escapeHtml(String(value))}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+                
+                sheetContent.innerHTML = html;
+            }
+            
+            workbook.SheetNames.forEach(function(name, index) {
+                const btn = document.createElement('button');
+                btn.className = 'sheet-btn' + (index === 0 ? ' active' : '');
+                btn.textContent = name;
+                btn.onclick = function() {
+                    document.querySelectorAll('.sheet-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    renderSheet(name);
+                };
+                sheetTabs.appendChild(btn);
+            });
+            
+            if (workbook.SheetNames.length > 0) {
+                renderSheet(workbook.SheetNames[0]);
+            }
+        } catch (e) {
+            document.getElementById('sheetContent').innerHTML = 
+                '<div class="alert alert-danger m-3">Error reading Excel file: ' + e.message + '</div>';
+        }
+        {% else %}
+        fetch('{% url "documents:file_data" document.pk %}')
+            .then(r => r.arrayBuffer())
+            .then(data => {
+                try {
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    const sheetTabs = document.getElementById('sheetTabs');
+                    const sheetContent = document.getElementById('sheetContent');
+                    
+                    function renderSheet(sheetName) {
+                        const sheet = workbook.Sheets[sheetName];
+                        if (!sheet) return;
+                        
+                        const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+                        
+                        let html = '<table class="table-preview"><colgroup>';
+                        
+                        for (let i = 0; i <= range.e.c; i++) {
+                            html += '<col style="min-width: 120px; width: 150px;">';
+                        }
+                        html += '</colgroup><thead><tr>';
+                        
+                        for (let i = 0; i <= range.e.c; i++) {
+                            const cell = sheet[XLSX.utils.encode_cell({r: 0, c: i})];
+                            const headerText = cell ? (cell.w || cell.v || '') : '';
+                            html += `<th>${escapeHtml(String(headerText))}</th>`;
+                        }
+                        html += '</tr></thead><tbody>';
+                        
+                        for (let r = 1; r <= range.e.r; r++) {
+                            html += '<tr>';
+                            for (let c = 0; c <= range.e.c; c++) {
+                                const cellRef = XLSX.utils.encode_cell({r: r, c: c});
+                                const cell = sheet[cellRef];
+                                const value = cell ? (cell.w || cell.v || '') : '';
+                                const cellType = cell ? cell.t : 's';
+                                
+                                let cellClass = '';
+                                if (value === '' || value === null || value === undefined) {
+                                    cellClass = 'null-cell';
+                                } else if (cellType === 'n' && !isNaN(value)) {
+                                    cellClass = 'number-cell';
+                                    if (value.toString().includes('.') || value > 1000) {
+                                        cellClass = 'currency-cell';
+                                    }
+                                }
+                                
+                                html += `<td class="${cellClass}">${escapeHtml(String(value))}</td>`;
+                            }
+                            html += '</tr>';
+                        }
+                        html += '</tbody></table>';
+                        
+                        sheetContent.innerHTML = html;
+                    }
+                    
+                    workbook.SheetNames.forEach(function(name, index) {
+                        const btn = document.createElement('button');
+                        btn.className = 'sheet-btn' + (index === 0 ? ' active' : '');
+                        btn.textContent = name;
+                        btn.onclick = function() {
+                            document.querySelectorAll('.sheet-btn').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            renderSheet(name);
+                        };
+                        sheetTabs.appendChild(btn);
+                    });
+                    
+                    if (workbook.SheetNames.length > 0) {
+                        renderSheet(workbook.SheetNames[0]);
+                    }
+                } catch (e) {
+                    document.getElementById('sheetContent').innerHTML = 
+                        '<div class="alert alert-danger m-3">Error reading Excel file: ' + e.message + '</div>';
+                }
+            })
+            .catch(err => {
+                document.getElementById('sheetContent').innerHTML = 
+                    '<div class="alert alert-warning m-3">Unable to load preview. Please download the file to view.</div>';
+            });
+        {% endif %}
+    }
+    
+    initExcelPreview();
+    {% endif %}
+    
+    {% if preview_type == 'client_side' and document.file_type == 'csv' %}
+    function initCsvPreview() {
+        if (typeof XLSX === 'undefined') {
+            setTimeout(initCsvPreview, 100);
+            return;
+        }
+        
+        {% if file_data %}
+        try {
+            const binaryString = atob('{{ file_data }}');
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const workbook = XLSX.read(bytes, {type: 'array'});
+            
+            const sheetTabs = document.getElementById('sheetTabs');
+            const sheetContent = document.getElementById('sheetContent');
+            
+            function renderSheet(sheetName) {
+                const sheet = workbook.Sheets[sheetName];
+                if (!sheet) return;
+                
+                const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+                
+                let html = '<table class="table-preview"><colgroup>';
+                
+                for (let i = 0; i <= range.e.c; i++) {
+                    html += '<col style="min-width: 120px; width: 150px;">';
+                }
+                html += '</colgroup><thead><tr>';
+                
+                for (let i = 0; i <= range.e.c; i++) {
+                    const cell = sheet[XLSX.utils.encode_cell({r: 0, c: i})];
+                    const headerText = cell ? (cell.w || cell.v || '') : '';
+                    html += `<th>${escapeHtml(String(headerText))}</th>`;
+                }
+                html += '</tr></thead><tbody>';
+                
+                for (let r = 1; r <= range.e.r; r++) {
+                    html += '<tr>';
+                    for (let c = 0; c <= range.e.c; c++) {
+                        const cell = sheet[XLSX.utils.encode_cell({r: r, c: c})];
+                        let cellText = cell ? (cell.w || cell.v || '') : '';
+                        let cellClass = '';
+                        
+                        if (cell) {
+                            if (cell.t === 'n' && cell.v !== null) cellClass = 'number-cell';
+                            else if (cell.t === 'b') cellClass = 'boolean-cell';
+                            else if (cell.t === 'd') cellClass = 'date-cell';
+                        }
+                        
+                        html += `<td class="${cellClass}">${escapeHtml(String(cellText))}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+                sheetContent.innerHTML = html;
+            }
+            
+            workbook.SheetNames.forEach(function(name, index) {
+                const btn = document.createElement('button');
+                btn.className = 'sheet-btn' + (index === 0 ? ' active' : '');
+                btn.textContent = name;
+                btn.onclick = function() {
+                    document.querySelectorAll('.sheet-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    renderSheet(name);
+                };
+                sheetTabs.appendChild(btn);
+            });
+            
+            if (workbook.SheetNames.length > 0) {
+                renderSheet(workbook.SheetNames[0]);
+            }
+        } catch (e) {
+            document.getElementById('sheetContent').innerHTML = 
+                '<div class="alert alert-danger m-3">Error reading CSV file: ' + e.message + '</div>';
+        }
+        {% endif %}
+    }
+    
+    initCsvPreview();
+    {% endif %}
+    
+    {% if preview_type == 'client_side' and document.file_type == 'pdf' %}
+    function initPdfPreview() {
+        if (typeof pdfjsLib === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            script.onload = function() {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                renderPdf();
+            };
+            document.head.appendChild(script);
+        } else {
+            renderPdf();
+        }
+        
+        function renderPdf() {
+            {% if file_data %}
+            try {
+                const binaryString = atob('{{ file_data }}');
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdf) {
+                    const previewContainer = document.createElement('div');
+                    previewContainer.className = 'pdf-preview-container';
+                    previewContainer.style.cssText = 'width: 100%; height: calc(100vh - 250px); overflow: auto;';
+                    
+                    const sheetTabs = document.createElement('div');
+                    sheetTabs.className = 'sheet-list';
+                    
+                    function renderPage(pageNum) {
+                        pdf.getPage(pageNum).then(function(page) {
+                            const scale = 1.5;
+                            const viewport = page.getViewport({ scale: scale });
+                            
+                            const canvas = document.createElement('canvas');
+                            canvas.id = 'pdf-page-' + pageNum;
+                            canvas.style.display = 'block';
+                            canvas.style.margin = '10px auto';
+                            canvas.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)';
+                            
+                            const context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+                            
+                            const renderContext = {
+                                canvasContext: context,
+                                viewport: viewport
+                            };
+                            
+                            page.render(renderContext).promise.then(function() {
+                                previewContainer.appendChild(canvas);
+                                
+                                const nav = document.createElement('div');
+                                nav.style.cssText = 'text-align: center; padding: 10px; position: sticky; bottom: 0; background: white; border-top: 1px solid #ddd;';
+                                nav.innerHTML = '<button onclick="goToPage(' + (pageNum - 1) + ')" ' + (pageNum <= 1 ? 'disabled' : '') + ' class="btn btn-sm btn-outline-primary me-2"><i class="fas fa-chevron-left"></i> Previous</button><span>Page ' + pageNum + ' of ' + pdf.numPages + '</span><button onclick="goToPage(' + (pageNum + 1) + ')" ' + (pageNum >= pdf.numPages ? 'disabled' : '') + ' class="btn btn-sm btn-outline-primary ms-2">Next <i class="fas fa-chevron-right"></i></button>';
+                                previewContainer.appendChild(nav);
+                            });
+                        });
+                    }
+                    
+                    for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+                        const btn = document.createElement('button');
+                        btn.className = 'sheet-btn' + (i === 1 ? ' active' : '');
+                        btn.textContent = 'P' + i;
+                        btn.onclick = function() {
+                            document.querySelectorAll('.sheet-btn').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            previewContainer.innerHTML = '';
+                            renderPage(i);
+                        };
+                        sheetTabs.appendChild(btn);
+                    }
+                    
+                    document.querySelector('.preview-content').innerHTML = '';
+                    document.querySelector('.preview-content').appendChild(sheetTabs);
+                    document.querySelector('.preview-content').appendChild(previewContainer);
+                    
+                    renderPage(1);
+                    
+                    window.goToPage = function(pageNum) {
+                        if (pageNum >= 1 && pageNum <= pdf.numPages) {
+                            document.querySelectorAll('.sheet-btn').forEach(b => b.classList.remove('active'));
+                            document.querySelectorAll('.sheet-btn')[pageNum - 1].classList.add('active');
+                            previewContainer.innerHTML = '';
+                            renderPage(pageNum);
+                        }
+                    };
+                    
+                }).catch(function(error) {
+                    document.querySelector('.preview-content').innerHTML = 
+                        '<div class="alert alert-danger">Error loading PDF: ' + error.message + '</div>';
+                });
+            } catch (e) {
+                document.querySelector('.preview-content').innerHTML = 
+                    '<div class="alert alert-danger">Error parsing PDF: ' + e.message + '</div>';
+            }
+            {% else %}
+            document.querySelector('.preview-content').innerHTML = 
+                '<div class="alert alert-warning">Please download the PDF to view it.</div>';
+            {% endif %}
+        }
+    }
+    
+    initPdfPreview();
+    {% endif %}
+    
+    {% if preview_type == 'client_side' and document.file_type == 'word' %}
+    function initWordPreview() {
+        if (typeof mammoth === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+            script.onload = function() {
+                renderWord();
+            };
+            script.onerror = function() {
+                document.getElementById('wordError').style.display = 'block';
+                document.getElementById('wordError').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load preview library. Please download the file to view.';
+                document.getElementById('wordLoadingIndicator').style.display = 'none';
+            };
+            document.head.appendChild(script);
+        } else {
+            renderWord();
+        }
+        
+        function renderWord() {
+            {% if file_data %}
+            try {
+                const binaryString = atob('{{ file_data }}');
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                mammoth.convertToHtml({arrayBuffer: bytes.buffer})
+                    .then(function(result) {
+                        document.getElementById('wordLoadingIndicator').style.display = 'none';
+                        document.getElementById('wordContent').style.display = 'block';
+                        document.getElementById('wordContent').innerHTML = result.value;
+                        
+                        const content = document.getElementById('wordContent');
+                        content.style.fontFamily = 'Arial, sans-serif';
+                        content.style.lineHeight = '1.6';
+                        content.style.color = '#333';
+                        
+                        content.querySelectorAll('table').forEach(function(table) {
+                            table.className = 'table table-bordered';
+                            table.style.width = '100%';
+                            table.style.borderCollapse = 'collapse';
+                            table.querySelectorAll('td, th').forEach(function(cell) {
+                                cell.style.border = '1px solid #ddd';
+                                cell.style.padding = '8px';
+                            });
+                        });
+                        
+                        content.querySelectorAll('img').forEach(function(img) {
+                            img.style.maxWidth = '100%';
+                            img.style.height = 'auto';
+                        });
+                        
+                        if (result.messages && result.messages.length > 0) {
+                            console.log('Word conversion messages:', result.messages);
+                        }
+                    })
+                    .catch(function(error) {
+                        document.getElementById('wordLoadingIndicator').style.display = 'none';
+                        document.getElementById('wordError').style.display = 'block';
+                        document.getElementById('wordError').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Error reading Word document: ' + error.message;
+                    });
+            } catch (e) {
+                document.getElementById('wordLoadingIndicator').style.display = 'none';
+                document.getElementById('wordError').style.display = 'block';
+                document.getElementById('wordError').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Error parsing Word document: ' + e.message;
+            }
+            {% else %}
+            document.getElementById('wordLoadingIndicator').style.display = 'none';
+            document.getElementById('wordError').style.display = 'block';
+            document.getElementById('wordError').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Unable to load preview. Please download the file to view.';
+            {% endif %}
+        }
+    }
+    
+    initWordPreview();
+    {% endif %}
+    
+    {% if preview_type == 'client_side' and document.file_type == 'excel' %}
+    function initScrollEnhancement() {
+        const excelContainer = document.querySelector('.excel-preview-container');
+        const sheetContent = document.getElementById('sheetContent');
+        
+        if (excelContainer && sheetContent) {
+            excelContainer.addEventListener('wheel', function(e) {
+                const isAtTop = this.scrollTop === 0;
+                const isAtBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 1;
+                const isScrollingDown = e.deltaY > 0;
+                const isScrollingUp = e.deltaY < 0;
+                
+                if ((isAtTop && isScrollingUp) || (isAtBottom && isScrollingDown)) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchStartScrollLeft = 0;
+            let touchStartScrollTop = 0;
+            
+            sheetContent.addEventListener('touchstart', function(e) {
+                touchStartX = e.touches[0].pageX;
+                touchStartY = e.touches[0].pageY;
+                touchStartScrollLeft = this.scrollLeft;
+                touchStartScrollTop = this.scrollTop;
+            }, { passive: true });
+            
+            sheetContent.addEventListener('touchmove', function(e) {
+                const deltaX = touchStartX - e.touches[0].pageX;
+                const deltaY = touchStartY - e.touches[0].pageY;
+                
+                this.scrollLeft = touchStartScrollLeft + deltaX;
+                this.scrollTop = touchStartScrollTop + deltaY;
+            }, { passive: true });
+            
+            sheetContent.style.setProperty('-webkit-overflow-scrolling', 'touch');
+            sheetContent.style.scrollBehavior = 'smooth';
+            sheetContent.setAttribute('tabindex', '0');
+            sheetContent.style.outline = 'none';
+            
+            updateScrollIndicators();
+            
+            function updateScrollIndicators() {
+                const hasHorizontalScroll = sheetContent.scrollWidth > sheetContent.clientWidth;
+                const hasVerticalScroll = sheetContent.scrollHeight > sheetContent.clientHeight;
+                
+                sheetContent.parentElement.classList.toggle('has-horizontal-scroll', hasHorizontalScroll);
+                sheetContent.parentElement.classList.toggle('has-vertical-scroll', hasVerticalScroll);
+            }
+            
+            const observer = new MutationObserver(updateScrollIndicators);
+            observer.observe(sheetContent, { childList: true, subtree: true });
+            
+            window.addEventListener('resize', updateScrollIndicators);
+        }
+    }
+    
+    setTimeout(initScrollEnhancement, 500);
+    {% endif %}
+});
+</script>
+{% endblock %}

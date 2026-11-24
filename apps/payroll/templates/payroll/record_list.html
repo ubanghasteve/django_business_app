@@ -1,0 +1,539 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payroll Records - Smart Payroll{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Keep records table text highly visible on light backgrounds */
+    .payroll-records-table thead th,
+    .payroll-records-table tbody td,
+    .payroll-records-table .record-title-link,
+    .payroll-records-table .record-meta-text,
+    .payroll-records-table .record-period-text,
+    .payroll-records-table .record-size-text {
+        color: #000 !important;
+    }
+
+    /* Keep file type badge text readable across all badge backgrounds */
+    .payroll-records-table .file-type-badge {
+        color: #000 !important;
+    }
+    
+    .status-select {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+    }
+    .status-select:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .status-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+    }
+    
+    /* Total count display */
+    .total-count-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    /* Action buttons */
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .btn-group .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Delete button specific style */
+    .delete-record:hover {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+    }
+    
+    /* Row removal animation */
+    tr.removing {
+        opacity: 0.5;
+        transition: opacity 0.3s ease;
+    }
+
+    /* Filter form visibility improvements (UI only) */
+    #filterForm .form-control,
+    #filterForm .form-select {
+        border: 1.5px solid #9aa4b2 !important;
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        box-shadow: none !important;
+    }
+
+    #filterForm .form-control::placeholder {
+        color: #6c757d !important;
+        opacity: 1;
+    }
+
+    #filterForm .form-control:focus,
+    #filterForm .form-select:focus {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2) !important;
+    }
+
+    #filterForm .form-label {
+        color: #495057 !important;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Payroll Records</h2>
+            <p class="text-muted mb-0">Manage all your payroll documents</p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if total_before_filters %}
+            <span class="badge bg-primary total-count-badge">
+                <i class="fas fa-database me-1"></i>{{ total_before_filters }} Total
+            </span>
+            {% endif %}
+            {% if total_count != total_before_filters %}
+            <span class="badge bg-warning text-dark total-count-badge">
+                <i class="fas fa-filter me-1"></i>{{ total_count }} Filtered
+            </span>
+            {% endif %}
+            {% if show_archived %}
+            <span class="badge bg-secondary total-count-badge">
+                <i class="fas fa-archive me-1"></i>Showing Archived
+            </span>
+            {% endif %}
+            <a href="{% url 'payroll:record_upload' %}" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i>Upload Records
+            </a>
+        </div>
+    </div>
+
+    {% if has_active_filters %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="fas fa-filter me-2"></i>
+        <strong>Filters Active:</strong> You're viewing filtered results.
+        {% if filter_reasons %}
+        <small class="text-muted ms-2">({{ filter_reasons|join:", " }})</small>
+        {% endif %}
+        <a href="{% url 'payroll:record_list' %}" class="btn btn-sm btn-outline-info ms-2">
+            <i class="fas fa-times me-1"></i>Clear Filters
+        </a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3" id="filterForm">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Search</label>
+                    <input type="text" name="q" class="form-control" placeholder="Search records..." value="{{ query|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Record Type</label>
+                    <select name="record_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for value, label in record_type_choices %}
+                        <option value="{{ value }}" {% if request.GET.record_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">File Type</label>
+                    <select name="file_type" class="form-select">
+                        <option value="">All Files</option>
+                        {% for value, label in file_type_choices %}
+                        <option value="{{ value }}" {% if request.GET.file_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Year</label>
+                    <input type="text" name="year" list="year-list" class="form-control" placeholder="Filter by year" autocomplete="off" value="{{ request.GET.year|default:'' }}">
+                    <datalist id="year-list">
+                        {% for y in years %}
+                        <option value="{{ y }}">{{ y }}</option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="verified" {% if request.GET.status == 'verified' %}selected{% endif %}>Verified</option>
+                        <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="archived" {% if request.GET.status == 'archived' %}selected{% endif %}>Archived</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Options</label>
+                    <select name="show_archived" class="form-select" onchange="document.getElementById('filterForm').submit();">
+                        <option value="false" {% if not show_archived %}selected{% endif %}>Active Records</option>
+                        <option value="true" {% if show_archived %}selected{% endif %}>Include Archived</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end gap-1">
+                    <button type="submit" class="btn btn-outline-primary" title="Apply Filters">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <a href="{% url 'payroll:record_list' %}" class="btn btn-outline-secondary" title="Clear All Filters">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if records %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 payroll-records-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0 px-4 py-3">
+                                <input type="checkbox" id="selectAll">
+                            </th>
+                            <th class="border-0 py-3">#</th>
+                            <th class="border-0 py-3">Record</th>
+                            <th class="border-0 py-3">File Type</th>
+                            <th class="border-0 py-3">Period</th>
+                            <th class="border-0 py-3">Approval Status</th>
+                            <th class="border-0 py-3">Size</th>
+                            <th class="border-0 py-3 text-end px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr data-record-id="{{ record.id }}">
+                            <td class="px-4">
+                                <input type="checkbox" class="record-checkbox" value="{{ record.id }}">
+                            </td>
+                            <td>
+                                <span class="small">{{ records.start_index|add:forloop.counter0 }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded bg-light p-2">
+                                        <i class="fas fa-file-{{ record.file_type|default:'other' }} text-{{ record.file_type|default:'other' }}"></i>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'payroll:record_detail' record.id %}" class="text-decoration-none fw-semibold record-title-link">
+                                            {{ record.title|truncatechars:50 }}
+                                        </a>
+                                        <div class="small record-meta-text">{{ record.original_filename|truncatechars:40 }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ record.file_type|default:'other' }} file-type-badge">
+                                    {{ record.get_file_type_display|default:record.file_type|upper }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="small record-period-text">{{ record.period_display|default:"—" }}</span>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm status-select fw-bold"
+                                        data-record-id="{{ record.id }}"
+                                        data-current-status="{{ record.status }}"
+                                        style="min-width: 130px; cursor: pointer;">
+                                    <option value="draft" {% if record.status == 'draft' %}selected{% endif %}>Draft</option>
+                                    <option value="verified" {% if record.status == 'verified' %}selected{% endif %}>Verified</option>
+                                    <option value="approved" {% if record.status == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="archived" {% if record.status == 'archived' %}selected{% endif %}>Archived</option>
+                                </select>
+                            </td>
+                            <td>
+                                <span class="small record-size-text">{{ record.file_size_display }}</span>
+                            </td>
+                            <td class="text-end px-4">
+                                <div class="btn-group">
+                                    {% if record.can_preview %}
+                                    <a href="{% url 'payroll:record_preview' record.id %}" class="btn btn-sm btn-outline-info" title="View File" target="_blank">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'payroll:record_download' record.id %}" class="btn btn-sm btn-outline-primary" title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <a href="{% url 'payroll:record_edit' record.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-warning toggle-star" data-id="{{ record.id }}" title="Toggle Star">
+                                        <i class="fas fa-star {% if record.is_starred %}text-warning{% endif %}"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-record" data-id="{{ record.id }}" data-title="{{ record.title }}" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card-footer bg-white border-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">
+                        {% if records.has_other_pages %}
+                        Showing {{ records.start_index }} to {{ records.end_index }} of {{ records.paginator.count }} records
+                        {% else %}
+                        Showing all {{ records.paginator.count }} record{{ records.paginator.count|pluralize:"s" }}
+                        {% endif %}
+                    </div>
+                    {% if records.has_other_pages %}
+                    <nav>
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if records.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% if records.number > 4 %}
+                            <li class="page-item"><a class="page-link" href="?page=1{% if query_params %}&{{ query_params }}{% endif %}">1</a></li>
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                            
+                            {% for num in records.paginator.page_range %}
+                            {% if num >= records.number|add:'-2' and num <= records.number|add:'2' %}
+                            {% if records.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% else %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}{% if query_params %}&{{ query_params }}{% endif %}">{{ num }}</a></li>
+                            {% endif %}
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if records.number < records.paginator.num_pages|add:'-3' %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ records.paginator.num_pages }}{% if query_params %}&{{ query_params }}{% endif %}">{{ records.paginator.num_pages }}</a></li>
+                            {% endif %}
+                            
+                            {% if records.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% else %}
+            <div class="text-center py-5">
+                {% if total_before_filters > 0 and has_active_filters %}
+                <i class="fas fa-filter fa-3x text-warning opacity-25 mb-3"></i>
+                <p class="text-warning mb-2">Records exist but are filtered out</p>
+                <p class="text-muted mb-3">
+                    Your current filters don't match any records.
+                    {% if filter_reasons %}
+                    <br><small>Active filters: {{ filter_reasons|join:", " }}</small>
+                    {% endif %}
+                </p>
+                <a href="{% url 'payroll:record_list' %}" class="btn btn-warning">
+                    <i class="fas fa-times me-2"></i>Clear All Filters
+                </a>
+                {% else %}
+                <i class="fas fa-folder-open fa-3x text-muted opacity-25 mb-3"></i>
+                <p class="text-muted mb-3">No payroll records found</p>
+                <a href="{% url 'payroll:record_upload' %}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Upload Your First Record
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('selectAll')?.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.record-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+
+    document.querySelectorAll('.toggle-star').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            fetch(`/payroll/records/${id}/toggle-star/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            }).then(response => response.json()).then(data => {
+                const icon = this.querySelector('i');
+                if (data.is_starred) {
+                    icon.classList.add('text-warning');
+                } else {
+                    icon.classList.remove('text-warning');
+                }
+            });
+        });
+    });
+    
+    // Delete record handler
+    document.querySelectorAll('.delete-record').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const title = this.dataset.title;
+            
+            if (confirm(`Are you sure you want to delete "${title}"?\n\nThis action cannot be undone.`)) {
+                const row = this.closest('tr');
+                row.classList.add('removing');
+                
+                fetch(`/payroll/records/${id}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the row from the table
+                        row.remove();
+                        
+                        // Show success notification
+                        showNotification('Record deleted successfully!', 'success');
+                        
+                        // Update total count
+                        const countBadge = document.querySelector('.total-count-badge');
+                        if (countBadge) {
+                            const currentCount = parseInt(countBadge.textContent.match(/\d+/)[0]);
+                            countBadge.textContent = `${currentCount - 1} Total`;
+                        }
+                        
+                        // Check if table is now empty
+                        const tbody = document.querySelector('.payroll-records-table tbody');
+                        if (tbody && tbody.querySelectorAll('tr').length === 0) {
+                            location.reload();
+                        }
+                    } else {
+                        row.classList.remove('removing');
+                        showNotification(data.error || 'Failed to delete record', 'error');
+                    }
+                })
+                .catch(error => {
+                    row.classList.remove('removing');
+                    showNotification('Network error. Please try again.', 'error');
+                });
+            }
+        });
+    });
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Status change handler
+document.querySelectorAll('.status-select').forEach(function(select) {
+    select.addEventListener('change', function() {
+        const recordId = this.getAttribute('data-record-id');
+        const newStatus = this.value;
+        const currentStatus = this.getAttribute('data-current-status');
+        
+        if (newStatus === currentStatus) return;
+        
+        this.disabled = true;
+        
+        fetch('/payroll/records/' + recordId + '/update-status/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.setAttribute('data-current-status', newStatus);
+                this.style.borderColor = '#198754';
+                setTimeout(() => this.style.borderColor = '', 1500);
+                
+                // Broadcast status change to other pages using localStorage
+                localStorage.setItem('payroll_status_updated', Date.now().toString());
+                localStorage.setItem('payroll_last_status', newStatus);
+                
+                // Show success message
+                showNotification('Status updated successfully!', 'success');
+            } else {
+                this.value = currentStatus;
+                showNotification(data.error || 'Failed to update status', 'error');
+            }
+        })
+        .catch(error => {
+            this.value = currentStatus;
+            showNotification('Network error. Please try again.', 'error');
+        })
+        .finally(() => {
+            this.disabled = false;
+        });
+    });
+});
+
+// Notification function
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = 'position-fixed top-0 end-0 m-3 p-3 rounded shadow-lg';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '250px';
+    notification.style.animation = 'slideIn 0.3s ease-out';
+    
+    if (type === 'success') {
+        notification.style.backgroundColor = '#198754';
+        notification.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + message;
+    } else {
+        notification.style.backgroundColor = '#dc3545';
+        notification.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + message;
+    }
+    notification.style.color = 'white';
+    notification.style.fontWeight = '600';
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.5s';
+        setTimeout(() => notification.remove(), 500);
+    }, 3000);
+}
+</script>
+{% endblock %}

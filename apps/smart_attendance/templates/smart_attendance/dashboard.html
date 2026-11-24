@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Attendance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <h2 class="mb-4">Attendance Dashboard</h2>
+  <div class="row" id="attendance-cards">
+    <div class="col-md-2 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">Total Employees</div>
+          <div class="h4 mb-0" id="card-total-employees">{{ total_employees }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 mb-3">
+      <div class="card shadow-sm bg-success text-white">
+        <div class="card-body text-center">
+          <div class="text-white-50 small">Present Today</div>
+          <div class="h4 mb-0" id="card-present-today">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 mb-3">
+      <div class="card shadow-sm bg-danger text-white">
+        <div class="card-body text-center">
+          <div class="text-white-50 small">Absent Today</div>
+          <div class="h4 mb-0" id="card-absent-today">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 mb-3">
+      <div class="card shadow-sm bg-warning text-dark">
+        <div class="card-body text-center">
+          <div class="text-dark small">Late Arrivals</div>
+          <div class="h4 mb-0" id="card-late-arrivals">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">Online Devices</div>
+          <div class="h4 mb-0" id="card-online-devices">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">Offline Devices</div>
+          <div class="h4 mb-0" id="card-offline-devices">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Device Setup: Push URL for immediate clock in/out updates -->
+  <div class="row mt-3">
+    <div class="col-12">
+      <div class="card shadow-sm border-info">
+        <div class="card-header bg-info text-white py-2">
+          <i class="fas fa-cog me-2"></i>Device Setup – Immediate Updates on Clock In/Out
+        </div>
+        <div class="card-body py-3">
+          <p class="mb-2 small text-muted">
+            Configure your biometric device to push attendance to this app. Use the URL below in your device’s firmware settings so each clock in/out updates the dashboard immediately.
+          </p>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <code class="bg-light px-2 py-1 rounded" id="push-url">{{ request.scheme }}://{{ request.get_host }}/api/biometric/push</code>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('push-url').textContent); this.textContent='Copied!'; setTimeout(function(){this.textContent='Copy';}.bind(this), 1500);">Copy</button>
+          </div>
+          <p class="mb-0 mt-2 small text-muted">
+            <strong>Batch URL</strong> (for offline recovery): <code class="bg-light px-1 rounded">{{ request.scheme }}://{{ request.get_host }}/api/biometric/push/batch</code>
+          </p>
+          <p class="mb-0 mt-2 small">
+            <a href="{% url 'smart_attendance:devices' %}">Manage devices</a> – register each biometric machine with its <strong>IP address</strong> and <strong>device secret</strong>, then configure the push URL above in the device firmware.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-lg-8 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Live Attendance</span>
+          <a href="{% url 'smart_attendance:daily_attendance' %}" class="btn btn-sm btn-outline-primary">View Daily</a>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Photo</th>
+                <th>Punch Time</th>
+                <th>Type</th>
+                <th>Device</th>
+              </tr>
+            </thead>
+            <tbody id="live-attendance-body">
+              <tr>
+                <td colspan="5" class="text-center text-muted py-3">Waiting for live data…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 mb-3">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-fingerprint me-2"></i>Biometric Devices</span>
+          <span class="badge bg-light text-dark" id="device-count">0</span>
+        </div>
+        <div class="card-body p-0" id="devices-container">
+          <p class="text-muted mb-0 p-3" id="devices-loading">Loading devices…</p>
+          <ul class="list-group list-group-flush d-none" id="devices-list"></ul>
+        </div>
+        <div class="card-footer bg-light">
+          {% if perms.smart_attendance.add_biometricdevice %}
+          <a href="{% url 'smart_attendance:register_device' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i> Add Device
+          </a>
+          {% endif %}
+          {% if perms.smart_attendance.view_biometricdevice %}
+          <a href="{% url 'smart_attendance:devices' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-cog me-1"></i> Manage
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Quick Stats by Device -->
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <i class="fas fa-chart-bar me-2"></i>Attendance by Device
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0" id="device-stats-table">
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>Today</th>
+              </tr>
+            </thead>
+            <tbody id="device-stats-body">
+              <tr><td colspan="2" class="text-muted text-center py-2">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'smart_attendance/js/attendance_realtime.js' %}" defer></script>
+{% endblock %}
+

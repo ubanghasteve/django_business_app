@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}Team Members | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}Team Members{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-users me-2"></i>Team Members</h2>
+                <p class="text-muted mb-0">Add team members who can log in with their own email and password. All activity is tracked individually.</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:security_dashboard' %}" class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Security
+                </a>
+                {% if perms.accounts.add_subuser %}
+                <a href="{% url 'accounts:subuser_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add Team Member
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Search bar: stays within tenant-scoped queryset + permissions -->
+        <form method="get" class="mb-3" id="teamSearchForm">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-5 col-sm-7">
+                    <label for="teamSearch" class="form-label mb-1 small text-muted fw-semibold">Search team members</label>
+                    <div class="position-relative">
+                        <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input
+                            type="search"
+                            name="search"
+                            id="teamSearch"
+                            value="{{ search_query }}"
+                            class="form-control ps-5"
+                            placeholder="Type a few letters of name or email…"
+                            autocomplete="off"
+                            aria-label="Search team members by name or email">
+                    </div>
+                </div>
+                {% if search_query %}
+                <div class="col-auto">
+                    <label class="form-label mb-1 d-block">&nbsp;</label>
+                    <a href="{% url 'accounts:subuser_list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+                </div>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="card shadow-sm">
+            <div class="card-body" id="teamTableWrapper">
+                {% if sub_users %}
+                <p class="text-muted small mb-3">
+                    {% if search_query %}
+                        Showing {{ sub_users|length }} of {{ total_count }} team member{{ total_count|pluralize }} matching "<strong>{{ search_query }}</strong>".
+                    {% else %}
+                        Showing {{ sub_users|length }} team member{{ sub_users|length|pluralize }}.
+                    {% endif %}
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S/N</th>
+                                <th>Name</th>
+                                <th>Login Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in sub_users %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><strong>{{ sub.full_name }}</strong></td>
+                                <td><code>{{ sub.email }}</code></td>
+                                <td>
+                                    <span class="badge bg-info" title="Access is determined by assigned roles">From roles</span>
+                                </td>
+                                <td>
+                                    {% if sub.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if perms.accounts.change_subuser %}
+                                    <a href="{% url 'accounts:subuser_edit' sub.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    {% endif %}
+                                    {% if perms.accounts.delete_subuser %}
+                                    <form method="post" action="{% url 'accounts:subuser_delete' sub.id %}" class="d-inline" data-offline-queue="true" onsubmit="return confirm('Remove this team member? They will no longer be able to log in.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No team members yet</h5>
+                    <p class="text-muted">Add team members so they can log in with their own credentials and access the same account.</p>
+                    {% if perms.accounts.add_subuser %}
+                    <a href="{% url 'accounts:subuser_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Your First Team Member
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-4">
+            <strong><i class="fas fa-info-circle me-2"></i>How it works</strong>
+            <ul class="mb-0 mt-2">
+                <li>Each team member has their own <strong>email</strong> and <strong>password</strong></li>
+                <li>They log in on the same login page using their credentials</li>
+                <li>They see the same data (invoices, receipts, etc.) as you</li>
+                <li>Every action they take is tracked in the Activity Log with their name</li>
+                <li><strong>Staff</strong> can edit, delete, and manage team members. <strong>Active User</strong> can only create and view records.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+<style>
+/* Make team search field clearly visible */
+#teamSearch.form-control {
+    border: 1px solid #4a5568; /* darker, more visible border */
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem 0.4rem 2.5rem; /* extra left for icon, plus inner padding */
+    background-color: #ffffff;
+    font-size: 0.9rem;
+}
+
+#teamSearch.form-control::placeholder {
+    color: #a0aec0;
+}
+
+#teamSearch.form-control:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.18rem rgba(25, 118, 210, 0.18);
+    outline: none;
+}
+</style>
+<script>
+(function () {
+    var form = document.getElementById('teamSearchForm');
+    var wrapper = document.getElementById('teamTableWrapper');
+    if (!form) return;
+    var input = document.getElementById('teamSearch');
+    if (!input) return;
+
+    var debounceTimer = null;
+    input.addEventListener('input', function () {
+        // Debounce to avoid firing on every keystroke immediately
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            if (!wrapper) {
+                form.submit();
+                return;
+            }
+            var value = input.value || '';
+            var url = window.location.pathname;
+            var params = new URLSearchParams(window.location.search);
+            if (value) {
+                params.set('search', value);
+            } else {
+                params.delete('search');
+            }
+            var qs = params.toString();
+            if (qs) url += '?' + qs;
+            fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var newWrapper = doc.getElementById('teamTableWrapper');
+                if (newWrapper && wrapper) {
+                    wrapper.innerHTML = newWrapper.innerHTML;
+                }
+            })
+            .catch(function () {
+                form.submit();
+            });
+        }, 300);
+    });
+})();
+</script>
+{% endblock %}

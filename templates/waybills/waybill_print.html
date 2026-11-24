@@ -1,0 +1,1017 @@
+{% load static %}
+{% load custom_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Waybill {{ waybill.waybill_number }}</title>
+    <style>
+        /* Theme colors set via inline style on body (Django vars there to avoid linter errors here) */
+        /* Print-optimized styles matching waybill detail */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: var(--text-color);
+            background: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .waybill-container {
+            max-width: 100%;
+            margin: 0;
+            padding: 20px;
+            background: white;
+        }
+
+        .waybill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .company-logo img {
+            max-height: 70px;
+            max-width: 180px;
+        }
+
+        .company-details h2 {
+            color: var(--primary-color) !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            margin-bottom: 8px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .company-details p {
+            margin: 3px 0;
+            color: #555;
+            font-size: 11px;
+        }
+
+        .waybill-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color) !important;
+            margin: 15px 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .waybill-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            padding: 12px;
+            background: var(--waybill-secondary) !important;
+            border-radius: 6px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 11px;
+        }
+
+        .waybill-info div {
+            font-weight: bold;
+        }
+
+        .custom-section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .section-header h3 {
+            color: var(--primary-color) !important;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .custom-section-content {
+            padding: 10px;
+            background: var(--waybill-secondary) !important;
+            border-radius: 6px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            page-break-inside: auto;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #ccc;
+            font-size: 10px;
+            vertical-align: top;
+        }
+
+        .items-table th {
+            background: var(--primary-color) !important;
+            color: white !important;
+            font-weight: bold;
+            text-transform: uppercase;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .items-table tr:nth-child(even) {
+            background: var(--waybill-secondary) !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .items-table tbody tr {
+            page-break-inside: avoid;
+        }
+
+        .signature-section {
+            text-align: center;
+            margin: 30px 0 20px 0;
+            padding: 15px;
+            page-break-inside: avoid;
+        }
+
+        .signature-section img {
+            max-height: 60px;
+            margin-bottom: 8px;
+        }
+
+        .signature-section p {
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        /* A5 single-page fit - force ALL content onto 1 A5 page by scaling */
+        body.paper-a5 .preview-scroll-wrapper { overflow: visible; }
+        body.paper-a5 .a5-fit-wrapper {
+            width: 148mm;
+            height: 210mm;
+            overflow: hidden !important;
+            margin: 0 auto;
+            position: relative;
+        }
+        body.paper-a5 .a5-fit-wrapper .waybill-content {
+            /* zoom applied via JS - fits all content to one A5 page when printing */
+        }
+        
+        /* Ensure content fits on page */
+        @page {
+            size: A4;
+            margin: 0.5in;
+        }
+
+        /* Print specific adjustments */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .waybill-container {
+                padding: 0;
+                margin: 0;
+            }
+
+            .waybill-title {
+                color: var(--primary-color) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .waybill-info {
+                background: #f0f0f0 !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                position: relative;
+                z-index: 2;
+            }
+            .waybill-info div {
+                color: #000 !important;
+            }
+
+            .items-table th {
+                background: var(--primary-color) !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .items-table tr:nth-child(even) {
+                background: var(--waybill-secondary) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .section-header h3 {
+                color: var(--primary-color) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .custom-section-content {
+                background: var(--waybill-secondary) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Prevent page breaks in critical sections */
+            .waybill-header,
+            .waybill-title,
+            .waybill-info,
+            .custom-section,
+            .signature-section {
+                page-break-inside: avoid;
+            }
+
+            .items-table thead {
+                display: table-header-group;
+            }
+
+            .items-table tbody {
+                display: table-row-group;
+            }
+            
+            body.paper-a5 .a5-fit-wrapper {
+                width: 148mm !important;
+                height: 210mm !important;
+                overflow: hidden !important;
+            }
+        }
+
+        /* Handle long content gracefully */
+        .custom-section-content p {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .items-table td {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 150px;
+            vertical-align: top;
+            white-space: normal;
+        }
+
+        /* Specific column styling for better text wrapping */
+        .items-table td:nth-child(2), /* Product/Service */
+        .items-table td:nth-child(3) { /* Description */
+            white-space: normal;
+            word-break: break-word;
+            hyphens: auto;
+            line-height: 1.4;
+        }
+
+        /* Bank account items: spacing between items, none after last */
+        .custom-section-content.bank-accounts p {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .custom-section-content.bank-accounts p:last-of-type {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .no-print {
+            display: none;
+        }
+        
+        @media screen {
+            .no-print {
+                display: block;
+            }
+        }
+        
+        /* Navigation Bar - Only visible on screen */
+        .print-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        .print-nav-bar .nav-btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .print-nav-bar .btn-back {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+        }
+        
+        .print-nav-bar .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .print-nav-bar .btn-list {
+            background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 70%, #000));
+            color: white;
+        }
+        
+        .print-nav-bar .btn-list:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .print-nav-bar .btn-print {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+        }
+        
+        .print-nav-bar .btn-print:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .print-nav-bar .btn-close-tab {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+        
+        .print-nav-bar .btn-close-tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media screen and (max-width: 600px) {
+            .print-nav-bar {
+                padding: 12px 15px;
+                gap: 10px;
+            }
+            .print-nav-bar .nav-btn {
+                padding: 8px 15px;
+                font-size: 12px;
+            }
+        }
+        
+        /* Navigation Bar - Only visible on screen */
+        .print-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        .print-nav-bar .nav-btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .print-nav-bar .btn-back {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+        }
+        
+        .print-nav-bar .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .print-nav-bar .btn-list {
+            background: linear-gradient(135deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 70%, #000));
+            color: white;
+        }
+        
+        .print-nav-bar .btn-list:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .print-nav-bar .btn-print {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+        }
+        
+        .print-nav-bar .btn-print:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .print-nav-bar .btn-close-tab {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+        
+        .print-nav-bar .btn-close-tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media print {
+            .print-nav-bar {
+                display: none !important;
+            }
+        }
+        
+        @media screen and (max-width: 600px) {
+            .print-nav-bar {
+                padding: 12px 15px;
+                gap: 10px;
+            }
+            .print-nav-bar .nav-btn {
+                padding: 8px 15px;
+                font-size: 12px;
+            }
+        }
+        
+        /* Mobile-specific styles */
+        @media screen and (max-width: 768px) {
+            .waybill-container {
+                padding: 10px;
+                margin-top: 60px; /* Space for the print button */
+            }
+            
+            .waybill-header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            
+            .waybill-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .waybill-title {
+                font-size: 24px;
+            }
+            
+            .company-details h2 {
+                font-size: 18px;
+            }
+            
+            .company-logo img {
+                max-height: 50px;
+                max-width: 150px;
+            }
+            
+            .items-table {
+                font-size: 10px;
+                overflow-x: auto;
+                display: block;
+                white-space: nowrap;
+            }
+            
+            .items-table thead,
+            .items-table tbody,
+            .items-table th,
+            .items-table td,
+            .items-table tr {
+                display: block;
+            }
+            
+            .items-table thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            
+            .items-table tr {
+                border: 1px solid #ccc;
+                margin-bottom: 10px;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            
+            .items-table td {
+                border: none;
+                position: relative;
+                padding: 8px 8px 8px 50%;
+                white-space: normal;
+            }
+            
+            .items-table td:before {
+                content: attr(data-label) ": ";
+                position: absolute;
+                left: 6px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                font-weight: bold;
+            }
+            
+            .custom-section-content {
+                font-size: 12px;
+                line-height: 1.4;
+            }
+            
+            .section-header h3 {
+                font-size: 16px;
+            }
+        }
+        
+        /* Mobile print button */
+        .mobile-print-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #FF5900;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        @media screen and (max-width: 768px) {
+            .mobile-print-btn {
+                display: block;
+            }
+        }
+        
+        .paper-size-select {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .paper-size-select label {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .paper-size-select select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        /* Mobile horizontal scroll wrapper */
+        .preview-scroll-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .preview-scroll-wrapper::-webkit-scrollbar {
+            height: 8px;
+        }
+        
+        .preview-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        .mobile-scroll-hint {
+            display: none;
+            text-align: center;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 12px;
+            border-radius: 20px;
+            margin: 0 auto 15px;
+            width: fit-content;
+        }
+        
+        @media screen and (max-width: 850px) {
+            .mobile-scroll-hint {
+                display: block;
+            }
+            
+            .waybill-container {
+                min-width: 750px;
+            }
+        }
+        
+        @media print {
+            .mobile-scroll-hint {
+                display: none !important;
+            }
+            .preview-scroll-wrapper {
+                overflow: visible;
+            }
+            .waybill-container {
+                min-width: auto;
+            }
+        }
+    </style>
+    <script>
+        // Mobile detection function
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   window.innerWidth <= 768;
+        }
+        
+        function applyA5Scale() {
+            var content = document.getElementById('waybillContent');
+            if (!content || !document.body.classList.contains('paper-a5')) return;
+            /* Measure content at 100% then apply zoom so print sees one page (like Invoice/Receipt) */
+            content.style.zoom = '1';
+            var cw = content.scrollWidth || content.offsetWidth || 800;
+            var ch = content.scrollHeight || content.offsetHeight || 600;
+            var marginPx = 24;
+            var aw = (148 * 96 / 25.4) - marginPx;
+            var ah = (210 * 96 / 25.4) - marginPx;
+            var scale = Math.min(aw / cw, ah / ch, 1);
+            content.style.zoom = scale;
+        }
+        function setPaperSize(size) {
+            var styleId = 'paper-size-style';
+            var existing = document.getElementById(styleId);
+            if (existing) existing.remove();
+            document.body.classList.remove('paper-a5');
+            var wrapper = document.getElementById('a5FitWrapper');
+            var content = document.getElementById('waybillContent');
+            if (content) content.style.zoom = '';
+            if (size === 'a5') {
+                document.body.classList.add('paper-a5');
+                var style = document.createElement('style');
+                style.id = styleId;
+                style.textContent = '@media print { @page { size: A5; margin: 0.3cm; } }';
+                document.head.appendChild(style);
+                if (wrapper && content) {
+                    wrapper.style.width = '148mm';
+                    wrapper.style.height = '210mm';
+                    wrapper.style.overflow = 'hidden';
+                    applyA5Scale();
+                    requestAnimationFrame(applyA5Scale);
+                    setTimeout(applyA5Scale, 200);
+                    setTimeout(applyA5Scale, 800);
+                }
+            }
+            try { localStorage.setItem('printPaperSize', size); } catch(e) {}
+        }
+        
+        window.addEventListener('beforeprint', function() {
+            if (document.body.classList.contains('paper-a5') && typeof applyA5Scale === 'function') applyA5Scale();
+        });
+        // Load page and restore paper size only – do NOT auto-open print dialog.
+        // User chooses A4/A5 then clicks "Print" when ready.
+        window.onload = function() {
+            var saved = null;
+            try { saved = localStorage.getItem('printPaperSize'); } catch(e) {}
+            var sel = document.getElementById('paperSize');
+            if (sel) {
+                if (saved === 'a5') { sel.value = 'a5'; setPaperSize('a5'); }
+                else sel.value = 'a4';
+            }
+            // No auto-print: user selects A4/A5 first, then clicks Print
+        };
+        
+        // Mobile print function
+        function printWaybill() {
+            if (isMobileDevice()) {
+                // On mobile, try to print or save as PDF
+                if (window.print) {
+                    window.print();
+                } else {
+                    // Fallback: show alert with instructions
+                    alert('To save this waybill as PDF:\n\n1. Tap the share button in your browser\n2. Select "Print" or "Save as PDF"\n3. Choose your preferred option');
+                }
+            } else {
+                window.print();
+            }
+        }
+        
+        // Apply dynamic column widths from data-width (avoids Django in style for linter)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.waybill-col-dyn').forEach(function(el) {
+                var w = el.getAttribute('data-width');
+                if (w) el.style.width = w;
+            });
+        });
+    </script>
+</head>
+<body style="--primary-color: {{ theme_primary_color|default:'#1976d2' }}; --secondary-color: {{ theme_secondary_color|default:'#f8f9fa' }}; --text-color: {{ theme_text_color|default:'#333333' }}; --accent-color: {{ theme_accent_color|default:'#e9ecef' }}; --waybill-secondary: {{ waybill.template.secondary_color|default:'#f8f9fa' }};">
+    <!-- Mobile Print Button -->
+    <button class="mobile-print-btn" onclick="if(document.body.classList.contains('paper-a5'))applyA5Scale();printWaybill()">
+        📄 Print/Save PDF
+    </button>
+    
+    <!-- Mobile scroll hint -->
+    <div class="mobile-scroll-hint">
+        Swipe left/right to view full waybill
+    </div>
+    
+    <div class="preview-scroll-wrapper">
+    <div class="waybill-container">
+    <div class="a5-fit-wrapper" id="a5FitWrapper">
+    <div class="waybill-content" id="waybillContent">
+        <!-- Waybill Header (honors user_preferences when set) -->
+        {% with user_prefs=user_preferences %}
+        <div class="waybill-header">
+            {% if user_prefs.show_company_details != False and waybill.template.show_company_logo %}
+            <div class="company-logo">
+                {% if company_logo %}
+                    <img src="{{ company_logo }}" alt="Company Logo">
+                {% else %}
+                    <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo">
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if user_prefs.show_company_details != False and waybill.template.show_company_details %}
+            <div class="company-details">
+                <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+                <p>{{ company_profile.address|default:"Company Address" }}</p>
+                <p>{{ company_profile.phone|default:"Phone Number" }}</p>
+                <p>{{ company_profile.email|default:"Email Address" }}</p>
+                {% if company_profile.website %}<p>{{ company_profile.website }}</p>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endwith %}
+
+        <!-- Waybill Title -->
+        <div class="waybill-title">{{ waybill.template.document_title|default:"WAYBILL" }}</div>
+
+        <!-- Waybill Info -->
+        <div class="waybill-info">
+            <div>Waybill #: {{ waybill.waybill_number }}</div>
+            <div>Date: {{ waybill.waybill_date|date:"M d, Y" }}</div>
+            {% if waybill.delivery_date %}<div>Delivery: {{ waybill.delivery_date|date:"M d, Y" }}</div>{% endif %}
+            <div>Status: {{ waybill.get_status_display }}</div>
+        </div>
+        {% if is_company_admin %}
+        <p class="text-muted small mb-0 mt-2">Created by {% if waybill.created_by %}{{ waybill.created_by.get_full_name|default:waybill.created_by.email }} on {{ waybill.created_at|date:"M d, Y" }}{% else %}—{% endif %}</p>
+        {% endif %}
+
+        <!-- Delivery summary (print) -->
+        <div class="custom-section" style="margin-bottom: 20px;">
+            <div class="section-header">
+                <h3>DELIVERY QUANTITY</h3>
+            </div>
+            {% if delivery_quantities|length > 1 %}
+            <table class="items-table" style="margin-top: 8px;">
+                <thead><tr><th>Product</th><th>Total</th><th>Delivered</th><th>Remaining</th><th>Excess (Over-delivered)</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for dq in delivery_quantities %}
+                    <tr>
+                        <td>{{ dq.product|default:"—" }}</td>
+                        <td>{{ dq.total_quantity_input|default:"—" }}</td>
+                        <td>{{ dq.delivered_quantity_input|default:"—" }}</td>
+                        <td>{{ dq.remaining_display|default:"—" }}</td>
+                        <td>{% if dq.over_display %}<span style="color:#856404;font-weight:bold;">{{ dq.over_display }}</span>{% else %}—{% endif %}</td>
+                        <td>{{ dq.row_status_label }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p style="font-size:10px;color:#666;margin-top:6px;">Remaining = quantity still to deliver. Excess = amount delivered above the total order.</p>
+            {% else %}
+            {% with ds=delivery_summary %}
+            <div class="custom-section-content">
+                <strong>Total:</strong> {{ waybill.total_quantity_input|default:"—" }} &nbsp;|&nbsp;
+                <strong>Delivered:</strong> {{ waybill.delivered_quantity_input|default:"—" }} &nbsp;|&nbsp;
+                <strong>Remaining:</strong> {% if ds.remaining_display %}{{ ds.remaining_display }}{% else %}{{ ds.remaining|floatformat:0 }}{% endif %} &nbsp;|&nbsp;
+                <strong>Over-delivered:</strong> {% if ds.over_display %}<span style="color:#dc3545;font-weight:bold;">{{ ds.over_display }}</span>{% else %}0{% endif %} &nbsp;|&nbsp;
+                <strong>Status:</strong> {{ ds.status_label }}
+            </div>
+            {% endwith %}
+            {% endif %}
+        </div>
+
+        <!-- Custom Sections -->
+        {% for section_key, section_data in waybill.custom_data.items %}
+            {% if section_data and section_key != 'user_preferences' and section_key != 'delivery_quantities' %}
+                <div class="custom-section">
+                    <div class="section-header">
+                        <h3>
+                            {% if section_key == 'sender_info' %}SENDER INFORMATION
+                            {% elif section_key == 'receiver_info' %}RECEIVER INFORMATION
+                            {% elif section_key == 'shipment_info' %}SHIPMENT DETAILS
+                            {% else %}{{ section_key|title }}
+                            {% endif %}
+                        </h3>
+                    </div>
+                    <div class="custom-section-content">
+                        {% for field_key, field_value in section_data.items %}
+                            {% if field_value %}
+                                <strong>
+                                    {% if field_key == 'sender_name' %}Sender Name:
+                                    {% elif field_key == 'sender_phone' %}Sender Phone:
+                                    {% elif field_key == 'sender_address' %}Sender Address:
+                                    {% elif field_key == 'receiver_name' %}Receiver Name:
+                                    {% elif field_key == 'receiver_phone' %}Receiver Phone:
+                                    {% elif field_key == 'receiver_address' %}Receiver Address:
+                                    {% elif field_key == 'destination' %}Destination:
+                                    {% elif field_key == 'vehicle_number' %}Vehicle Number:
+                                    {% elif field_key == 'driver_name' %}Driver Name:
+                                    {% elif field_key == 'driver_phone' %}Driver Phone:
+                                    {% elif field_key == 'remark' %}Remark:
+                                    {% else %}{{ field_key|title }}:
+                                    {% endif %}
+                                </strong> {{ field_value }}<br>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        <!-- Items Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">S/N</th>
+                    {% if waybill.template.table_columns %}
+                        {% for column in waybill.template.table_columns %}
+                            <th class="waybill-col-dyn" data-width="{{ column.width|default:'auto' }}">{{ column.label|upper }}</th>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Default columns matching invoice structure -->
+                        <th style="width: 25%;">PRODUCT / SERVICE</th>
+                        <th style="width: 35%;">DESCRIPTION</th>
+                        <th style="width: 20%;">QUANTITY</th>
+                        <th style="width: 20%;">WEIGHT</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in waybill.items.all %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    {% if waybill.template.table_columns %}
+                        {% for column in waybill.template.table_columns %}
+                            <td>{{ item.item_data|lookup:column.name|default:"" }}</td>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Default columns: get_first_key never looks up missing keys -->
+                        <td>{{ item.item_data|get_first_key:"product_service,product"|default:"" }}</td>
+                        <td>{{ item.item_data|get_first_key:"description,item_description"|default:"" }}</td>
+                        <td>{{ item.item_data|lookup:'quantity'|default:"" }}</td>
+                        <td>{{ item.item_data|lookup:'weight'|default:"" }}</td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{% if waybill.template.table_columns %}{{ waybill.template.table_columns|length|add:1 }}{% else %}5{% endif %}" 
+                        style="text-align: center; padding: 15px; color: #999; font-style: italic;">
+                        No items found for this waybill.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Notes Section -->
+        {% if waybill.notes %}
+        <div class="custom-section">
+            <div class="section-header">
+                <h3>NOTES</h3>
+            </div>
+            <div class="custom-section-content">
+                <p>{{ waybill.notes|linebreaks }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Signature and Bank Details (use user_prefs) -->
+        {% with user_prefs=user_preferences %}
+        <!-- Signature Section -->
+        {% if waybill.template.show_signature and user_prefs.show_signature != False and company_profile and company_profile.show_signature %}
+        <div class="signature-section">
+            {% if company_signature %}
+                <img src="{{ company_signature }}" alt="Signature">
+                <p>Authorized Signature</p>
+            {% else %}
+                <div style="border-top: 1px solid #333; width: 250px; margin: 0 auto; padding-top: 10px;">
+                    <p style="font-family: 'Brush Script MT', cursive; font-size: 18px; margin: 5px 0;">{{ company_profile.company_name|default:"Company Name" }}</p>
+                    <p style="font-size: 11px; font-weight: bold; margin: 0;">Authorized Signature</p>
+                    <p style="font-size: 9px; color: #666; margin: 2px 0;">{{ company_profile.email|default:"" }}</p>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Bank Details Section (all active bank accounts) -->
+        {% if user_prefs.show_bank_details and bank_accounts and company_profile.show_bank_details %}
+        <div class="custom-section">
+            <div class="section-header">
+                <h3>BANK DETAILS</h3>
+            </div>
+            <div class="custom-section-content bank-accounts">
+                {% for account in bank_accounts %}
+                <p>
+                    <strong>Bank Name:</strong> {{ account.bank_name }}<br>
+                    <strong>Account No:</strong> {{ account.account_number }}<br>
+                    <strong>Account Name:</strong> {{ account.account_name }}
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+        {% elif waybill.template.show_bank_details and bank_accounts and company_profile.show_bank_details %}
+        <div class="custom-section">
+            <div class="section-header">
+                <h3>BANK DETAILS</h3>
+            </div>
+            <div class="custom-section-content bank-accounts">
+                {% for account in bank_accounts %}
+                <p>
+                    <strong>Bank Name:</strong> {{ account.bank_name }}<br>
+                    <strong>Account No:</strong> {{ account.account_number }}<br>
+                    <strong>Account Name:</strong> {{ account.account_name }}
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+    </div>
+    </div>
+    </div><!-- End preview-scroll-wrapper -->
+    
+    <!-- Navigation Bar (only visible on screen, hidden when printing) -->
+    <div class="print-nav-bar no-print">
+        <div class="paper-size-select">
+            <label>Paper:</label>
+            <select id="paperSize" onchange="setPaperSize(this.value)">
+                <option value="a4">A4</option>
+                <option value="a5">A5</option>
+            </select>
+        </div>
+        <a href="{% url 'waybills:detail' waybill.pk %}" class="nav-btn btn-back">
+            <i class="fas fa-arrow-left"></i> Back to Waybill
+        </a>
+        <a href="{% url 'waybills:list' %}" class="nav-btn btn-list">
+            <i class="fas fa-list"></i> Waybill List
+        </a>
+        <button onclick="if(document.body.classList.contains('paper-a5'))applyA5Scale();window.print()" class="nav-btn btn-print">
+            <i class="fas fa-print"></i> Print
+        </button>
+        <button onclick="window.close()" class="nav-btn btn-close-tab">
+            <i class="fas fa-times"></i> Close
+        </button>
+    </div>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+</body>
+</html>

@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Subuser Form - Responsive & Beautiful */
+.subuser-form-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 0 2rem 0;
+}
+
+.subuser-form-header {
+  margin-bottom: 1.5rem;
+}
+
+.subuser-form-header .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6c757d;
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  transition: color 0.2s ease;
+}
+
+.subuser-form-header .back-link:hover {
+  color: var(--theme-primary-color, #1976d2);
+}
+
+.subuser-form-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.subuser-form-header p {
+  color: #718096;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.subuser-form-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.subuser-form-section {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.subuser-form-section:last-of-type {
+  border-bottom: none;
+}
+
+.subuser-form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.25rem;
+}
+
+.subuser-form-section-title i {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.subuser-form-row {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.subuser-form-row.single {
+  grid-template-columns: 1fr;
+}
+
+.subuser-form-row.double {
+  grid-template-columns: 1fr 1fr;
+}
+
+.subuser-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.subuser-form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  display: block;
+}
+
+.subuser-form-group label .required {
+  color: #dc2626;
+}
+
+.subuser-form-group input[type="text"],
+.subuser-form-group input[type="email"],
+.subuser-form-group input[type="password"] {
+  width: 100%;
+  min-height: 48px; /* Touch-friendly on mobile */
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.subuser-form-group input:focus {
+  outline: none;
+  border-color: var(--theme-primary-color, #1976d2);
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.12);
+}
+
+.subuser-form-group input.is-invalid {
+  border-color: #dc2626;
+}
+
+.subuser-form-group input.is-invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15);
+}
+
+.subuser-form-group input::placeholder {
+  color: #9ca3af;
+}
+
+.subuser-form-group .form-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.subuser-form-group .invalid-feedback {
+  font-size: 0.85rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+}
+
+/* Checkbox styling - highly visible */
+.subuser-form-check-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.subuser-form-check-group:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.subuser-form-check-group:last-child {
+  margin-bottom: 0;
+}
+
+.subuser-form-check-group input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+  accent-color: var(--theme-primary-color, #1976d2);
+  cursor: pointer;
+}
+
+.subuser-form-check-group label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  flex: 1;
+}
+
+.subuser-form-check-group .form-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.35rem;
+}
+
+/* Form actions */
+.subuser-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: #fafbfc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.subuser-form-actions .btn {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.subuser-form-actions .btn-outline-secondary {
+  border: 2px solid #e2e8f0;
+  color: #64748b;
+}
+
+.subuser-form-actions .btn-outline-secondary:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.subuser-form-actions .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .subuser-form-page {
+    padding: 0 0.5rem 1.5rem 0.5rem;
+  }
+  
+  .subuser-form-header {
+    padding-right: 0.25rem;
+    padding-left: 0.25rem;
+  }
+  
+  .subuser-form-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .subuser-form-section {
+    padding: 1.25rem 1rem;
+  }
+  
+  .subuser-form-row.double {
+    grid-template-columns: 1fr;
+  }
+  
+  .subuser-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.25rem 1rem;
+  }
+  
+  .subuser-form-actions .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1.25rem;
+    min-height: 48px; /* Touch-friendly */
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .subuser-form-row.double {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+  .subuser-form-header h1 {
+    font-size: 1.35rem;
+  }
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="subuser-form-page">
+    <!-- Header -->
+    <div class="subuser-form-header">
+      <a href="{% url 'accounts:subuser_list' %}" class="back-link">
+        <i class="fas fa-arrow-left"></i>
+        Back to Team Members
+      </a>
+      <h1><i class="fas fa-user-plus me-2" style="color: var(--theme-primary-color, #1976d2);"></i>{{ title }}</h1>
+      <p>{% if sub_user %}Update team member details.{% else %}Add a new team member who can log in with their own email and password.{% endif %}</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="subuser-form-card">
+      <form method="post" autocomplete="on" data-offline-queue="true">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="subuser-form-section" style="border-bottom: none; padding-bottom: 0;">
+          <div class="alert alert-danger mb-0" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- Account Details Section -->
+        <div class="subuser-form-section">
+          <h3 class="subuser-form-section-title">
+            <i class="fas fa-envelope"></i>
+            Login Credentials
+          </h3>
+          <div class="subuser-form-row double">
+            <div class="subuser-form-group">
+              <label for="id_email">Email address <span class="required">*</span></label>
+              <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}"
+                     placeholder="e.g. colleague@company.com" maxlength="254" required
+                     class="{% if form.email.errors %}is-invalid{% endif %}">
+              {% if form.email.help_text %}
+              <span class="form-text">{{ form.email.help_text }}</span>
+              {% endif %}
+              {% for error in form.email.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+            {% if not sub_user %}
+            <div class="subuser-form-group">
+              <label for="id_password">Password <span class="required">*</span></label>
+              <input type="password" name="password" id="id_password"
+                     placeholder="Set their login password" {% if not sub_user %}required{% endif %}
+                     class="{% if form.password.errors %}is-invalid{% endif %}">
+              {% if form.password.help_text %}
+              <span class="form-text">{{ form.password.help_text }}</span>
+              {% endif %}
+              {% for error in form.password.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="subuser-form-group">
+              <label for="id_password">New password</label>
+              <input type="password" name="password" id="id_password"
+                     placeholder="Leave blank to keep current password"
+                     class="{% if form.password.errors %}is-invalid{% endif %}">
+              {% if form.password.help_text %}
+              <span class="form-text">{{ form.password.help_text }}</span>
+              {% endif %}
+              {% for error in form.password.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Profile Section -->
+        <div class="subuser-form-section">
+          <h3 class="subuser-form-section-title">
+            <i class="fas fa-id-card"></i>
+            Profile
+          </h3>
+          <div class="subuser-form-row single">
+            <div class="subuser-form-group">
+              <label for="id_full_name">Full name <span class="required">*</span></label>
+              <input type="text" name="full_name" id="id_full_name" value="{{ form.full_name.value|default:'' }}"
+                     placeholder="e.g. John Doe" maxlength="150" required
+                     class="{% if form.full_name.errors %}is-invalid{% endif %}">
+              {% for error in form.full_name.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Role & Status Section -->
+        <div class="subuser-form-section">
+          <h3 class="subuser-form-section-title">
+            <i class="fas fa-user-shield"></i>
+            Role & Status
+          </h3>
+          
+          <div class="subuser-form-group mb-3">
+            <label for="id_role">Role <span class="required">*</span></label>
+            {{ form.role }}
+            {% if form.role.help_text %}
+            <span class="form-text">{{ form.role.help_text }}</span>
+            {% endif %}
+            {% for error in form.role.errors %}
+            <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="subuser-form-check-group">
+            {{ form.is_active }}
+            <label for="id_is_active">Active</label>
+            <span class="form-text">Inactive team members cannot log in.</span>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="subuser-form-actions">
+          <a href="{% url 'accounts:subuser_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>Cancel
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i>
+            {% if sub_user %}Update Team Member{% else %}Add Team Member{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

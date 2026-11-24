@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Category - Smart Payroll{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-control, .form-select {
+        border: 2px solid #dee2e6 !important;
+        transition: all 0.2s ease;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+        outline: none;
+    }
+    .form-control:hover, .form-select:hover {
+        border-color: #667eea !important;
+    }
+    .form-label {
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    .form-check-label {
+        margin-left: 8px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Edit Category</h2>
+            <p class="text-muted mb-0">Update "{{ category.name }}" category</p>
+        </div>
+        <div>
+            <a href="{% url 'payroll:category_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Categories
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    {% if messages %}
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" id="categoryForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Category Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control form-control-lg" placeholder="Enter category name" required style="border: 2px solid #dee2e6;" value="{{ form.name.value|default:'' }}">
+                            {% if form.name.errors %}
+                            <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Category Type</label>
+                            <select name="category_type" class="form-select form-select-lg" style="border: 2px solid #dee2e6;">
+                                <option value="">Select category type</option>
+                                <option value="payslip" {% if form.category_type.value == 'payslip' %}selected{% endif %}>Payslip</option>
+                                <option value="tax" {% if form.category_type.value == 'tax' %}selected{% endif %}>Tax Document</option>
+                                <option value="pension" {% if form.category_type.value == 'pension' %}selected{% endif %}>Pension</option>
+                                <option value="insurance" {% if form.category_type.value == 'insurance' %}selected{% endif %}>Insurance</option>
+                                <option value="loan" {% if form.category_type.value == 'loan' %}selected{% endif %}>Loan</option>
+                                <option value="bonus" {% if form.category_type.value == 'bonus' %}selected{% endif %}>Bonus</option>
+                                <option value="other" {% if form.category_type.value == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Enter category description (optional)" style="border: 2px solid #dee2e6;">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Color</label>
+                                <div class="d-flex align-items-center gap-3">
+                                    <input type="color" name="color" value="{{ form.color.value|default:'#667eea' }}" class="form-control form-control-color" style="width: 60px; height: 48px; border: 2px solid #dee2e6; cursor: pointer;">
+                                    <span class="text-muted">Choose a color for this category</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Icon</label>
+                                <div class="input-group">
+                                    <span class="input-group-text" style="border: 2px solid #dee2e6; border-right: none; background: #f8f9fa;">
+                                        <i class="fas fa-folder text-muted"></i>
+                                    </span>
+                                    <input type="text" name="icon" class="form-control" placeholder="file-document" style="border: 2px solid #dee2e6;" value="{{ form.icon.value|default:'' }}" list="icon-list">
+                                    <datalist id="icon-list">
+                                        <option value="file-document">
+                                        <option value="file-pdf">
+                                        <option value="file-excel">
+                                        <option value="file-word">
+                                        <option value="file-invoice">
+                                        <option value="money-bill">
+                                        <option value="credit-card">
+                                        <option value="wallet">
+                                        <option value="landmark">
+                                        <option value="coins">
+                                    </datalist>
+                                </div>
+                                <div class="form-text">FontAwesome icon class (e.g., file-document, money-bill)</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input" {% if form.is_active.value %}checked{% endif %}>
+                                <label class="form-check-label fw-semibold" for="id_is_active">
+                                    Active Category
+                                </label>
+                            </div>
+                            <div class="form-text mt-1">Inactive categories won't appear in the category list</div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'payroll:category_list' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

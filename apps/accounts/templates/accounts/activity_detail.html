@@ -1,0 +1,499 @@
+{% extends 'base.html' %}
+
+{% block title %}Activity Details | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}Activity Details{% endblock %}
+{% block extra_css %}
+<style>
+/* Ensure activity banner text is always readable: use white text on colored alerts */
+.activity-banner,
+.activity-banner h4,
+.activity-banner p,
+.activity-banner span,
+.activity-banner strong,
+.activity-banner i {
+  color: #ffffff !important;
+}
+.activity-banner .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+/* Responsive header actions: stack buttons nicely on small screens */
+.activity-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+@media (max-width: 575.98px) {
+  .activity-header-actions .btn {
+    width: 100%;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-history me-2"></i>Activity Details</h2>
+                <p class="text-muted mb-0">Detailed information about this activity</p>
+            </div>
+            <div class="activity-header-actions">
+                <a href="{% url 'accounts:activity_log' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Activities
+                </a>
+                {% if activity.activity_type != 'DELETE' and activity.activity_type != 'LOGIN' and activity.activity_type != 'LOGOUT' and activity.activity_type != 'LOGIN_FAILED' %}
+                    {% if activity.object_url %}
+                    <a href="{{ activity.object_url }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-external-link-alt me-1"></i>View Record
+                    </a>
+                    {% elif activity.url_path %}
+                    <a href="{{ activity.url_path }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-external-link-alt me-1"></i>Go to Page
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if activity.activity_type != 'DELETE' and activity.activity_type != 'LOGIN' and activity.activity_type != 'LOGOUT' and activity.activity_type != 'LOGIN_FAILED' %}
+        
+        {% if activity.object_url %}
+        <!-- GO TO RECORD - For specific records (CREATE, UPDATE, etc.) -->
+        <div class="card border-success shadow-sm mb-4" style="border-width: 2px;">
+            <div class="card-body bg-success bg-opacity-10">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                        <div class="bg-success text-white rounded-circle p-3 me-3">
+                            <i class="fas fa-file-alt fa-2x"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1 text-success">View the Actual {{ activity.model_name|default:"Record" }}</h5>
+                            <p class="mb-0 text-muted">
+                                Click the button to view the exact {{ activity.model_name|default:"record"|lower }} 
+                                that was {{ activity.activity_type|lower }}d by this user.
+                                {% if activity.object_id %}
+                                <br><strong>{{ activity.model_name|default:"Record" }} ID:</strong> <code>{{ activity.object_id }}</code>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <a href="{{ activity.object_url }}" class="btn btn-success mt-3 mt-md-0 w-100 w-md-auto">
+                        <i class="fas fa-external-link-alt me-2"></i>Go to {{ activity.model_name|default:"Record" }}
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% elif activity.url_path %}
+        <!-- GO TO PAGE - For page views without specific object ID -->
+        <div class="card border-primary shadow-sm mb-4" style="border-width: 2px;">
+            <div class="card-body bg-primary bg-opacity-10">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                        <div class="bg-primary text-white rounded-circle p-3 me-3">
+                            <i class="fas fa-globe fa-2x"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1 text-primary">Go to This Page</h5>
+                            <p class="mb-0 text-muted">
+                                Click the button to visit the page that was accessed by this user.
+                                <br><strong>URL:</strong> <code>{{ activity.url_path }}</code>
+                            </p>
+                        </div>
+                    </div>
+                    <a href="{{ activity.url_path }}" class="btn btn-primary mt-3 mt-md-0 w-100 w-md-auto">
+                        <i class="fas fa-external-link-alt me-2"></i>Go to Page
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% endif %}
+
+        {% if activity.activity_type == 'DELETE' and activity.deleted_data %}
+        <!-- DELETED RECORD Notice -->
+        <div class="card border-danger shadow-sm mb-4" style="border-width: 2px;">
+            <div class="card-body bg-danger bg-opacity-10">
+                <div class="d-flex align-items-center">
+                    <div class="bg-danger text-white rounded-circle p-3 me-3">
+                        <i class="fas fa-trash-alt fa-2x"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1 text-danger">This {{ activity.model_name|default:"Record" }} Was Deleted</h5>
+                        <p class="mb-0 text-muted">
+                            The record no longer exists, but you can see the deleted data below.
+                            {% if activity.object_id %}
+                            <br><strong>Original {{ activity.model_name|default:"Record" }} ID:</strong> <code>{{ activity.object_id }}</code>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Activity Type Banner -->
+        <div class="alert activity-banner
+            {% if activity.activity_type == 'CREATE' %}alert-success
+            {% elif activity.activity_type == 'UPDATE' %}alert-info
+            {% elif activity.activity_type == 'DELETE' %}alert-danger
+            {% elif activity.activity_type == 'LOGIN' %}alert-success
+            {% elif activity.activity_type == 'LOGOUT' %}alert-secondary
+            {% elif activity.activity_type == 'LOGIN_FAILED' %}alert-warning
+            {% else %}alert-light{% endif %} shadow-sm mb-4">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    {% if activity.activity_type == 'CREATE' %}
+                        <i class="fas fa-plus-circle fa-2x"></i>
+                    {% elif activity.activity_type == 'UPDATE' %}
+                        <i class="fas fa-edit fa-2x"></i>
+                    {% elif activity.activity_type == 'DELETE' %}
+                        <i class="fas fa-trash-alt fa-2x"></i>
+                    {% elif activity.activity_type == 'LOGIN' %}
+                        <i class="fas fa-sign-in-alt fa-2x"></i>
+                    {% elif activity.activity_type == 'LOGOUT' %}
+                        <i class="fas fa-sign-out-alt fa-2x"></i>
+                    {% elif activity.activity_type == 'LOGIN_FAILED' %}
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    {% elif activity.activity_type == 'PAGE_VIEW' %}
+                        <i class="fas fa-eye fa-2x"></i>
+                    {% elif activity.activity_type == 'EXPORT' %}
+                        <i class="fas fa-file-export fa-2x"></i>
+                    {% elif activity.activity_type == 'FILE_DOWNLOAD' %}
+                        <i class="fas fa-download fa-2x"></i>
+                    {% else %}
+                        <i class="fas fa-circle fa-2x"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <h4 class="mb-1">{{ activity.get_activity_type_display }}</h4>
+                    <p class="mb-0">{{ activity.description }}</p>
+                </div>
+                <div class="ms-auto text-end">
+                    <strong>{{ activity.timestamp|date:"F d, Y" }}</strong><br>
+                    <span class="text-muted">{{ activity.timestamp|time:"g:i:s A" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Activity Information -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Activity Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Activity Type:</strong></div>
+                            <div class="col-7">
+                                <span class="badge 
+                                    {% if activity.activity_type == 'CREATE' %}bg-success
+                                    {% elif activity.activity_type == 'UPDATE' %}bg-info
+                                    {% elif activity.activity_type == 'DELETE' %}bg-danger
+                                    {% elif activity.activity_type == 'LOGIN' %}bg-success
+                                    {% elif activity.activity_type == 'LOGOUT' %}bg-secondary
+                                    {% elif activity.activity_type == 'LOGIN_FAILED' %}bg-warning text-dark
+                                    {% elif activity.activity_type == 'PAGE_VIEW' %}bg-light text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ activity.get_activity_type_display }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Application:</strong></div>
+                            <div class="col-7">
+                                {% if activity.app_name %}
+                                <span class="badge bg-light text-dark">{{ activity.app_name|title }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Model/Object Type:</strong></div>
+                            <div class="col-7">{{ activity.model_name|default:"-" }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Object ID:</strong></div>
+                            <div class="col-7">
+                                {% if activity.object_id %}
+                                <code>{{ activity.object_id }}</code>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Object Description:</strong></div>
+                            <div class="col-7">{{ activity.object_repr|default:"-" }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>URL Path:</strong></div>
+                            <div class="col-7">
+                                {% if activity.url_path %}
+                                <code class="text-break">{{ activity.url_path }}</code>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>HTTP Method:</strong></div>
+                            <div class="col-7">
+                                {% if activity.http_method %}
+                                <span class="badge 
+                                    {% if activity.http_method == 'GET' %}bg-success
+                                    {% elif activity.http_method == 'POST' %}bg-primary
+                                    {% elif activity.http_method == 'PUT' or activity.http_method == 'PATCH' %}bg-warning text-dark
+                                    {% elif activity.http_method == 'DELETE' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ activity.http_method }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Risk Level:</strong></div>
+                            <div class="col-7">
+                                <span class="badge 
+                                    {% if activity.risk_level == 'LOW' %}bg-light text-dark
+                                    {% elif activity.risk_level == 'MEDIUM' %}bg-warning text-dark
+                                    {% elif activity.risk_level == 'HIGH' %}bg-danger
+                                    {% elif activity.risk_level == 'CRITICAL' %}bg-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ activity.get_risk_level_display }}
+                                </span>
+                                {% if activity.is_suspicious %}
+                                <span class="badge bg-danger ms-1">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Suspicious
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User & Device Information -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-user me-2"></i>User & Device Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Performed by:</strong></div>
+                            <div class="col-7">
+                                {{ activity.actor_display }}
+                                {% if activity.sub_user_id %}
+                                <br><span class="badge bg-info text-white">Team member</span>
+                                {% elif activity.user_id %}
+                                <br><span class="badge bg-secondary">Account owner</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>IP Address:</strong></div>
+                            <div class="col-7">
+                                {% if activity.ip_address %}
+                                <code class="fw-bold">{{ activity.ip_address }}</code>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Timestamp:</strong></div>
+                            <div class="col-7">
+                                {{ activity.timestamp|date:"F d, Y" }} at {{ activity.timestamp|time:"g:i:s A" }}
+                                <br><small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                            </div>
+                        </div>
+                        {% if activity.session %}
+                        <div class="row mb-3">
+                            <div class="col-5"><strong>Session:</strong></div>
+                            <div class="col-7">
+                                <a href="{% url 'accounts:session_detail' activity.session.id %}">
+                                    {{ activity.session.device_info }}
+                                </a>
+                                <br><small class="text-muted">{{ activity.session.location_info }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if activity.user_agent %}
+                        <div class="row">
+                            <div class="col-12">
+                                <strong>User Agent:</strong>
+                                <div class="mt-2 p-2 bg-light rounded">
+                                    <small class="text-break">{{ activity.user_agent }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if changes_display %}
+        <!-- Changes Made (for UPDATE activities) -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Changes Made</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S/N</th>
+                                <th style="width: 25%;">Field</th>
+                                <th style="width: 37.5%;">Old Value</th>
+                                <th style="width: 37.5%;">New Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for change in changes_display %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><strong>{{ change.field }}</strong></td>
+                                <td>
+                                    <span class="text-danger">
+                                        {% if change.old_value %}
+                                        {{ change.old_value }}
+                                        {% else %}
+                                        <em class="text-muted">(empty)</em>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="text-success">
+                                        {% if change.new_value %}
+                                        {{ change.new_value }}
+                                        {% else %}
+                                        <em class="text-muted">(empty)</em>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if deleted_data_display %}
+        <!-- Deleted Record Data (for DELETE activities) -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-trash-alt me-2"></i>Deleted Record Data</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    This data was captured before the record was deleted for audit purposes.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S/N</th>
+                                <th style="width: 30%;">Field</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in deleted_data_display %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><strong>{{ data.field }}</strong></td>
+                                <td>{{ data.value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if activity.extra_data %}
+        <!-- Extra Data -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-database me-2"></i>Additional Data</h5>
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded mb-0" style="max-height: 300px; overflow-y: auto;">{{ activity.extra_data|pprint }}</pre>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    {% if activity.activity_type != 'DELETE' and activity.activity_type != 'LOGIN' and activity.activity_type != 'LOGOUT' and activity.activity_type != 'LOGIN_FAILED' %}
+                        {% if activity.object_url %}
+                        <a href="{{ activity.object_url }}" class="btn btn-success">
+                            <i class="fas fa-external-link-alt me-1"></i>Go to Record
+                        </a>
+                        {% elif activity.url_path %}
+                        <a href="{{ activity.url_path }}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt me-1"></i>Go to Page
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                    {% if activity.session %}
+                    <a href="{% url 'accounts:session_detail' activity.session.id %}" class="btn btn-outline-info">
+                        <i class="fas fa-laptop me-1"></i>View Session
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'accounts:activity_log' %}?type={{ activity.activity_type }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-filter me-1"></i>Similar Activities
+                    </a>
+                    {% if activity.app_name %}
+                    <a href="{% url 'accounts:activity_log' %}?app={{ activity.app_name }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-folder me-1"></i>{{ activity.app_name|title }} Activities
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 0.5rem;
+    }
+    
+    code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.9em;
+    }
+    
+    pre {
+        font-size: 0.85rem;
+    }
+</style>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

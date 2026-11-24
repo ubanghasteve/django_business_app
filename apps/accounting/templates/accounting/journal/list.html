@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Journal Entries{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Journal Entries</h1>
+            <p class="text-muted">View and create double-entry journal postings.</p>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">Create Journal Entry</h5>
+        </div>
+        <div class="card-body">
+            <form id="journalForm">
+                {% csrf_token %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Date</label>
+                        {{ form.date }}
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Reference</label>
+                        {{ form.reference }}
+                    </div>
+                </div>
+
+                <div id="journalLines"></div>
+
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addJournalLine()">Add Line</button>
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-primary" onclick="saveJournal()">Post Journal Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Recent Journal Entries</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="journalTable">
+                    {% include 'accounting/partials/journal_rows.html' %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let lineIndex = 0;
+
+function getCsrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function addJournalLine() {
+    const container = document.getElementById('journalLines');
+    const idx = lineIndex++;
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-end mb-2';
+    row.innerHTML = `
+        <div class="col-md-5">
+            <label class="form-label">Account ID</label>
+            <input type="number" class="form-control" name="lines[${idx}][account_id]" placeholder="Account ID">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Debit</label>
+            <input type="number" step="0.01" class="form-control" name="lines[${idx}][debit]" value="0.00">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Credit</label>
+            <input type="number" step="0.01" class="form-control" name="lines[${idx}][credit]" value="0.00">
+        </div>
+        <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.row').remove()">×</button>
+        </div>
+    `;
+    container.appendChild(row);
+}
+
+function saveJournal() {
+    const form = document.getElementById('journalForm');
+    const fd = new FormData(form);
+    const payload = {
+        date: fd.get('date'),
+        description: fd.get('description'),
+        reference: fd.get('reference'),
+        lines: [],
+    };
+
+    fd.forEach((value, key) => {
+        const match = key.match(/^lines\[(\d+)\]\[(.+)\]$/);
+        if (match) {
+            const idx = parseInt(match[1], 10);
+            const field = match[2];
+            if (!payload.lines[idx]) payload.lines[idx] = {};
+            payload.lines[idx][field] = value;
+        }
+    });
+
+    fetch('{% url "accounting_api:api_journal_create" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrf(),
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.detail) {
+            alert(data.detail);
+        } else {
+            form.reset();
+            document.getElementById('journalLines').innerHTML = '';
+            lineIndex = 0;
+            loadRecentJournals();
+        }
+    })
+    .catch(err => console.error('Error posting journal:', err));
+}
+
+function formatAmount(value) {
+    if (value === null || value === undefined) {
+        return '0.00';
+    }
+    const num = Number(value);
+    if (Number.isNaN(num)) {
+        return '0.00';
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function loadRecentJournals() {
+    fetch('{% url "accounting_api:api_journal_list" %}?limit=20', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        const results = Array.isArray(data) ? data : (data.results || []);
+        const tbody = document.getElementById('journalTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!results.length) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.className = 'text-center text-muted';
+            td.textContent = 'No journal entries found.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+        }
+
+        results.forEach(item => {
+            const tr = document.createElement('tr');
+            const dateStr = item.date ? new Date(item.date).toLocaleDateString() : '';
+
+            tr.innerHTML = `
+                <td>${item.reference || ''}</td>
+                <td>${dateStr}</td>
+                <td>${item.description || ''}</td>
+                <td>${formatAmount(item.total_debit)}</td>
+                <td>${formatAmount(item.total_credit)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(err => {
+        console.error('Error loading recent journals:', err);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    addJournalLine();
+    loadRecentJournals();
+    // Periodically refresh recent journals so multiple users/devices stay in sync
+    setInterval(loadRecentJournals, 30000);
+});
+</script>
+{% endblock %}
+

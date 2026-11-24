@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Fill Form - {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="mb-4">
+        <h2 class="fw-bold text-dark mb-1">Fill Payroll Data</h2>
+        <p class="text-muted">Using template: <strong>{{ template.name }}</strong></p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-edit me-2 text-success"></i>Payroll Entry Form</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="payrollForm">
+                        {% csrf_token %}
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Entry Title *</label>
+                                <input type="text" name="title" class="form-control" required placeholder="e.g., Payroll January 2024">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Period Month *</label>
+                                <select name="period_month" class="form-select" required>
+                                    <option value="">Select month</option>
+                                    {% for m in months %}
+                                    <option value="{{ m.value }}" {% if m.value == current_month %}selected{% endif %}>{{ m.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Period Year *</label>
+                                <input type="text" name="period_year" list="year-list" class="form-control" placeholder="Type or select year" required autocomplete="off">
+                                <datalist id="year-list">
+                                    {% for year in years %}
+                                    <option value="{{ year }}">{{ year }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0">Payroll Data</h5>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addRowBtn">
+                                <i class="fas fa-plus me-1"></i>Add Row
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="dataTable">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        {% for col in template.columns %}
+                                        <th>{{ col.label|default:col.key }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody id="tableBody">
+                                    <tr data-row="0">
+                                        <td class="text-center text-muted align-middle">1</td>
+                                        {% for col in template.columns %}
+                                        <td>
+                                            {% if col.field_type == 'number' %}
+                                            <input type="number" step="any" name="row_0_{{ col.key }}" class="form-control form-control-sm" placeholder="0">
+                                            {% elif col.field_type == 'date' %}
+                                            <input type="date" name="row_0_{{ col.key }}" class="form-control form-control-sm">
+                                            {% else %}
+                                            <input type="text" name="row_0_{{ col.key }}" class="form-control form-control-sm">
+                                            {% endif %}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <button type="button" class="btn btn-outline-secondary" id="addRowBtn2">
+                                <i class="fas fa-plus me-1"></i>Add Another Row
+                            </button>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save me-2"></i>Save Payroll Entry
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold"><i class="fas fa-info-circle me-2 text-info"></i>Template Columns</h6>
+                            <ul class="list-unstyled small">
+                                {% for col in template.columns %}
+                                <li class="mb-1">
+                                    <code>{{ col.key }}</code>
+                                    <span class="text-muted">- {{ col.label|default:col.key }}</span>
+                                    <span class="badge bg-light text-dark ms-1">{{ col.field_type }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold"><i class="fas fa-lightbulb me-2 text-warning"></i>Tips</h6>
+                            <ul class="small text-muted">
+                                <li>Fill in at least one row of data</li>
+                                <li>All fields marked with * are required</li>
+                                <li>Use Tab to move between fields</li>
+                                <li>Add as many rows as needed for your employees</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+let rowCount = 1;
+const templateColumns = {{ template.columns|safe }};
+
+function addRow() {
+    const tbody = document.getElementById('tableBody');
+    const tr = document.createElement('tr');
+    tr.dataset.row = rowCount;
+    
+    let html = `<td class="text-center text-muted align-middle">${rowCount + 1}</td>`;
+    
+    templateColumns.forEach(col => {
+        if (col.field_type === 'number') {
+            html += `<td><input type="number" step="any" name="row_${rowCount}_${col.key}" class="form-control form-control-sm" placeholder="0"></td>`;
+        } else if (col.field_type === 'date') {
+            html += `<td><input type="date" name="row_${rowCount}_${col.key}" class="form-control form-control-sm"></td>`;
+        } else {
+            html += `<td><input type="text" name="row_${rowCount}_${col.key}" class="form-control form-control-sm"></td>`;
+        }
+    });
+    
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
+    rowCount++;
+    
+    tr.querySelector('input').focus();
+}
+
+document.getElementById('addRowBtn').addEventListener('click', addRow);
+document.getElementById('addRowBtn2').addEventListener('click', addRow);
+
+document.getElementById('payrollForm').addEventListener('submit', function(e) {
+    const rows = document.querySelectorAll('#tableBody tr');
+    let hasData = false;
+    
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input[type="text"], input[type="number"], input[type="date"]');
+        inputs.forEach(input => {
+            if (input.value.trim()) hasData = true;
+        });
+    });
+    
+    if (!hasData) {
+        e.preventDefault();
+        alert('Please fill in at least one row of data.');
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

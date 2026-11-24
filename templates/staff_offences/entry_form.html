@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block page_title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6>{{ form_title }} — {{ register.staff_name }} ({{ register.month_label }})</h6>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">Date</label>
+              {{ entry_form.date }}
+              {{ entry_form.date.errors }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              {{ entry_form.description }}
+              {{ entry_form.description.errors }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Amount</label>
+              {{ entry_form.amount }}
+              {{ entry_form.amount.errors }}
+            </div>
+            <a href="{% url 'staff_offences:detail' register.pk %}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

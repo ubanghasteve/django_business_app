@@ -1,0 +1,704 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Clients - Business App{% endblock %}
+
+{% block extra_css %}
+<style>
+    .client-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .client-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Clearly visible borders + padding for client search/filter fields */
+    .client-filter-form .form-control,
+    .client-filter-form .form-select {
+        border: 1px solid #4a5568 !important; /* darker, more visible border */
+        background-color: #ffffff;
+        border-radius: 6px;
+        padding: 0.375rem 0.75rem;
+        box-shadow: none;
+        min-height: 40px;
+        font-size: 0.85rem;
+    }
+
+    .client-filter-form .form-control::placeholder {
+        color: #a0aec0;
+    }
+
+    .client-filter-form .form-control:focus,
+    .client-filter-form .form-select:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 0.15rem rgba(102, 126, 234, 0.15);
+        outline: none;
+    }
+    
+    .action-buttons .btn {
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .client-name {
+        font-weight: 600;
+        color: #1976d2;
+        font-size: 1.1rem;
+    }
+    
+    .client-email {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .client-phone {
+        color: #28a745;
+        font-weight: 500;
+    }
+    
+    .client-address {
+        color: #6c757d;
+        font-size: 0.875rem;
+        font-style: italic;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+    
+    .search-highlight {
+        background-color: #fff3cd;
+        padding: 0.1rem 0.2rem;
+        border-radius: 3px;
+    }
+    
+    .client-card .dropdown-toggle {
+        min-width: 80px;
+        white-space: nowrap;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: #fff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .client-card .dropdown-toggle,
+    .client-card .dropdown-toggle .fas,
+    .client-card .dropdown-toggle::after {
+        color: #fff !important;
+        border-color: #fff;
+    }
+    
+    .client-card .dropdown-toggle:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        color: #fff !important;
+    }
+    
+    .client-card .dropdown-toggle:hover .fas,
+    .client-card .dropdown-toggle:hover::after {
+        color: #fff !important;
+        border-color: #fff;
+    }
+    
+    .client-card .dropdown-toggle:focus {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        color: #fff !important;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .client-card .dropdown-toggle:focus .fas,
+    .client-card .dropdown-toggle:focus::after {
+        color: #fff !important;
+        border-color: #fff;
+    }
+    
+    .client-card .dropdown-toggle .fas {
+        font-size: 0.75rem;
+    }
+    
+    /* Bootstrap caret (chevron) - ensure it's white */
+    .client-card .dropdown-toggle::after {
+        border-top-color: #fff;
+    }
+    .client-card .dropdown-toggle:hover::after,
+    .client-card .dropdown-toggle:focus::after {
+        border-top-color: #fff;
+    }
+    .client-card-link { transition: opacity 0.2s; }
+    .client-card-link:hover { opacity: 0.9; }
+    .source-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 6px; margin-right: 0.25rem; margin-bottom: 0.25rem; display: inline-block; }
+    .source-badge-invoices { background: rgba(25, 118, 210, 0.15); color: #1565c0; }
+    .source-badge-receipts { background: rgba(40, 167, 69, 0.15); color: #2e7d32; }
+    .source-badge-quotations { background: rgba(255, 152, 0, 0.2); color: #e65100; }
+    .source-badge-waybills { background: rgba(156, 39, 176, 0.15); color: #7b1fa2; }
+    .source-badge-requisitions { background: rgba(0, 150, 136, 0.15); color: #00695c; }
+    .source-badge-expense { background: rgba(233, 30, 99, 0.15); color: #c2185b; }
+    .source-badge-inventory { background: rgba(0, 188, 212, 0.15); color: #00838f; }
+    .source-badge-joborders { background: rgba(103, 58, 183, 0.15); color: #512da8; }
+    .source-badge-default { background: #e9ecef; color: #495057; }
+    .source-record-meta { font-size: 0.7rem; color: #6c757d; margin-top: 0.15rem; }
+    @media (max-width: 576px) {
+        .client-card .card-body { padding: 1rem; }
+        .action-buttons .btn { display: block; width: 100%; margin-bottom: 0.5rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        Clients
+                    </h2>
+                    <p class="text-muted mb-0">Auto-synced from Invoices, Receipts, Quotations, Waybills, Requisitions, Expense, Inventory &amp; Job Orders. Click a card to open the source record.</p>
+                    <p class="small text-muted mb-0 mt-1" id="clientsSyncLine">{% if discovery_stats.synced or discovery_stats.created or discovery_stats.updated %}Last sync: {{ discovery_stats.synced }} records scanned, {{ discovery_stats.created }} added, {{ discovery_stats.updated }} updated.{% else %}Updates in real time without refresh.{% endif %}</p>
+                </div>
+                <div class="action-buttons">
+                    {% if perms.clients.add_client %}
+                    <a href="{% url 'clients:client_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add New Client
+                    </a>
+                    {% endif %}
+                    {% if perms.quotations.view_quotation %}
+                    <a href="{% url 'quotations:quotation_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Back to Quotations
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards (updated in real time via Ajax) -->
+    <div class="row" id="clientsStatsRow">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0" id="statTotalClients">{{ total_clients|default:0 }}</h4>
+                        <p class="mb-0 opacity-75">Total Clients</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card" style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0" id="statActiveClients">{{ active_clients_count|default:0 }}</h4>
+                        <p class="mb-0 opacity-75">Active Clients</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-check fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0" id="statRecentClients">{{ recent_clients_count|default:0 }}</h4>
+                        <p class="mb-0 opacity-75">Recent (30 days)</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="mb-0" id="statTotalQuotations">{{ total_quotations|default:0 }}</h4>
+                        <p class="mb-0 opacity-75">Total Quotations</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="row">
+        <div class="col-12">
+            <div class="filter-card">
+                <form method="get" class="row g-3 client-filter-form">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search Clients</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ request.GET.search }}" placeholder="Search by name, email, or phone...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort" name="sort">
+                            <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                            <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z-A)</option>
+                            <option value="created_at" {% if request.GET.sort == 'created_at' %}selected{% endif %}>Date Created (Oldest)</option>
+                            <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>Date Created (Newest)</option>
+                        </select>
+                    </div>
+                    {% if is_company_admin %}
+                    <div class="col-md-2">
+                        <label for="created_by" class="form-label">Created by</label>
+                        <select class="form-select" id="created_by" name="created_by">
+                            <option value="">All team members</option>
+                            {% for u in account_users %}
+                            <option value="{{ u.pk }}" {% if request.GET.created_by == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                            <button type="submit" class="btn btn-primary" style="min-width: 80px; white-space: nowrap;">
+                                <i class="fas fa-search me-1"></i>Search
+                            </button>
+                            <a href="{% url 'clients:client_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Clear
+                            </a>
+                            {% if perms.clients.print_client or perms.clients.download_client %}
+                            {% if perms.clients.print_client %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#clientsPrintDownloadModal" title="Print clients table (A4, with date range)">
+                                <i class="fas fa-print me-1"></i>Print
+                            </button>
+                            {% endif %}
+                            {% if perms.clients.download_client %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#clientsPrintDownloadModal" title="Open print view to print or save as PDF (A4, with date range)">
+                                <i class="fas fa-file-pdf me-1"></i>Download
+                            </button>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Print / Download clients with date range -->
+    <div class="modal fade" id="clientsPrintDownloadModal" tabindex="-1" aria-labelledby="clientsPrintDownloadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="clientsPrintDownloadModalLabel"><i class="fas fa-print me-2"></i>Print or Download Clients</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Choose the date range for the report. Table will include company details and logo, fit to A4 with text wrapping.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Date range</label>
+                        <select id="clients-report-range-type" class="form-select form-select-sm">
+                            <option value="all">All records</option>
+                            <option value="day">Today</option>
+                            <option value="week">This week (Mon–Sun)</option>
+                            <option value="month">This month</option>
+                            <option value="quarter">This quarter</option>
+                            <option value="year">This year</option>
+                            <option value="custom">Custom range</option>
+                        </select>
+                    </div>
+                    <div id="clients-report-period-date-wrap" class="mb-3" style="display:none;">
+                        <label class="form-label small">Date</label>
+                        <input type="date" id="clients-report-period-date" class="form-control form-control-sm">
+                    </div>
+                    <div id="clients-report-custom-range-wrap" class="mb-3 row g-2" style="display:none;">
+                        <div class="col-6">
+                            <label class="form-label small">From</label>
+                            <input type="date" id="clients-report-date-from" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">To</label>
+                            <input type="date" id="clients-report-date-to" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    {% if perms.clients.print_client %}
+                    <a href="#" id="clients-report-print-btn" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-print me-1"></i>Print</a>
+                    {% endif %}
+                    {% if perms.clients.download_client %}
+                    <a href="#" id="clients-report-pdf-btn" class="btn btn-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-file-pdf me-1"></i>Print / Save as PDF</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clients Grid (updated in real time via Ajax) -->
+    <div id="clientsGridContainer" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" data-api-url="{% url 'clients_api:client_list' %}" data-can-edit="{% if perms.clients.change_client %}1{% else %}0{% endif %}" data-can-delete="{% if perms.clients.delete_client %}1{% else %}0{% endif %}">
+        {% for client in clients %}
+        <div class="col">
+            <div class="card client-card h-100">
+                <div class="card-body position-relative">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1 min-w-0">
+                            {% with primary_url=client.get_primary_source_url %}
+                            <a href="{% if primary_url %}{{ primary_url }}{% else %}{% url 'clients:client_detail' client.pk %}{% endif %}" class="client-card-link text-decoration-none text-dark d-block">
+                                <h5 class="client-name mb-1 text-truncate" title="{{ client.name }}">{{ client.name }}</h5>
+                                <p class="client-email mb-0 small"><i class="fas fa-envelope me-1"></i>{% if client.email %}{{ client.email }}{% else %}—{% endif %}</p>
+                                {% if client.phone %}
+                                <p class="client-phone mb-1 small"><i class="fas fa-phone me-1"></i>{{ client.phone }}</p>
+                                {% endif %}
+                                <div class="mt-2">
+                                    {% for item in client.get_display_sources %}
+                                    {% with app_label=item.0 record_label=item.1 url=item.2 created_at=item.3 created_by=item.4 %}
+                                    <div class="source-badge-wrapper mb-1">
+                                        <span class="source-badge source-badge-{{ app_label|lower|cut:' ' }}">{{ app_label }}{% if record_label %}: {{ record_label }}{% endif %}</span>
+                                        {% if created_at or created_by %}
+                                        <div class="source-record-meta">{% if created_at %}{{ created_at|date:"M d, Y H:i" }}{% endif %}{% if created_by %} by {{ created_by }}{% endif %}</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endwith %}
+                                    {% empty %}
+                                    <span class="source-badge source-badge-default">Clients</span>
+                                    {% endfor %}
+                                </div>
+                            </a>
+                            {% endwith %}
+                        </div>
+                        <div class="dropdown ms-2" onclick="event.stopPropagation();">
+                            <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-ellipsis-v"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                {% with primary_url=client.get_primary_source_url %}
+                                {% if primary_url %}
+                                <li><a class="dropdown-item" href="{{ primary_url }}"><i class="fas fa-external-link-alt me-2"></i>Open source record</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                {% endwith %}
+                                <li><a class="dropdown-item" href="{% url 'clients:client_detail' client.pk %}"><i class="fas fa-eye me-2"></i>View client details</a></li>
+                                {% if perms.clients.change_client %}
+                                <li><a class="dropdown-item" href="{% url 'clients:client_edit' client.pk %}"><i class="fas fa-edit me-2"></i>Edit client</a></li>
+                                {% endif %}
+                                {% if perms.clients.delete_client %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); confirmDelete('{{ client.name|escapejs }}', '{% url 'clients:client_delete' client.pk %}');"><i class="fas fa-trash me-2"></i>Delete client</a></li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% if client.address %}
+                    <div class="client-address small mt-2"><i class="fas fa-map-marker-alt me-1"></i>{{ client.address }}</div>
+                    {% endif %}
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="row text-center small">
+                            {% if client.quotations.count %}
+                            <div class="col-6"><span class="text-muted">Quotations</span><div class="fw-bold text-primary">{{ client.quotations.count }}</div></div>
+                            {% endif %}
+                            <div class="{% if client.quotations.count %}col-6{% else %}col-12{% endif %}"><span class="text-muted">Created</span><div class="fw-bold">{{ client.created_at|date:"M d, Y" }}{% if is_company_admin and client.created_by %} <span class="text-muted">by {{ client.created_by.get_full_name|default:client.created_by.email }}</span>{% endif %}</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h4 class="text-muted">No clients found</h4>
+                <p class="text-muted">Start by adding your first client to the database.</p>
+                {% if perms.clients.add_client %}
+                <a href="{% url 'clients:client_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Your First Client
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="Clients pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the client "<span id="clientName"></span>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="deleteConfirmBtn" class="btn btn-danger">Delete Client</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(clientName, deleteUrl) {
+    document.getElementById('clientName').textContent = clientName;
+    document.getElementById('deleteConfirmBtn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function escapeHtml(s) {
+    if (s == null || s === undefined) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function buildClientCards(clients, canEdit, canDelete) {
+    if (!clients || clients.length === 0) {
+        return '<div class="col-12"><div class="empty-state"><i class="fas fa-users"></i><h4 class="text-muted">No clients found</h4><p class="text-muted">Start by adding your first client or sync from other apps.</p></div></div>';
+    }
+    var html = '';
+    clients.forEach(function(c) {
+        var primaryUrl = c.primary_source_url || c.detail_url;
+        var name = escapeHtml(c.name || '—');
+        var email = escapeHtml(c.email || '—');
+        var phone = c.phone ? escapeHtml(c.phone) : '';
+        var address = c.address ? escapeHtml(c.address) : '';
+        var badges = '';
+        if (c.display_sources && c.display_sources.length) {
+            c.display_sources.forEach(function(s) {
+                var cls = 'source-badge source-badge-' + (s.app || '').toLowerCase().replace(/\s+/g, '');
+                if (cls === 'source-badge-') cls = 'source-badge source-badge-default';
+                var meta = '';
+                if (s.created_at || s.created_by) {
+                    meta = '<div class="source-record-meta">' + escapeHtml(s.created_at || '') + (s.created_by ? ' by ' + escapeHtml(s.created_by) : '') + '</div>';
+                }
+                badges += '<div class="source-badge-wrapper mb-1"><span class="' + cls + '">' + escapeHtml(s.app) + (s.label ? ': ' + escapeHtml(s.label) : '') + '</span>' + meta + '</div>';
+            });
+        } else {
+            badges = '<span class="source-badge source-badge-default">Clients</span>';
+        }
+        var dropdown = '<div class="dropdown ms-2" onclick="event.stopPropagation();">' +
+            '<button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-ellipsis-v"></i></button>' +
+            '<ul class="dropdown-menu dropdown-menu-end">' +
+            (c.primary_source_url ? '<li><a class="dropdown-item" href="' + escapeHtml(c.primary_source_url) + '"><i class="fas fa-external-link-alt me-2"></i>Open source record</a></li><li><hr class="dropdown-divider"></li>' : '') +
+            '<li><a class="dropdown-item" href="' + escapeHtml(c.detail_url) + '"><i class="fas fa-eye me-2"></i>View client details</a></li>' +
+            (canEdit ? '<li><a class="dropdown-item" href="' + escapeHtml(c.edit_url) + '"><i class="fas fa-edit me-2"></i>Edit client</a></li>' : '') +
+            (canDelete ? '<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger" href="#" data-client-name="' + escapeHtml(c.name || '') + '" data-delete-url="' + escapeHtml(c.delete_url) + '" onclick="event.preventDefault(); confirmDelete(this.getAttribute(\'data-client-name\'), this.getAttribute(\'data-delete-url\'));"><i class="fas fa-trash me-2"></i>Delete client</a></li>' : '') +
+            '</ul></div>';
+        html += '<div class="col"><div class="card client-card h-100"><div class="card-body position-relative">' +
+            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+            '<div class="flex-grow-1 min-w-0">' +
+            '<a href="' + escapeHtml(primaryUrl) + '" class="client-card-link text-decoration-none text-dark d-block">' +
+            '<h5 class="client-name mb-1 text-truncate" title="' + name + '">' + name + '</h5>' +
+            '<p class="client-email mb-0 small"><i class="fas fa-envelope me-1"></i>' + email + '</p>' +
+            (phone ? '<p class="client-phone mb-1 small"><i class="fas fa-phone me-1"></i>' + phone + '</p>' : '') +
+            '<div class="mt-2">' + badges + '</div></a></div>' + dropdown + '</div>' +
+            (address ? '<div class="client-address small mt-2"><i class="fas fa-map-marker-alt me-1"></i>' + address + '</div>' : '') +
+            '<div class="mt-3 pt-3 border-top"><div class="row text-center small">' +
+            ((c.quotation_count || 0) > 0 ? '<div class="col-6"><span class="text-muted">Quotations</span><div class="fw-bold text-primary">' + (c.quotation_count || 0) + '</div></div>' : '') +
+            '<div class="' + ((c.quotation_count || 0) > 0 ? 'col-6' : 'col-12') + '"><span class="text-muted">Created</span><div class="fw-bold">' + escapeHtml(c.created_at_display || '') + (c.created_by_name ? ' <span class="text-muted">by ' + escapeHtml(c.created_by_name) + '</span>' : '') + '</div></div>' +
+            '</div></div></div></div></div>';
+    });
+    return html;
+}
+
+function fetchClientsAndUpdate() {
+    var container = document.getElementById('clientsGridContainer');
+    if (!container) return;
+    var apiUrl = container.getAttribute('data-api-url');
+    var canEdit = container.getAttribute('data-can-edit') === '1';
+    var canDelete = container.getAttribute('data-can-delete') === '1';
+    var search = document.getElementById('search');
+    var sort = document.getElementById('sort');
+    var createdBy = document.getElementById('created_by');
+    var params = new URLSearchParams();
+    if (search && search.value) params.set('search', search.value);
+    if (sort && sort.value) params.set('sort', sort.value);
+    if (createdBy && createdBy.value) params.set('created_by', createdBy.value);
+    var url = apiUrl + (params.toString() ? '?' + params.toString() : '');
+    fetch(url, { method: 'GET', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) return;
+            var stats = data.stats || {};
+            var statTotal = document.getElementById('statTotalClients');
+            var statActive = document.getElementById('statActiveClients');
+            var statRecent = document.getElementById('statRecentClients');
+            var statQuot = document.getElementById('statTotalQuotations');
+            if (statTotal) statTotal.textContent = stats.total_clients != null ? stats.total_clients : '';
+            if (statActive) statActive.textContent = stats.active_clients_count != null ? stats.active_clients_count : '';
+            if (statRecent) statRecent.textContent = stats.recent_clients_count != null ? stats.recent_clients_count : '';
+            if (statQuot) statQuot.textContent = stats.total_quotations != null ? stats.total_quotations : '';
+            var syncLine = document.getElementById('clientsSyncLine');
+            if (syncLine) {
+                var s = stats.discovery_synced, c = stats.discovery_created, u = stats.discovery_updated;
+                syncLine.textContent = (s || c || u) ? ('Last sync: ' + (s || 0) + ' records scanned, ' + (c || 0) + ' added, ' + (u || 0) + ' updated.') : 'Updates in real time without refresh.';
+            }
+            var cards = buildClientCards(data.clients || [], canEdit, canDelete);
+            container.innerHTML = cards;
+        })
+        .catch(function() {});
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var container = document.getElementById('clientsGridContainer');
+    if (!container) return;
+    fetchClientsAndUpdate();
+    setInterval(fetchClientsAndUpdate, 8000);
+
+    // Print/Download modal: date range and button URLs
+    (function() {
+        var listPrintUrl = "{% url 'clients:client_list_print' %}";
+        var modal = document.getElementById('clientsPrintDownloadModal');
+        var rangeSelect = document.getElementById('clients-report-range-type');
+        var periodWrap = document.getElementById('clients-report-period-date-wrap');
+        var periodInput = document.getElementById('clients-report-period-date');
+        var customWrap = document.getElementById('clients-report-custom-range-wrap');
+        var dateFromInput = document.getElementById('clients-report-date-from');
+        var dateToInput = document.getElementById('clients-report-date-to');
+        var printBtn = document.getElementById('clients-report-print-btn');
+        var pdfBtn = document.getElementById('clients-report-pdf-btn');
+        function todayStr() {
+            var d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        function updateRangeVisibility() {
+            var v = rangeSelect ? rangeSelect.value : 'all';
+            if (periodWrap) periodWrap.style.display = (v && v !== 'all' && v !== 'custom') ? 'block' : 'none';
+            if (customWrap) customWrap.style.display = (v === 'custom') ? 'flex' : 'none';
+            if (v === 'day' || v === 'week' || v === 'month' || v === 'quarter' || v === 'year') {
+                if (periodInput && !periodInput.value) periodInput.value = todayStr();
+            }
+        }
+        function buildQueryString() {
+            var v = rangeSelect ? rangeSelect.value : 'all';
+            var params = new URLSearchParams();
+            params.set('range_type', v);
+            if (v === 'custom') {
+                if (dateFromInput && dateFromInput.value) params.set('date_from', dateFromInput.value);
+                if (dateToInput && dateToInput.value) params.set('date_to', dateToInput.value);
+            } else if (v && v !== 'all' && periodInput && periodInput.value) {
+                params.set('period_date', periodInput.value);
+            }
+            return params.toString();
+        }
+        function updatePrintDownloadUrls() {
+            var qs = buildQueryString();
+            var printHref = listPrintUrl + (qs ? '?' + qs : '');
+            if (printBtn) { printBtn.href = printHref; }
+            if (pdfBtn) { pdfBtn.href = printHref; }
+        }
+        if (rangeSelect) rangeSelect.addEventListener('change', function() { updateRangeVisibility(); updatePrintDownloadUrls(); });
+        if (periodInput) periodInput.addEventListener('change', updatePrintDownloadUrls);
+        if (dateFromInput) dateFromInput.addEventListener('change', updatePrintDownloadUrls);
+        if (dateToInput) dateToInput.addEventListener('change', updatePrintDownloadUrls);
+        if (modal) {
+            modal.addEventListener('show.bs.modal', function() {
+                updateRangeVisibility();
+                updatePrintDownloadUrls();
+            });
+        }
+        updateRangeVisibility();
+        updatePrintDownloadUrls();
+    })();
+    var searchEl = document.getElementById('search');
+    var sortEl = document.getElementById('sort');
+    var createdByEl = document.getElementById('created_by');
+    var searchDebounce;
+    if (searchEl) searchEl.addEventListener('input', function() {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(fetchClientsAndUpdate, 150);
+    });
+    if (sortEl) sortEl.addEventListener('change', fetchClientsAndUpdate);
+    if (createdByEl) createdByEl.addEventListener('change', fetchClientsAndUpdate);
+});
+</script>
+{% endblock %} 

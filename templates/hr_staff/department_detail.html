@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}HR & Staff - {{ department.name }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Department{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 mb-md-4">
+                <div class="min-w-0">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1">
+                            <li class="breadcrumb-item"><a href="{% url 'hr_staff:department_list' %}">Departments</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">{{ department.name }}</li>
+                        </ol>
+                    </nav>
+                    <h4 class="fw-bold text-dark mb-1">{{ department.name }}</h4>
+                    <p class="text-muted mb-0 small">Manager: {{ department.manager_name|default:"—" }}</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+                    {% if perms.hr_staff.add_department %}
+                    <a href="{% url 'hr_staff:department_create' %}" class="btn btn-primary rounded-2 flex-grow-1 flex-md-grow-0">Add Department</a>
+                    {% endif %}
+                    {% if perms.hr_staff.change_department %}
+                    <a href="{% url 'hr_staff:department_edit' department.pk %}" class="btn btn-outline-primary rounded-2 flex-grow-1 flex-md-grow-0">Edit</a>
+                    {% endif %}
+                    {% if perms.hr_staff.delete_department %}
+                    <a href="{% url 'hr_staff:department_delete' department.pk %}" class="btn btn-outline-danger rounded-2 flex-grow-1 flex-md-grow-0">Delete</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12 col-lg-4 mb-4 mb-lg-0">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-dark mb-3">Department Info</h6>
+                            <p class="mb-2"><span class="text-muted">Budget:</span> {{ user_currency_symbol|default:"$" }}{{ department.budget|floatformat:2|intcomma }}</p>
+                            <p class="mb-0"><span class="text-muted">Employees:</span> {{ employees|length }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-8">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <h6 class="mb-0 fw-bold">Employees in this department</h6>
+                            {% if perms.hr_staff.add_employee %}
+                            <a href="{% url 'hr_staff:employee_create' %}" class="btn btn-sm btn-primary rounded-2">Add Employee</a>
+                            {% endif %}
+                        </div>
+                        <div class="card-body p-0">
+                            {% for emp in employees %}
+                            <a href="{% url 'hr_staff:employee_detail' emp.pk %}" class="d-flex align-items-center p-3 border-bottom text-decoration-none text-body">
+                                <div class="hr-avatar-circle rounded-circle overflow-hidden bg-light flex-shrink-0 me-3" style="width: 40px; height: 40px;">
+                                    {% if emp.display_photo_url %}
+                                    <img src="{{ emp.display_photo_url }}" alt="" class="w-100 h-100 object-fit-cover">
+                                    {% else %}
+                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted fw-bold small">{{ emp.first_name|slice:":1" }}{{ emp.last_name|slice:":1" }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="min-w-0 flex-grow-1">
+                                    <span class="fw-semibold">{{ emp.full_name }}</span>
+                                    <span class="text-muted small d-block">{{ emp.position|default:"—" }}</span>
+                                </div>
+                                <span class="badge rounded-pill {% if emp.status == 'active' %}bg-success bg-opacity-10 text-success{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}">{{ emp.get_status_display }}</span>
+                            </a>
+                            {% empty %}
+                            <div class="p-4 text-center text-muted">No employees in this department.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.hr-page-wrap { max-width: 100%; background-color: #f0f2f5; }
+@media (max-width: 575.98px) { .hr-page-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; } }
+</style>
+{% endblock %}

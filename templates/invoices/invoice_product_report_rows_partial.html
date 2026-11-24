@@ -1,0 +1,27 @@
+{% load humanize %}
+{% for m in movements %}
+<tr>
+    <td class="text-center">{{ forloop.counter }}</td>
+    <td>{{ m.created_at|date:"Y-m-d g:i:s A" }}</td>
+    <td>{{ m.client_name|default:"—" }}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.subtotal|default:"0.00"|intcomma }}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.total_tax|default:"0.00"|intcomma }}</td>
+    <td class="text-end text-danger">-{{ user_currency_symbol|default:"₦" }}{{ m.total_discount|default:"0.00"|intcomma }}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.shipping_fee|default:"0.00"|intcomma }}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.other_charges|default:"0.00"|intcomma }}</td>
+    <td class="text-end fw-bold">{{ user_currency_symbol|default:"₦" }}{{ m.grand_total|default:"0.00"|intcomma }}</td>
+    <td class="text-end text-success">{{ user_currency_symbol|default:"₦" }}{{ m.amount_paid|default:"0.00"|intcomma }}</td>
+    <td class="text-end text-danger fw-semibold">{{ user_currency_symbol|default:"₦" }}{{ m.balance_due|default:"0.00"|intcomma }}</td>
+    <td>
+        <span class="badge bg-{% if m.status == 'paid' %}success{% elif m.status == 'partial' %}warning text-dark{% elif m.status == 'delivered' %}info{% else %}secondary{% endif %}">
+            {{ status_display_map|default:m.status|default:"unpaid"|truncatechars:12 }}
+        </span>
+    </td>
+    <td>{{ m.created_by_name|default:"—" }}</td>
+    <td>{{ m.notes|truncatewords:8|default:"—" }}</td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="14" class="text-center text-muted py-4">No movements yet for this invoice. When you create, update, or make payments on this invoice, each state will appear here.</td>
+</tr>
+{% endfor %}

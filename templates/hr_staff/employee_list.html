@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}HR & Staff - Employees{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Employees{% endblock %}
+
+{% block content %}
+<div class="container-fluid hr-employees-page py-3 py-md-4 px-2 px-sm-3">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Employees</li>
+                </ol>
+            </nav>
+            <!-- Page header: title left, Add Employee button right (exact match to design) -->
+            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4">
+                <div class="min-w-0">
+                    <h4 class="fw-bold text-dark mb-1 hr-employee-page-title">Employees</h4>
+                    <p class="text-muted mb-0 hr-employee-subtitle">Manage your team of {{ total_count }} employee{{ total_count|pluralize }}</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+                    {% if can_add_employee and users_without_profile_count > 0 %}
+                    <form method="post" action="{% url 'hr_staff:employee_create_profiles_for_all' %}" class="d-inline" data-offline-queue="true">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary rounded-3">Create profiles for all users ({{ users_without_profile_count }})</button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'hr_staff:employee_create' %}" class="btn btn-primary hr-btn-add-employee d-inline-flex align-items-center justify-content-center px-4 py-2 rounded-3 text-decoration-none" id="btnAddEmployee">
+                        <svg class="me-2 hr-btn-add-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        <span>Add Employee</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Search and filter bar: single row - search input, filter icon, dropdown (exact layout) -->
+            <form method="get" action="{% url 'hr_staff:employee_list' %}" class="hr-employee-search-form mb-2" id="hrEmployeeSearchForm">
+                <div class="d-flex flex-wrap align-items-center gap-2 hr-search-filter-row">
+                    <div class="hr-search-wrap flex-grow-1 flex-md-grow-1" style="min-width: 200px;">
+                        <span class="hr-search-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        </span>
+                        <input type="search" name="search" value="{{ search_query }}" class="form-control hr-search-input" placeholder="Search employees..." aria-label="Search employees">
+                    </div>
+                    <span class="hr-filter-icon text-secondary d-none d-md-inline" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
+                    </span>
+                    <select name="status" class="form-select hr-filter-dropdown" aria-label="Filter by status">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="on_leave" {% if status_filter == 'on_leave' %}selected{% endif %}>On Leave</option>
+                        <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
+                        <option value="resigned" {% if status_filter == 'resigned' %}selected{% endif %}>Resigned</option>
+                    </select>
+                </div>
+            </form>
+            <p class="text-muted small mb-4 hr-showing-text">
+                Showing {{ employees|length }} of {{ total_count }} employee{{ total_count|pluralize }}
+            </p>
+
+            <!-- Employee cards grid: 3 cols desktop, 2 tablet, 1 mobile (real-time updated via API) -->
+            <div class="row g-4 hr-employee-grid" id="hrEmployeeGrid" data-search="{{ search_query }}" data-status="{{ status_filter }}">
+                {% for emp in employees %}
+                <div class="col-12 col-sm-6 col-xl-4 hr-employee-card-col" data-employee-uuid="{{ emp.uuid }}">
+                    <a href="{% url 'hr_staff:employee_detail' emp.pk %}" class="text-decoration-none text-body d-block h-100 hr-employee-card-link">
+                        <div class="card border-0 shadow-sm hr-employee-card h-100">
+                            <div class="card-body position-relative pt-4 pb-3 px-4">
+                                <!-- Delete (when permitted; never for account owner) -->
+                                {% if perms.hr_staff.delete_employee %}{% if not account_owner_id or emp.linked_user_id != account_owner_id %}
+                                <a href="{% url 'hr_staff:employee_delete' emp.pk %}" class="position-absolute top-0 end-0 mt-2 me-2 btn btn-sm btn-outline-danger hr-employee-delete-link" title="Delete employee" data-employee-uuid="{{ emp.uuid }}" data-delete-url="{% url 'hr_staff:employee_delete' emp.pk %}" style="z-index: 2;">&times;</a>
+                                {% endif %}{% endif %}
+                                <!-- Status badge: top right - Active (green) / On Leave (orange) -->
+                                <div class="position-absolute top-0 end-0 mt-3 me-3">
+                                    {% if emp.status == 'active' %}
+                                    <span class="badge hr-badge-active">Active</span>
+                                    {% elif emp.status == 'on_leave' %}
+                                    <span class="badge hr-badge-on-leave">On Leave</span>
+                                    {% elif emp.status == 'suspended' %}
+                                    <span class="badge hr-badge-suspended">Suspended</span>
+                                    {% elif emp.status == 'resigned' %}
+                                    <span class="badge hr-badge-resigned">Resigned</span>
+                                    {% else %}
+                                    <span class="badge hr-badge-suspended">{{ emp.get_status_display }}</span>
+                                    {% endif %}
+                                </div>
+                                <!-- Profile photo: top left, circular -->
+                                <div class="hr-employee-card-avatar rounded-circle overflow-hidden bg-light me-3 mb-2 d-inline-block flex-shrink-0">
+                                    {% if emp.display_photo_url %}
+                                    <img src="{{ emp.display_photo_url }}" alt="" class="w-100 h-100 object-fit-cover">
+                                    {% else %}
+                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary fw-bold hr-avatar-initials">{{ emp.first_name|slice:":1" }}{{ emp.last_name|slice:":1" }}</div>
+                                    {% endif %}
+                                </div>
+                                <h6 class="fw-bold text-dark mb-1 hr-card-name">{{ emp.full_name }}{% if account_owner_id and emp.linked_user_id == account_owner_id %} <span class="badge bg-secondary ms-1">Account owner</span>{% endif %}</h6>
+                                <p class="text-secondary mb-0 small hr-card-position">{{ emp.position|default:"—" }}</p>
+                                <p class="text-muted small mb-2 hr-card-department">{{ emp.department.name|default:"—" }}</p>
+                                {% if emp.email %}
+                                <p class="small text-muted mb-1 d-flex align-items-center hr-card-email">
+                                    <svg class="hr-card-icon me-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                                    <span class="text-break">{{ emp.email }}</span>
+                                </p>
+                                {% endif %}
+                                {% if emp.phone %}
+                                <p class="small text-muted mb-0 d-flex align-items-center hr-card-phone">
+                                    <svg class="hr-card-icon me-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                                    <span>{{ emp.phone }}</span>
+                                </p>
+                                {% endif %}
+                                {% if not emp.email and not emp.phone %}
+                                <p class="small text-muted mb-0">—</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-body py-5 text-center text-muted" id="hrEmployeeGridPlaceholder">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Loading employees…</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Page: white / light grey background, consistent with design */
+.hr-employees-page { background-color: #f8f9fa; max-width: 100%; }
+.hr-employee-page-title { font-size: 1.5rem; color: #344767; }
+.hr-employee-subtitle { font-size: 0.9375rem; color: #67748e; }
+
+/* Add Employee button: blue, rounded */
+.hr-btn-add-employee { background-color: #1976d2 !important; border-color: #1976d2 !important; border-radius: 0.5rem; font-weight: 500; }
+.hr-btn-add-employee:hover { background-color: #1565c0 !important; border-color: #1565c0 !important; color: #fff !important; }
+
+/* Search and filter bar: single row, no card */
+.hr-search-filter-row { gap: 0.75rem; }
+.hr-search-wrap { position: relative; max-width: 100%; }
+.hr-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #67748e; pointer-events: none; z-index: 1; display: flex; align-items: center; justify-content: center; }
+.hr-search-input {
+  padding-left: 42px;
+  padding-right: 12px;
+  border: 1px solid #4a5568; /* darker, more visible border */
+  border-radius: 0.5rem;
+  background-color: #fff;
+  height: 42px;
+  font-size: 0.9rem;
+}
+.hr-search-input::placeholder {
+  color: #a0aec0;
+}
+.hr-search-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 0.18rem rgba(25,118,210,.18);
+}
+.hr-filter-icon { display: inline-flex; align-items: center; }
+.hr-filter-dropdown {
+  border: 1px solid #4a5568; /* match search visibility */
+  border-radius: 0.5rem;
+  background-color: #fff;
+  min-width: 100px;
+  height: 42px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.9rem;
+  color: #344767;
+}
+.hr-filter-dropdown:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 0.18rem rgba(25,118,210,.18);
+}
+.hr-showing-text { font-size: 0.875rem; color: #67748e; }
+
+/* Employee cards: white, rounded, subtle shadow - exact match */
+.hr-employee-card { border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.06); transition: box-shadow .2s; background: #fff; }
+.hr-employee-card:hover { box-shadow: 0 10px 25px -5px rgba(0,0,0,.12), 0 4px 10px -5px rgba(0,0,0,.08); }
+.hr-employee-card-avatar { width: 56px; height: 56px; flex-shrink: 0; }
+.hr-avatar-initials { font-size: 1.1rem; }
+.hr-card-name { font-size: 1rem; color: #344767; }
+.hr-card-position { font-size: 0.875rem; color: #67748e; }
+.hr-card-department { font-size: 0.875rem; color: #67748e; }
+.hr-card-icon { color: #67748e; }
+/* Status badges: Active = light green/dark green, On Leave = light orange/dark orange */
+.hr-badge-active { background-color: rgba(25, 135, 84, 0.12); color: #198754; font-size: 0.75rem; font-weight: 500; padding: 0.35em 0.65em; border-radius: 9999px; }
+.hr-badge-on-leave { background-color: rgba(253, 126, 20, 0.15); color: #fd7e14; font-size: 0.75rem; font-weight: 500; padding: 0.35em 0.65em; border-radius: 9999px; }
+.hr-badge-suspended { background-color: rgba(108, 117, 125, 0.15); color: #6c757d; font-size: 0.75rem; font-weight: 500; padding: 0.35em 0.65em; border-radius: 9999px; }
+.hr-badge-resigned { background-color: rgba(33, 37, 41, 0.1); color: #212529; font-size: 0.75rem; font-weight: 500; padding: 0.35em 0.65em; border-radius: 9999px; }
+/* When delete button is present, shift status badge left so it doesn't overlap */
+.hr-employee-card .card-body:has(.hr-employee-delete-link) > .position-absolute.mt-3.me-3 { margin-right: 2.25rem !important; }
+
+/* Font Awesome fallback for empty state */
+.hr-employees-page .fas { font-family: 'Font Awesome 6 Free' !important; font-weight: 900 !important; display: inline-block !important; }
+
+/* Responsive */
+@media (max-width: 575.98px) {
+  .hr-employee-page-title { font-size: 1.25rem; }
+  .hr-employee-card .card-body { padding: 1rem !important; }
+  .hr-employee-card-avatar { width: 48px; height: 48px; }
+  .hr-search-filter-row { flex-direction: column; align-items: stretch; }
+  .hr-search-wrap { min-width: 100% !important; }
+  .hr-filter-dropdown { width: 100%; min-width: 0; }
+  .hr-btn-add-employee { width: 100%; }
+}
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .hr-employee-grid { --bs-gutter-x: 0.75rem; --bs-gutter-y: 0.75rem; }
+}
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .hr-search-wrap { max-width: 320px; }
+}
+</style>
+<script>
+(function() {
+    var form = document.getElementById('hrEmployeeSearchForm');
+    if (form) {
+        var searchInput = form.querySelector('input[name="search"]');
+        var statusSelect = form.querySelector('select[name="status"]');
+        // When filters change, update the grid's data-* attributes and refresh via the secured API.
+        // This keeps tenant scoping + role-based access control because the API already enforces them.
+        if (statusSelect) statusSelect.addEventListener('change', function() {
+            var gridEl = document.getElementById('hrEmployeeGrid');
+            if (gridEl) {
+                gridEl.setAttribute('data-status', this.value || 'all');
+            }
+            if (typeof pollEmployees === 'function') {
+                pollEmployees();
+            } else {
+                form.submit(); // graceful fallback if JS is altered
+            }
+        });
+        if (searchInput) {
+            var debounce = null;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounce);
+                var value = searchInput.value || '';
+                debounce = setTimeout(function() {
+                    var gridEl = document.getElementById('hrEmployeeGrid');
+                    if (gridEl) {
+                        gridEl.setAttribute('data-search', value);
+                    }
+                    if (typeof pollEmployees === 'function') {
+                        pollEmployees();
+                    } else {
+                        form.submit(); // graceful fallback if API helper is unavailable
+                    }
+                }, 300);
+            });
+        }
+    }
+
+    var grid = document.getElementById('hrEmployeeGrid');
+    var subtitle = document.querySelector('.hr-employee-subtitle');
+    var showingText = document.querySelector('.hr-showing-text');
+    // Use a relaxed polling interval so the list stays up to date without slowing the UI.
+    var POLL_MS = 20000;
+
+    function buildEmployeeCards(results) {
+        if (!results || !results.length) {
+            return '<div class="col-12"><div class="card border-0 shadow-sm rounded-3"><div class="card-body py-5 text-center text-muted"><i class="fas fa-users fa-3x mb-3 opacity-25"></i><p class="mb-0">No employees match your search or filters.</p></div></div></div>';
+        }
+        var html = '';
+        var statusBadge = function(s) {
+            if (s === 'active') return '<span class="badge hr-badge-active">Active</span>';
+            if (s === 'on_leave') return '<span class="badge hr-badge-on-leave">On Leave</span>';
+            if (s === 'suspended') return '<span class="badge hr-badge-suspended">Suspended</span>';
+            if (s === 'resigned') return '<span class="badge hr-badge-resigned">Resigned</span>';
+            return '<span class="badge hr-badge-suspended">' + (s || '') + '</span>';
+        };
+        results.forEach(function(emp) {
+            var photo = emp.profile_photo ? '<img src="' + emp.profile_photo + '" alt="" class="w-100 h-100 object-fit-cover">' : '<div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary fw-bold hr-avatar-initials">' + (emp.first_name ? emp.first_name.charAt(0) : '') + (emp.last_name ? emp.last_name.charAt(0) : '') + '</div>';
+            var name = emp.full_name || (emp.first_name + ' ' + emp.last_name);
+            html += '<div class="col-12 col-sm-6 col-xl-4"><a href="/hr-staff/employees/' + emp.id + '/" class="text-decoration-none text-body d-block h-100"><div class="card border-0 shadow-sm hr-employee-card h-100"><div class="card-body position-relative pt-4 pb-3 px-4"><div class="position-absolute top-0 end-0 mt-3 me-3">' + statusBadge(emp.status) + '</div><div class="hr-employee-card-avatar rounded-circle overflow-hidden bg-light me-3 mb-2 d-inline-block flex-shrink-0" style="width:56px;height:56px">' + photo + '</div><h6 class="fw-bold text-dark mb-1 hr-card-name">' + name + '</h6><p class="text-secondary mb-0 small hr-card-position">' + (emp.position || '—') + '</p><p class="text-muted small mb-2 hr-card-department">' + (emp.department_name || '—') + '</p>';
+            if (emp.email) html += '<p class="small text-muted mb-1 d-flex align-items-center hr-card-email"><svg class="hr-card-icon me-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg><span class="text-break">' + emp.email + '</span></p>';
+            if (emp.phone) html += '<p class="small text-muted mb-0 d-flex align-items-center hr-card-phone"><svg class="hr-card-icon me-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg><span>' + emp.phone + '</span></p>';
+            if (!emp.email && !emp.phone) html += '<p class="small text-muted mb-0">—</p>';
+            html += '</div></div></a></div>';
+        });
+        return html;
+    }
+
+    // Expose so the search/filter handlers above can call it
+    function pollEmployees() {
+        var search = (grid && grid.getAttribute('data-search')) || '';
+        var status = (grid && grid.getAttribute('data-status')) || 'all';
+        var url = '/api/hr-staff/employees/?ordering=first_name,last_name';
+        if (search) url += '&search=' + encodeURIComponent(search);
+        if (status && status !== 'all') url += '&status=' + encodeURIComponent(status);
+        fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var results = data.results !== undefined ? data.results : (Array.isArray(data) ? data : []);
+                if (grid) grid.innerHTML = buildEmployeeCards(results);
+                var n = results.length;
+                if (subtitle) subtitle.textContent = 'Manage your team of ' + n + ' employee' + (n === 1 ? '' : 's');
+                if (showingText) showingText.textContent = 'Showing ' + n + ' of ' + n + ' employees';
+                var offlineBanner = document.getElementById('hr-employee-offline-banner');
+                if (offlineBanner) offlineBanner.style.display = 'none';
+            })
+            .catch(function() {
+                if (typeof navigator !== 'undefined' && !navigator.onLine && grid) {
+                    var banner = document.getElementById('hr-employee-offline-banner');
+                    if (!banner) {
+                        banner = document.createElement('div');
+                        banner.id = 'hr-employee-offline-banner';
+                        banner.className = 'alert alert-info alert-dismissible fade show mb-3 small';
+                        banner.setAttribute('role', 'alert');
+                        banner.innerHTML = '<i class="fas fa-wifi me-2"></i>You\'re offline. List may be outdated. Changes will sync when back online.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+                        if (grid && grid.parentNode) grid.parentNode.insertBefore(banner, grid);
+                    }
+                    banner.style.display = 'block';
+                }
+            });
+    }
+
+    if (grid) {
+        // Load data immediately for instant shell-first UX.
+        setTimeout(pollEmployees, 0);
+        setInterval(pollEmployees, POLL_MS);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') pollEmployees();
+        });
+        // Offline delete: intercept delete link; when offline use wrapDelete and remove card
+        grid.addEventListener('click', function(e) {
+            var link = e.target && e.target.closest && e.target.closest('a.hr-employee-delete-link');
+            if (!link) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (!confirm('Are you sure you want to delete this employee? This action cannot be undone.')) return;
+            var uuid = link.getAttribute('data-employee-uuid');
+            var deleteUrl = link.getAttribute('data-delete-url') || link.getAttribute('href');
+            if (!uuid || !deleteUrl) return;
+            var col = link.closest('.hr-employee-card-col');
+            if (!navigator.onLine && window.OfflineSync && typeof window.OfflineSync.wrapDelete === 'function') {
+                var tenantId = (window.OfflineSync.getTenantId && window.OfflineSync.getTenantId()) || '';
+                var attemptAjax = function() {
+                    var fd = new FormData();
+                    var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+                    if (csrf) fd.append('csrfmiddlewaretoken', csrf.value);
+                    return fetch(deleteUrl, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf ? csrf.value : '' } }).then(function(r) { return r.json().catch(function() { return {}; }); });
+                };
+                window.OfflineSync.wrapDelete('hr_staff', uuid, tenantId, attemptAjax).then(function() { if (col) col.remove(); }).catch(function() {});
+            } else {
+                window.location.href = deleteUrl;
+            }
+        }, true);
+    }
+})();
+</script>
+{% endblock %}

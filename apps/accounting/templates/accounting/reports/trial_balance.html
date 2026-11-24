@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Trial Balance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Trial Balance</h1>
+            <p class="text-muted">Debits and credits summary by account. Updates in real time.</p>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="tbRefreshBtn" title="Refresh data">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form class="row g-3" id="tbFilterForm" onsubmit="event.preventDefault(); loadTrialBalance();">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{% now 'Y-m-01' %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{% now 'Y-m-d' %}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary" id="tbSubmitBtn">Run Trial Balance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="tbMessage" class="alert d-none" role="alert"></div>
+
+    <div class="card">
+        <div class="card-body p-0 position-relative">
+            <div id="tbLoading" class="position-absolute top-0 start-0 end-0 bottom-0 d-flex align-items-center justify-content-center bg-light opacity-75 d-none" style="z-index: 5;">
+                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="trialBalanceTable">
+                    {% include 'accounting/partials/ledger_rows.html' %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function showLoading(show) {
+        var el = document.getElementById('tbLoading');
+        if (el) el.classList.toggle('d-none', !show);
+    }
+    function showMessage(text, type) {
+        var el = document.getElementById('tbMessage');
+        if (!el) return;
+        el.textContent = text || '';
+        el.className = 'alert d-none';
+        if (text) {
+            el.classList.remove('d-none');
+            el.classList.add(type === 'error' ? 'alert-danger' : type === 'info' ? 'alert-info' : 'alert-success');
+        }
+    }
+    function loadTrialBalance() {
+        var form = document.getElementById('tbFilterForm');
+        if (!form) return;
+        showMessage('');
+        showLoading(true);
+        var params = new URLSearchParams(new FormData(form));
+        fetch('{% url "accounting_api:api_trial_balance" %}?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) {
+                if (!r.ok) throw new Error('Request failed');
+                return r.json();
+            })
+            .then(function(data) {
+                var tbody = document.querySelector('#trialBalanceTable tbody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                var accounts = data.accounts || [];
+                accounts.forEach(function(row) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + (row.code || '') + '</td><td>' + (row.name || '') + '</td><td class="text-end">' + Number(row.debit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td><td class="text-end">' + Number(row.credit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td>';
+                    tbody.appendChild(tr);
+                });
+                if (data.totals) {
+                    var tr = document.createElement('tr');
+                    tr.className = 'table-secondary fw-bold';
+                    tr.innerHTML = '<td colspan="2">Total</td><td class="text-end">' + Number(data.totals.debit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td><td class="text-end">' + Number(data.totals.credit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td>';
+                    tbody.appendChild(tr);
+                }
+                showMessage(accounts.length === 0 ? 'No data for this period.' : '', 'info');
+            })
+            .catch(function(err) {
+                showMessage('Could not load trial balance. Please try again.');
+                console.error('Trial balance:', err);
+            })
+            .finally(function() { showLoading(false); });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTrialBalance();
+        var btn = document.getElementById('tbRefreshBtn');
+        if (btn) btn.addEventListener('click', loadTrialBalance);
+        // Periodically refresh so data stays in sync without manual reload
+        setInterval(loadTrialBalance, 60000);
+    });
+})();
+</script>
+{% endblock %}
+

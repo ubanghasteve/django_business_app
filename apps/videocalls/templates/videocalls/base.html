@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title|default:'Video Calls' }} - {{ block.super }}{% endblock %}
+
+{% block extra_head_meta %}
+{{ block.super }}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+    /* Video-call pages should be true full-screen and not inherit app shell chrome. */
+    .sidenav,
+    .navbar.navbar-main,
+    #navbarBlur {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+    }
+
+    .video-call-container {
+        width: 100%;
+        min-height: 100vh;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .video-call-container + footer,
+    .main-content footer {
+        display: none !important;
+    }
+
+    .icon-source-badge {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        z-index: 9999;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        color: #fff;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+        pointer-events: none;
+        user-select: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="video-call-container">
+    {% block video_content %}
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if use_sfu %}
+<script src="https://unpkg.com/mediasoup-client@3.7.0/dist/mediasoup-client.min.js"></script>
+<script src="{% static 'videocalls/sfu-video-call.js' %}"></script>
+{% else %}
+<script src="{% static 'videocalls/noise-cancellation.js' %}"></script>
+{% endif %}
+<script>
+    (function () {
+        function isDevEnvironment() {
+            var host = window.location.hostname;
+            return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host.endsWith('.local');
+        }
+
+        function setIconSourceBadge(text, mode) {
+            if (!isDevEnvironment()) return;
+            var badge = document.getElementById('iconSourceBadge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.id = 'iconSourceBadge';
+                badge.className = 'icon-source-badge';
+                document.body.appendChild(badge);
+            }
+            badge.textContent = 'Icon source: ' + text;
+            if (mode === 'fallback') {
+                badge.style.background = 'rgba(127, 29, 29, 0.88)';
+                badge.style.borderColor = 'rgba(252, 165, 165, 0.45)';
+            } else {
+                badge.style.background = 'rgba(22, 101, 52, 0.88)';
+                badge.style.borderColor = 'rgba(134, 239, 172, 0.45)';
+            }
+        }
+
+        function bootstrapIconsAvailable() {
+            const probe = document.createElement('i');
+            probe.className = 'bi bi-camera-video-fill';
+            probe.style.position = 'absolute';
+            probe.style.left = '-9999px';
+            probe.style.top = '-9999px';
+            document.body.appendChild(probe);
+
+            const before = window.getComputedStyle(probe, '::before').content;
+            document.body.removeChild(probe);
+            return !!before && before !== 'none' && before !== 'normal' && before !== '""';
+        }
+
+        function applyFontAwesomeFallback() {
+            const map = {
+                'bi-arrow-left': 'fa-arrow-left',
+                'bi-camera-video-fill': 'fa-video',
+                'bi-camera-video': 'fa-video',
+                'bi-calendar-plus': 'fa-calendar-plus',
+                'bi-plus-lg': 'fa-plus',
+                'bi-plus-circle': 'fa-plus-circle',
+                'bi-plus-circle-fill': 'fa-plus-circle',
+                'bi-box-arrow-in-right': 'fa-sign-in-alt',
+                'bi-key': 'fa-key',
+                'bi-lightning-charge-fill': 'fa-bolt',
+                'bi-collection-fill': 'fa-layer-group',
+                'bi-list-ul': 'fa-list-ul',
+                'bi-calendar-week': 'fa-calendar-alt',
+                'bi-people-fill': 'fa-users',
+                'bi-shield-check': 'fa-shield-alt',
+                'bi-display': 'fa-desktop',
+                'bi-record-circle': 'fa-dot-circle',
+                'bi-mic-fill': 'fa-microphone',
+                'bi-mic-mute-fill': 'fa-microphone-slash',
+                'bi-camera-video-off-fill': 'fa-video-slash',
+                'bi-envelope-fill': 'fa-envelope',
+                'bi-chat-left-text-fill': 'fa-comment-alt',
+                'bi-shield-lock-fill': 'fa-user-shield',
+                'bi-lock-fill': 'fa-lock',
+                'bi-display-fill': 'fa-desktop',
+                'bi-telephone-x-fill': 'fa-phone-slash',
+                'bi-x-lg': 'fa-times',
+                'bi-send-fill': 'fa-paper-plane',
+                'bi-exclamation-triangle-fill': 'fa-exclamation-triangle',
+                'bi-person-x-fill': 'fa-user-times',
+                'bi-person-circle': 'fa-user-circle',
+                'bi-check-circle-fill': 'fa-check-circle',
+                'bi-volume-up-fill': 'fa-volume-up',
+                'bi-arrow-right-circle-fill': 'fa-arrow-circle-right',
+                'bi-link-45deg': 'fa-link'
+            };
+
+            document.querySelectorAll('i.bi').forEach(function (icon) {
+                var biClass = Array.from(icon.classList).find(function (c) {
+                    return c.indexOf('bi-') === 0;
+                });
+                var faClass = biClass ? map[biClass] : null;
+                if (faClass) {
+                    icon.classList.add('fas', faClass);
+                }
+            });
+        }
+
+        function ensureIcons() {
+            if (!bootstrapIconsAvailable()) {
+                applyFontAwesomeFallback();
+                setIconSourceBadge('Fallback (Font Awesome)', 'fallback');
+            } else {
+                setIconSourceBadge('Bootstrap Icons', 'bootstrap');
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureIcons);
+        } else {
+            ensureIcons();
+        }
+    })();
+</script>
+{% endblock %}

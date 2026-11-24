@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Create Salary Advance{% endblock %}
+{% block extra_css %}
+<style>
+.payroll-form-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid #dee2e6; }
+.payroll-form-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; border-radius: 11px 11px 0 0; }
+.payroll-form-page .form-label { font-weight: 600; font-size: 0.9rem; color: #495057; margin-bottom: 0.5rem; }
+.payroll-form-page .form-control, 
+.payroll-form-page .form-select { 
+    border-radius: 8px; 
+    border: 2px solid #dee2e6; 
+    padding: 0.75rem 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.payroll-form-page .form-control:focus, 
+.payroll-form-page .form-select:focus { 
+    border-color: #1e88e5; 
+    box-shadow: 0 0 0 0.2rem rgba(30,136,229,.15); 
+}
+.payroll-field-group {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.25rem;
+    border: 1px solid #e9ecef;
+    margin-bottom: 1rem;
+}
+.payroll-field-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+.payroll-required {
+    color: #dc3545;
+    margin-left: 2px;
+}
+.payroll-info-box {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.payroll-info-box i {
+    color: #1565c0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-form-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:salary_advances_list' %}">Salary Advances</a></li>
+            <li class="breadcrumb-item active">Create</li>
+        </ol>
+    </nav>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>Create Salary Advance</h5>
+        </div>
+        <div class="card-body">
+            <div class="payroll-info-box mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Salary Advance:</strong> This is a预付款 (advance payment) that will be deducted from the employee's future salary.
+            </div>
+            
+            <form method="post" class="row g-4" data-sync-model="salary_advances" data-sync-redirect="{% url 'payroll:salary_advances_list' %}">
+                {% csrf_token %}
+                
+                <div class="col-12">
+                    <div class="payroll-field-group">
+                        <label class="payroll-field-label" for="id_employee">
+                            Employee <span class="payroll-required">*</span>
+                        </label>
+                        <select name="employee" id="id_employee" class="form-select" required>
+                            <option value="">Select Employee</option>
+                            {% for employee in form.fields.employee.queryset %}
+                            <option value="{{ employee.id }}">{{ employee.first_name }} {{ employee.last_name }} ({{ employee.employee_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="payroll-field-group">
+                        <label class="payroll-field-label" for="id_amount">
+                            Amount <span class="payroll-required">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ user_currency_symbol|default:"₦" }}</span>
+                            <input type="number" name="amount" id="id_amount" class="form-control" 
+                                   placeholder="0.00" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="payroll-field-group">
+                        <label class="payroll-field-label" for="id_status">
+                            Status
+                        </label>
+                        <select name="status" id="id_status" class="form-select">
+                            <option value="pending" selected>Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-12 mt-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Create Advance
+                    </button>
+                    <a href="{% url 'payroll:salary_advances_list' %}" class="btn btn-outline-secondary btn-lg ms-2">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

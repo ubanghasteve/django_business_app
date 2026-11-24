@@ -1,0 +1,1 @@
+# Documents sync permissions command

@@ -1,0 +1,1013 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load payroll_tags %}
+
+{% block title %}{{ record.title }} - Smart Payroll{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.css">
+<style>
+    .file-icon-large {
+        font-size: 3rem;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+    }
+    .file-icon-pdf { background: #ffebee; color: #e53935; }
+    .file-icon-excel { background: #e8f5e9; color: #43a047; }
+    .file-icon-word { background: #e3f2fd; color: #1e88e5; }
+    .file-icon-image { background: #fff3e0; color: #fb8c00; }
+    .file-icon-other { background: #f5f5f5; color: #757575; }
+    
+    .info-card {
+        border-left: 4px solid var(--bs-primary);
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .badge-custom {
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .activity-timeline {
+        position: relative;
+        padding-left: 20px;
+    }
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 6px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e0e0e0;
+    }
+    .activity-item {
+        position: relative;
+        padding-bottom: 15px;
+    }
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -17px;
+        top: 4px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 2px solid white;
+    }
+    
+    /* Inline Preview Styles */
+    .inline-preview-card {
+        border-left: 4px solid #43a047;
+    }
+    
+    .inline-preview-container {
+        width: 100%;
+        max-height: 500px;
+        overflow: auto;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+        scroll-behavior: smooth;
+    }
+    
+    .inline-sheet-list {
+        display: flex;
+        gap: 5px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        flex-wrap: wrap;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        flex-shrink: 0;
+    }
+    
+    .inline-sheet-btn {
+        padding: 5px 15px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    
+    .inline-sheet-btn:hover {
+        background: #e9ecef;
+    }
+    
+    .inline-sheet-btn.active {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    
+    #inlineSheetContent {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+        scroll-behavior: smooth;
+    }
+    
+    .inline-table {
+        border-collapse: collapse;
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+        font-size: 0.85rem;
+    }
+    
+    .inline-table thead th {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        white-space: nowrap;
+        min-width: 150px;
+    }
+    
+    .inline-table tbody td {
+        border: 1px solid #dee2e6;
+        padding: 10px 12px;
+        vertical-align: top;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        white-space: normal;
+        min-width: 150px;
+        max-width: 500px;
+        line-height: 1.5;
+    }
+    
+    .inline-table tr:nth-child(even) {
+        background: #fafafa;
+    }
+    
+    .inline-table tr:hover td {
+        background: #f0f7ff;
+    }
+    
+    .inline-table td.number-cell,
+    .inline-table th.number-cell {
+        text-align: right;
+        white-space: nowrap;
+    }
+    
+    .inline-table td.currency-cell,
+    .inline-table th.currency-cell {
+        text-align: right;
+        white-space: nowrap;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .inline-table .null-cell,
+    .inline-table .empty-cell {
+        color: #999;
+        font-style: italic;
+    }
+    
+    /* Scrollbar styling */
+    .inline-preview-container::-webkit-scrollbar,
+    #inlineSheetContent::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .inline-preview-container::-webkit-scrollbar-track,
+    #inlineSheetContent::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 5px;
+    }
+    
+    .inline-preview-container::-webkit-scrollbar-thumb,
+    #inlineSheetContent::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 5px;
+        border: 2px solid #f1f1f1;
+    }
+    
+    .inline-preview-container::-webkit-scrollbar-thumb:hover,
+    #inlineSheetContent::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+    
+    .inline-preview-container,
+    #inlineSheetContent {
+        scrollbar-width: thin;
+        scrollbar-color: #c1c1c1 #f1f1f1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <!-- File Icon -->
+                        <div class="col-auto">
+                            <div class="file-icon-large file-icon-{{ record.file_type|default:'other' }}">
+                                {% if record.file_type == 'pdf' %}
+                                    <i class="fas fa-file-pdf"></i>
+                                {% elif record.file_type == 'excel' %}
+                                    <i class="fas fa-file-excel"></i>
+                                {% elif record.file_type == 'word' %}
+                                    <i class="fas fa-file-word"></i>
+                                {% elif record.file_type == 'image' %}
+                                    <i class="fas fa-file-image"></i>
+                                {% else %}
+                                    <i class="fas fa-file-alt"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Title & Info -->
+                        <div class="col">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-1 small">
+                                    <li class="breadcrumb-item"><a href="{% url 'payroll:record_list' %}">Records</a></li>
+                                    <li class="breadcrumb-item active">Detail View</li>
+                                </ol>
+                            </nav>
+                            <h3 class="fw-bold text-dark mb-1">{{ record.title }}</h3>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <span class="badge bg-{{ record.file_type|default:'secondary' }} badge-custom">
+                                    <i class="fas fa-{{ record.file_type|default:'file' }} me-1"></i>
+                                    {{ record.get_file_type_display|default:record.file_type|upper }}
+                                </span>
+                                <span class="badge bg-{{ record.status|default:'secondary' }} badge-custom">
+                                    {% if record.status == 'approved' %}
+                                        <i class="fas fa-check-circle me-1"></i>
+                                    {% elif record.status == 'verified' %}
+                                        <i class="fas fa-check me-1"></i>
+                                    {% elif record.status == 'archived' %}
+                                        <i class="fas fa-archive me-1"></i>
+                                    {% else %}
+                                        <i class="fas fa-edit me-1"></i>
+                                    {% endif %}
+                                    {{ record.get_status_display|default:record.status|title }}
+                                </span>
+                                {% if record.is_starred %}
+                                    <span class="badge bg-warning text-dark badge-custom">
+                                        <i class="fas fa-star me-1"></i>Starred
+                                    </span>
+                                {% endif %}
+                                {% if record.is_archived %}
+                                    <span class="badge bg-secondary badge-custom">
+                                        <i class="fas fa-archive me-1"></i>Archived
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="col-auto">
+                            <div class="btn-group" role="group">
+                                {% if record.can_preview %}
+                                <a href="{% url 'payroll:record_preview' record.id %}" class="btn btn-info" target="_blank" title="View File">
+                                    <i class="fas fa-eye me-1"></i> View
+                                </a>
+                                {% else %}
+                                <button type="button" class="btn btn-info" onclick="alert('Preview not available for this file type. Please download to view.')" title="Preview Not Available">
+                                    <i class="fas fa-eye-slash me-1"></i> View
+                                </button>
+                                {% endif %}
+                                <a href="{% url 'payroll:record_download' record.id %}" class="btn btn-primary" title="Download">
+                                    <i class="fas fa-download me-1"></i> Download
+                                </a>
+                                <a href="{% url 'payroll:record_edit' record.id %}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit me-1"></i> Edit
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- File Information Card -->
+            <div class="card border-0 shadow-sm mb-4 info-card">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-file-alt me-2 text-primary"></i>File Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-file me-1"></i> Original Filename
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.original_filename }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-database me-1"></i> File Size
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.file_size_display }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-file-code me-1"></i> MIME Type
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.mime_type|default:"application/octet-stream" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-hash me-1"></i> File Extension
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.original_filename|file_extension }}</p>
+                            </div>
+                        </div>
+                        {% if record.period_month and record.period_year %}
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-calendar-alt me-1"></i> Pay Period
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.period_display }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if record.period_start_date and record.period_end_date %}
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-calendar-week me-1"></i> Period Dates
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">
+                                    {{ record.period_start_date|date:"M d, Y" }} - {{ record.period_end_date|date:"M d, Y" }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-folder me-1"></i> Category
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">
+                                    {% if record.category %}
+                                        <span class="badge" style="background-color: {{ record.category.color|default:'#666' }}">
+                                            {{ record.category.name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">No Category</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-tag me-1"></i> Record Type
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.get_record_type_display|default:record.record_type|title }}</p>
+                            </div>
+                        </div>
+                        {% if record.employee %}
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-user me-1"></i> Employee
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.employee.get_full_name|default:record.employee }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if record.department %}
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-semibold">
+                                    <i class="fas fa-building me-1"></i> Department
+                                </label>
+                                <p class="mb-0 fw-semibold text-dark">{{ record.department.name }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if record.description %}
+                    <hr class="my-4">
+                    <div class="mb-0">
+                        <label class="form-label small text-muted text-uppercase fw-semibold">
+                            <i class="fas fa-align-left me-1"></i> Description
+                        </label>
+                        <p class="mb-0 text-dark">{{ record.description|linebreaks }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if record.tags %}
+                    <hr class="my-4">
+                    <div class="mb-0">
+                        <label class="form-label small text-muted text-uppercase fw-semibold">
+                            <i class="fas fa-tags me-1"></i> Tags
+                        </label>
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            {% with record.tags|split:"," as tag_list %}
+                            {% for tag in tag_list %}
+                            <span class="badge bg-light text-dark border">{{ tag|strip }}</span>
+                            {% endfor %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if record.notes %}
+            <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #ffc107 !important;">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-sticky-note me-2 text-warning"></i>Internal Notes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0 text-dark">{{ record.notes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if record.file_type == 'excel' %}
+            <div class="card border-0 shadow-sm mb-4 inline-preview-card">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-table me-2 text-success"></i>Quick Preview
+                        </h5>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'payroll:record_preview' record.id %}" class="btn btn-outline-success" target="_blank">
+                                <i class="fas fa-external-link-alt me-1"></i>Full Preview
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="inline-preview-container" id="inlineExcelPreview">
+                        <div class="inline-sheet-list" id="inlineSheetTabs"></div>
+                        <div id="inlineSheetContent" style="padding: 15px;">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                                <p>Loading preview...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if related_records %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-link me-2 text-primary"></i>Related Records
+                        <span class="badge bg-secondary ms-2">{{ related_records.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for related in related_records %}
+                        <a href="{% url 'payroll:record_detail' related.id %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded bg-light p-2">
+                                    <i class="fas fa-file-{{ related.file_type|default:'alt' }} text-muted"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">{{ related.title|truncatechars:50 }}</div>
+                                    <small class="text-muted">{{ related.period_display|default:"No period" }} • {{ related.created_at|date:"M d, Y" }}</small>
+                                </div>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Statistics Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="text-center p-3 rounded bg-light">
+                                <div class="fw-bold fs-3 text-primary">{{ record.view_count }}</div>
+                                <small class="text-muted">
+                                    <i class="fas fa-eye me-1"></i>Views
+                                </small>
+                                {% if record.last_viewed_at %}
+                                <div class="small text-muted mt-1">Last: {{ record.last_viewed_at|date:"M d, H:i" }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-3 rounded bg-light">
+                                <div class="fw-bold fs-3 text-success">{{ record.download_count }}</div>
+                                <small class="text-muted">
+                                    <i class="fas fa-download me-1"></i>Downloads
+                                </small>
+                                {% if record.last_downloaded_at %}
+                                <div class="small text-muted mt-1">Last: {{ record.last_downloaded_at|date:"M d, H:i" }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>Metadata
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-5 text-muted small">Created</dt>
+                        <dd class="col-7 mb-2">
+                            {{ record.created_at|date:"M d, Y" }}<br>
+                            <small class="text-muted">{{ record.created_at|date:"h:i A" }}</small>
+                        </dd>
+                        
+                        <dt class="col-5 text-muted small">Created By</dt>
+                        <dd class="col-7 mb-2">
+                            {% if record.created_by %}
+                                {{ record.created_by.get_full_name|default:record.created_by.email }}
+                            {% else %}
+                                <span class="text-muted">System</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-5 text-muted small">Last Updated</dt>
+                        <dd class="col-7 mb-2">
+                            {{ record.updated_at|date:"M d, Y" }}<br>
+                            <small class="text-muted">{{ record.updated_at|date:"h:i A" }}</small>
+                        </dd>
+                        
+                        {% if record.verified_by %}
+                        <dt class="col-5 text-muted small">Verified By</dt>
+                        <dd class="col-7 mb-2">
+                            {{ record.verified_by.get_full_name|default:record.verified_by.email }}<br>
+                            <small class="text-muted">{{ record.verified_at|date:"M d, Y h:i A" }}</small>
+                        </dd>
+                        {% endif %}
+                        
+                        {% if record.approved_by %}
+                        <dt class="col-5 text-muted small">Approved By</dt>
+                        <dd class="col-7 mb-2">
+                            {{ record.approved_by.get_full_name|default:record.approved_by.email }}<br>
+                            <small class="text-muted">{{ record.approved_at|date:"M d, Y h:i A" }}</small>
+                        </dd>
+                        {% endif %}
+                        
+                        <dt class="col-5 text-muted small">Public</dt>
+                        <dd class="col-7 mb-2">
+                            {% if record.is_public %}
+                                <span class="text-success"><i class="fas fa-check-circle me-1"></i>Yes</span>
+                            {% else %}
+                                <span class="text-muted"><i class="fas fa-times-circle me-1"></i>No</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-history me-2 text-primary"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if access_logs %}
+                    <div class="activity-timeline">
+                        {% for log in access_logs %}
+                        <div class="activity-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    {% if log.action == 'view' %}
+                                        <span class="badge bg-primary">View</span>
+                                    {% elif log.action == 'download' %}
+                                        <span class="badge bg-success">Download</span>
+                                    {% elif log.action == 'preview' %}
+                                        <span class="badge bg-info">Preview</span>
+                                    {% elif log.action == 'verify' %}
+                                        <span class="badge bg-warning">Verified</span>
+                                    {% elif log.action == 'approve' %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ log.action|title }}</span>
+                                    {% endif %}
+                                    <div class="small text-muted mt-1">
+                                        {{ log.user.get_full_name|default:log.user.email|default:"System" }}
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ log.created_at|date:"M d" }}<br>{{ log.created_at|date:"H:i" }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-history fa-2x mb-2 opacity-25"></i>
+                        <p class="mb-0 small">No activity recorded yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-cog me-2 text-primary"></i>Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase fw-semibold">
+                            <i class="fas fa-exchange-alt me-1"></i> Change Approval Status
+                        </label>
+                        <select class="form-select fw-bold status-select" id="detailStatusSelect" data-record-id="{{ record.id }}" data-current-status="{{ record.status }}">
+                            <option value="draft" {% if record.status == 'draft' %}selected{% endif %}>
+                                <i class="fas fa-edit"></i> Draft
+                            </option>
+                            <option value="verified" {% if record.status == 'verified' %}selected{% endif %}>
+                                <i class="fas fa-check"></i> Verified
+                            </option>
+                            <option value="approved" {% if record.status == 'approved' %}selected{% endif %}>
+                                <i class="fas fa-check-circle"></i> Approved
+                            </option>
+                            <option value="archived" {% if record.status == 'archived' %}selected{% endif %}>
+                                <i class="fas fa-archive"></i> Archived
+                            </option>
+                        </select>
+                        <div id="statusMessage" class="form-text"></div>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'payroll:record_share' record.id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-share me-2"></i>Share Record
+                        </a>
+                        
+                        {% if record.status == 'draft' %}
+                        <button class="btn btn-outline-success verify-btn" data-id="{{ record.id }}">
+                            <i class="fas fa-check-circle me-2"></i>Verify Record
+                        </button>
+                        {% endif %}
+                        
+                        {% if record.status == 'verified' %}
+                        <button class="btn btn-outline-success approve-btn" data-id="{{ record.id }}">
+                            <i class="fas fa-check-double me-2"></i>Approve Record
+                        </button>
+                        {% endif %}
+                        
+                        <button class="btn {% if record.is_starred %}btn-warning{% else %}btn-outline-warning{% endif %} toggle-star-btn" data-id="{{ record.id }}">
+                            <i class="fas fa-star me-2"></i>
+                            {% if record.is_starred %}Remove Star{% else %}Add Star{% endif %}
+                        </button>
+                        
+                        <button class="btn {% if record.is_archived %}btn-info{% else %}btn-outline-secondary{% endif %} toggle-archive-btn" data-id="{{ record.id }}">
+                            <i class="fas fa-archive me-2"></i>
+                            {% if record.is_archived %}Unarchive{% else %}Archive{% endif %}
+                        </button>
+                        
+                        <hr class="my-2">
+                        
+                        <button class="btn btn-outline-danger delete-btn" data-id="{{ record.id }}">
+                            <i class="fas fa-trash me-2"></i>Delete Record
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="deleteForm" method="post" action="{% url 'payroll:record_delete' record.id %}" style="display: none;">
+    {% csrf_token %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    {% if record.file_type == 'excel' %}
+    // Initialize inline Excel preview
+    function initInlineExcelPreview() {
+        if (typeof XLSX === 'undefined') {
+            setTimeout(initInlineExcelPreview, 100);
+            return;
+        }
+        
+        fetch('{% url "payroll:record_file_data" record.id %}')
+            .then(r => r.arrayBuffer())
+            .then(data => {
+                try {
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    const sheetTabs = document.getElementById('inlineSheetTabs');
+                    const sheetContent = document.getElementById('inlineSheetContent');
+                    
+                    function escapeHtml(text) {
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    }
+                    
+                    function renderSheet(sheetName) {
+                        const sheet = workbook.Sheets[sheetName];
+                        if (!sheet) return;
+                        
+                        const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+                        
+                        let html = '<table class="inline-table"><colgroup>';
+                        
+                        for (let i = 0; i <= range.e.c; i++) {
+                            html += '<col style="min-width: 120px; width: 150px;">';
+                        }
+                        html += '</colgroup><thead><tr>';
+                        
+                        for (let i = 0; i <= range.e.c; i++) {
+                            const cell = sheet[XLSX.utils.encode_cell({r: 0, c: i})];
+                            const headerText = cell ? (cell.w || cell.v || '') : '';
+                            html += `<th>${escapeHtml(String(headerText))}</th>`;
+                        }
+                        html += '</tr></thead><tbody>';
+                        
+                        for (let r = 1; r <= range.e.r; r++) {
+                            html += '<tr>';
+                            for (let c = 0; c <= range.e.c; c++) {
+                                const cellRef = XLSX.utils.encode_cell({r: r, c: c});
+                                const cell = sheet[cellRef];
+                                const value = cell ? (cell.w || cell.v || '') : '';
+                                const cellType = cell ? cell.t : 's';
+                                
+                                let cellClass = '';
+                                if (value === '' || value === null || value === undefined) {
+                                    cellClass = 'null-cell';
+                                } else if (cellType === 'n' && !isNaN(value)) {
+                                    cellClass = 'number-cell';
+                                    if (value.toString().includes('.') || value > 1000) {
+                                        cellClass = 'currency-cell';
+                                    }
+                                }
+                                
+                                html += `<td class="${cellClass}">${escapeHtml(String(value))}</td>`;
+                            }
+                            html += '</tr>';
+                        }
+                        html += '</tbody></table>';
+                        
+                        sheetContent.innerHTML = html;
+                    }
+                    
+                    workbook.SheetNames.forEach(function(name, index) {
+                        const btn = document.createElement('button');
+                        btn.className = 'inline-sheet-btn' + (index === 0 ? ' active' : '');
+                        btn.textContent = name;
+                        btn.onclick = function() {
+                            document.querySelectorAll('.inline-sheet-btn').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            renderSheet(name);
+                        };
+                        sheetTabs.appendChild(btn);
+                    });
+                    
+                    if (workbook.SheetNames.length > 0) {
+                        renderSheet(workbook.SheetNames[0]);
+                    }
+                } catch (e) {
+                    document.getElementById('inlineSheetContent').innerHTML = 
+                        '<div class="alert alert-danger m-3">Error loading preview: ' + e.message + '</div>';
+                }
+            })
+            .catch(err => {
+                document.getElementById('inlineSheetContent').innerHTML = 
+                    '<div class="alert alert-warning m-3">Unable to load preview. <a href="{% url "payroll:record_download" record.id %}">Download file</a> to view.</div>';
+            });
+    }
+    
+    // Start initialization
+    initInlineExcelPreview();
+    
+    // Enhance scroll behavior
+    setTimeout(function() {
+        const inlineContainer = document.querySelector('.inline-preview-container');
+        const inlineContent = document.getElementById('inlineSheetContent');
+        
+        if (inlineContainer && inlineContent) {
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchStartScrollLeft = 0;
+            let touchStartScrollTop = 0;
+            
+            inlineContent.addEventListener('touchstart', function(e) {
+                touchStartX = e.touches[0].pageX;
+                touchStartY = e.touches[0].pageY;
+                touchStartScrollLeft = this.scrollLeft;
+                touchStartScrollTop = this.scrollTop;
+            }, { passive: true });
+            
+            inlineContent.addEventListener('touchmove', function(e) {
+                const deltaX = touchStartX - e.touches[0].pageX;
+                const deltaY = touchStartY - e.touches[0].pageY;
+                this.scrollLeft = touchStartScrollLeft + deltaX;
+                this.scrollTop = touchStartScrollTop + deltaY;
+            }, { passive: true });
+        }
+    }, 500);
+    {% endif %}
+    // Toggle Star
+    document.querySelector('.toggle-star-btn')?.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/payroll/records/${id}/toggle-star/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        }).then(response => response.json()).then(data => {
+            location.reload();
+        });
+    });
+
+    // Toggle Archive
+    document.querySelector('.toggle-archive-btn')?.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/payroll/records/${id}/toggle-archive/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        }).then(response => response.json()).then(data => {
+            location.reload();
+        });
+    });
+
+    // Verify
+    document.querySelector('.verify-btn')?.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/payroll/records/${id}/verify/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        }).then(response => response.json()).then(data => {
+            location.reload();
+        });
+    });
+
+    // Approve
+    document.querySelector('.approve-btn')?.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/payroll/records/${id}/approve/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        }).then(response => response.json()).then(data => {
+            location.reload();
+        });
+    });
+
+    // Delete
+    document.querySelector('.delete-btn')?.addEventListener('click', function() {
+        if (confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+            document.getElementById('deleteForm').submit();
+        }
+    });
+    
+    // Status change handler
+    document.querySelector('#detailStatusSelect')?.addEventListener('change', function() {
+        const recordId = this.getAttribute('data-record-id');
+        const newStatus = this.value;
+        const currentStatus = this.getAttribute('data-current-status');
+        const messageDiv = document.getElementById('statusMessage');
+        
+        if (newStatus === currentStatus) return;
+        
+        this.disabled = true;
+        messageDiv.textContent = 'Updating...';
+        messageDiv.className = 'form-text text-info';
+        
+        fetch('/payroll/records/' + recordId + '/update-status/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.setAttribute('data-current-status', newStatus);
+                messageDiv.textContent = 'Status updated successfully!';
+                messageDiv.className = 'form-text text-success';
+                
+                // Update the status badge in the header
+                const statusBadge = document.querySelector('.status-badge');
+                if (statusBadge) {
+                    statusBadge.className = 'badge bg-' + newStatus + ' badge-custom';
+                    statusBadge.innerHTML = '<i class="fas fa-' + 
+                        (newStatus === 'approved' ? 'check-circle' : 
+                         newStatus === 'verified' ? 'check' : 
+                         newStatus === 'draft' ? 'edit' : 'archive') + 
+                        ' me-1"></i>' + newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                }
+                
+                // Show success feedback
+                this.style.borderColor = '#198754';
+                setTimeout(() => {
+                    this.style.borderColor = '';
+                    location.reload(); // Reload to show updated status
+                }, 1000);
+            } else {
+                this.value = currentStatus;
+                messageDiv.textContent = data.error || 'Failed to update status';
+                messageDiv.className = 'form-text text-danger';
+            }
+        })
+        .catch(error => {
+            this.value = currentStatus;
+            messageDiv.textContent = 'Network error. Please try again.';
+            messageDiv.className = 'form-text text-danger';
+        })
+        .finally(() => {
+            this.disabled = false;
+        });
+    });
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

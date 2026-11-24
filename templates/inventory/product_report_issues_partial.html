@@ -1,0 +1,16 @@
+{% load inventory_extras %}
+{% for row in issues_meta %}
+<tr{% if row.is_legacy %} class="table-secondary"{% endif %}>
+    <td class="text-center">{{ forloop.counter }}</td>
+    <td>{{ row.issued_at_display }}</td>
+    <td class="text-danger fw-semibold">{{ row.quantity_input }}</td>
+    <td class="text-end">{{ row.unit_price|format_currency:user_currency_symbol }}</td>
+    <td class="text-end fw-semibold">{{ row.line_value|format_currency:user_currency_symbol }}</td>
+    <td class="text-primary fw-semibold">{{ row.remaining_after|default:"—" }}</td>
+    <td>{{ row.recipient_name|default:"—" }}</td>
+    <td>{{ row.remark|default:"" }}</td>
+    <td class="small text-muted">{{ row.created_by }}</td>
+</tr>
+{% empty %}
+<tr data-empty-issues><td colspan="9" class="text-muted text-center">No stock issues recorded. Use <strong>Issue</strong> on the inventory list to record each withdrawal.</td></tr>
+{% endfor %}

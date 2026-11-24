@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <h2>NHF Report - {{ period }}</h2>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Employee ID</th>
+        <th>NHF Contribution</th>
+      </tr>
+    </thead>
+    <tbody id="nhf-report-body">
+      {% for item in items %}
+      <tr>
+        <td>{{ item.employee.full_name }}</td>
+        <td>{{ item.employee.employee_id }}</td>
+        <td>{{ item.nhf }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3">No payroll items.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script>
+  (function () {
+    const periodId = {{ period.id }};
+    const endpoint = "{% url 'payroll-period-items' 0 %}".replace("/0/", "/" + periodId + "/");
+
+    function render(data) {
+      const tbody = document.getElementById("nhf-report-body");
+      if (!tbody) return;
+      const items = data.items || [];
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="3">No payroll items.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(function (it) {
+        return (
+          "<tr>" +
+          "<td>" + it.employee + "</td>" +
+          "<td>" + it.employee_id + "</td>" +
+          "<td>" + it.nhf + "</td>" +
+          "</tr>"
+        );
+      }).join("");
+    }
+
+    function fetchData() {
+      fetch(endpoint, { method: "GET", headers: { "X-Requested-With": "XMLHttpRequest" } })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("Network error");
+          return resp.json();
+        })
+        .then(function (data) { render(data); })
+        .catch(function () {});
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      fetchData();
+      setInterval(fetchData, 15000);
+    });
+  })();
+</script>
+{% endblock %}
+

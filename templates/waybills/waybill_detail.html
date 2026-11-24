@@ -1,0 +1,668 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Waybill {{ waybill.waybill_number }} - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Waybill {{ waybill.waybill_number }}{% endblock %}
+{% block breadcrumb %}Waybill Details{% endblock %}
+
+{% block content %}
+<style>
+/* Theme colors from Company Profile - Applied globally */
+:root {
+    --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+    --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+    --text-color: {{ theme_text_color|default:"#333333" }};
+    --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+}
+
+/* EXACT styling from waybill preview */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: {{ waybill.template.text_color|default:theme_text_color|default:"#333" }};
+    background: white;
+    padding: 20px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Mobile horizontal scroll wrapper */
+.preview-scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.preview-scroll-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.preview-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.mobile-scroll-hint {
+    display: none;
+    text-align: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 12px;
+    border-radius: 20px;
+    margin: 0 auto 15px;
+    width: fit-content;
+}
+
+@media (max-width: 850px) {
+    .mobile-scroll-hint {
+        display: block;
+    }
+    
+    .waybill-preview {
+        min-width: 750px;
+    }
+}
+
+.waybill-preview {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    box-shadow: none;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+}
+
+.waybill-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #eee;
+}
+
+.company-logo img {
+    max-height: 80px;
+    max-width: 200px;
+}
+
+.company-details h2 {
+    color: var(--primary-color) !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+
+.company-details p {
+    margin: 5px 0;
+    color: #666;
+}
+
+.waybill-title {
+    text-align: center;
+    font-size: 36px;
+    font-weight: bold;
+    color: var(--primary-color) !important;
+    margin: 20px 0 30px 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.waybill-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding: 15px;
+    background: {{ waybill.template.secondary_color|default:"#f8f9fa" }} !important;
+    border-radius: 8px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.custom-section {
+    margin-bottom: 30px;
+}
+
+.section-header h3 {
+    color: var(--primary-color) !important;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.custom-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: {{ waybill.template.secondary_color|default:"#f8f9fa" }} !important;
+    border-radius: 8px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 30px 0;
+    background: white;
+}
+
+.items-table th,
+.items-table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.items-table th {
+    background: var(--primary-color) !important;
+    color: white !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.items-table tr:nth-child(even) {
+    background: {{ waybill.template.secondary_color|default:"#f8f9fa" }} !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.items-table td {
+    vertical-align: top;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* Specific styling for text columns */
+.items-table td:nth-child(2), /* Product/Service */
+.items-table td:nth-child(3) { /* Description */
+    word-break: break-word;
+    hyphens: auto;
+    line-height: 1.4;
+}
+
+.signature-section {
+    text-align: center;
+    margin: 40px 0 30px 0;
+    padding: 20px;
+}
+
+.signature-section img {
+    max-height: 80px;
+    margin-bottom: 10px;
+}
+
+/* Print specific styles */
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    body {
+        padding: 0;
+        margin: 0;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .waybill-preview {
+        box-shadow: none;
+        padding: 20px;
+        margin: 0;
+        max-width: none;
+        border: none;
+    }
+    
+    .no-print {
+        display: none !important;
+    }
+    
+    .items-table th {
+        background: var(--primary-color) !important;
+        color: white !important;
+    }
+    
+    .waybill-title {
+        color: var(--primary-color) !important;
+    }
+    
+    .section-header h3 {
+        color: var(--primary-color) !important;
+    }
+}
+</style>
+
+<style>
+.waybill-detail-header-bar { display: flex; flex-direction: column; gap: 1rem; }
+.waybill-detail-header-bar .header-title-row { flex-shrink: 0; }
+.waybill-detail-header-bar .header-actions-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+</style>
+<div class="row">
+  <div class="col-12">
+    <div class="card my-4">
+      <div class="card-header p-0 mt-n4 mx-3 no-print">
+        <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-4 px-3">
+          <div class="waybill-detail-header-bar">
+            <div class="header-title-row">
+              <h6 class="text-white text-capitalize mb-0">Waybill {{ waybill.waybill_number }}</h6>
+            </div>
+            <div class="header-actions-row">
+              {% if can_create_waybill %}
+              <a href="{% url 'waybills:create' %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-plus text-sm"></i> New Waybill
+              </a>
+              {% endif %}
+              <a href="{% url 'waybills:list' %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-list text-sm"></i> Waybill List
+              </a>
+              {% if can_change_waybill %}
+              <a href="{% url 'waybills:edit' waybill.pk %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-edit text-sm"></i> Edit
+              </a>
+              {% endif %}
+              <a href="{% url 'waybills:report' waybill.pk %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-chart-line text-sm"></i> Report
+              </a>
+              {% if can_print_waybill %}
+              <a href="{% url 'waybills:print' waybill.pk %}" target="_blank" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-print text-sm"></i> Print
+              </a>
+              <a href="{% url 'waybills:print' waybill.pk %}" target="_blank" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-file-pdf text-sm"></i> Download PDF
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-body p-0 mt-3">
+        <!-- Mobile scroll hint -->
+        <div class="mobile-scroll-hint">
+            <i class="fas fa-arrows-left-right"></i> Swipe left/right to view full waybill
+        </div>
+        
+        <!-- EXACT copy of waybill-preview from create page -->
+        <div class="preview-scroll-wrapper">
+        <div class="waybill-preview">
+          <!-- Waybill Header (honors user_preferences when set) -->
+          {% with user_prefs=user_preferences %}
+          <div class="waybill-header">
+            {% if user_prefs.show_company_details != False and waybill.template.show_company_logo %}
+            <div class="company-logo">
+              {% if company_logo %}
+                <img src="{{ company_logo }}" alt="Company Logo">
+              {% else %}
+                <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo">
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if user_prefs.show_company_details != False and waybill.template.show_company_details %}
+            <div class="company-details">
+              <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+              <p>{{ company_profile.address|default:"Company Address" }}</p>
+              <p>{{ company_profile.phone|default:"Phone Number" }}</p>
+              <p>{{ company_profile.email|default:"Email Address" }}</p>
+              {% if company_profile.website %}<p>{{ company_profile.website }}</p>{% endif %}
+            </div>
+            {% endif %}
+          </div>
+          {% endwith %}
+          
+          <!-- Waybill Title -->
+          <div class="waybill-title">{{ waybill.template.document_title|default:"WAYBILL" }}</div>
+          
+          <!-- Waybill Info -->
+          <div class="waybill-info">
+            <div>
+              <strong>Waybill #: {{ waybill.waybill_number }}</strong>
+            </div>
+            <div>
+              <strong>Date: {{ waybill.waybill_date|date:"M d, Y" }}</strong>
+            </div>
+            {% if waybill.delivery_date %}
+            <div>
+              <strong>Delivery: {{ waybill.delivery_date|date:"M d, Y" }}</strong>
+            </div>
+            {% endif %}
+            <div>
+              <strong>Status: {{ waybill.get_status_display }}</strong>
+            </div>
+          </div>
+          {% if is_company_admin %}
+          <p class="text-muted small mb-0 mt-2">Created by {% if waybill.created_by %}{{ waybill.created_by.get_full_name|default:waybill.created_by.email }} on {{ waybill.created_at|date:"M d, Y" }}{% else %}—{% endif %}</p>
+          {% endif %}
+
+          <!-- Delivery summary -->
+          <div class="custom-section" style="margin-bottom: 20px;">
+            <div class="section-header">
+              <h3>DELIVERY QUANTITY</h3>
+            </div>
+            {% if delivery_quantities|length > 1 %}
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered">
+                <thead>
+                  <tr><th>Product</th><th>Total</th><th>Delivered</th><th>Remaining</th><th>Excess (Over-delivered)</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {% for dq in delivery_quantities %}
+                  <tr>
+                    <td>{{ dq.product|default:"—" }}</td>
+                    <td>{{ dq.total_quantity_input|default:"—" }}</td>
+                    <td>{{ dq.delivered_quantity_input|default:"—" }}</td>
+                    <td>{{ dq.remaining_display|default:"—" }}</td>
+                    <td>{% if dq.over_display %}<span class="text-warning fw-bold">{{ dq.over_display }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td><span class="badge bg-{{ dq.row_status_color }}">{{ dq.row_status_label }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+              <strong>Legend:</strong> Remaining = quantity still to deliver. Excess = amount delivered above the total order (over-delivery).
+            </p>
+            {% if can_change_waybill %}
+            {% if not waybill.is_approved %}
+            <form method="post" action="{% url 'waybills:manual_approve' waybill.pk %}" class="mt-2 no-print">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-success">Manually approve</button>
+            </form>
+            {% else %}
+            <p class="text-muted small mt-2 mb-0">Approved{% if waybill.approved_at %} {{ waybill.approved_at|date:"M d, Y H:i" }}{% endif %}{% if waybill.approved_by %} by {{ waybill.approved_by.get_full_name|default:waybill.approved_by.email }}{% endif %}.</p>
+            {% endif %}
+            {% endif %}
+            {% else %}
+            {% with ds=delivery_summary %}
+            <div class="d-flex flex-wrap gap-3 align-items-center mb-2">
+              <div><strong>Total:</strong> {{ waybill.total_quantity_input|default:"—" }}</div>
+              <div><strong>Delivered:</strong> {{ waybill.delivered_quantity_input|default:"—" }}</div>
+              <div>
+                <strong>Remaining:</strong>
+                {% if ds.remaining_display %}
+                  {{ ds.remaining_display }}
+                {% else %}
+                  {{ ds.remaining|floatformat:0 }}
+                {% endif %}
+              </div>
+              <div>
+                <strong>Over-delivered:</strong>
+                {% if ds.over_display %}
+                  <span class="text-danger fw-bold">{{ ds.over_display }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </div>
+              <div>
+                <span class="badge bg-{{ ds.status_color }}">
+                  {{ ds.status_label }}
+                </span>
+              </div>
+            </div>
+            {% if ds.total > 0 %}
+            <div class="progress" style="height: 10px;">
+              <div class="progress-bar bg-{{ ds.status_color }}" role="progressbar" style="width: {{ ds.percent|floatformat:0 }}%;"></div>
+            </div>
+            <small class="text-muted">{{ ds.percent|floatformat:0 }}% delivered</small>
+            {% endif %}
+            {% if ds.over_delivery and ds.over_delivery|floatformat:0 != "0" %}
+            <div class="alert alert-warning py-2 px-3 mt-2 mb-0" role="alert">
+              <strong>Excess delivery:</strong> The customer received {{ ds.over_display }} more than the ordered total. Remaining balance is zero; the extra quantity has been delivered.
+            </div>
+            {% endif %}
+            {% if can_change_waybill %}
+            {% if not waybill.is_approved %}
+            <form method="post" action="{% url 'waybills:manual_approve' waybill.pk %}" class="mt-2 no-print">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-success">Manually approve</button>
+            </form>
+            {% else %}
+            <p class="text-muted small mt-2 mb-0">Approved{% if waybill.approved_at %} {{ waybill.approved_at|date:"M d, Y H:i" }}{% endif %}{% if waybill.approved_by %} by {{ waybill.approved_by.get_full_name|default:waybill.approved_by.email }}{% endif %}.</p>
+            {% endif %}
+            {% endif %}
+            {% endwith %}
+            {% endif %}
+          </div>
+          
+          <!-- Custom Sections -->
+          {% for section_key, section_data in waybill.custom_data.items %}
+            {% if section_data and section_key != 'user_preferences' and section_key != 'delivery_quantities' %}
+              <div class="custom-section">
+                <div class="section-header">
+                  <h3>
+                    {% if section_key == 'sender_info' %}SENDER INFORMATION
+                    {% elif section_key == 'receiver_info' %}RECEIVER INFORMATION
+                    {% elif section_key == 'shipment_info' %}SHIPMENT DETAILS
+                    {% else %}{{ section_key|title }}
+                    {% endif %}
+                  </h3>
+                </div>
+                <div>
+                  {% for field_key, field_value in section_data.items %}
+                    {% if field_value %}
+                      <strong>
+                        {% if field_key == 'sender_name' %}Sender Name:
+                        {% elif field_key == 'sender_phone' %}Sender Phone:
+                        {% elif field_key == 'sender_address' %}Sender Address:
+                        {% elif field_key == 'receiver_name' %}Receiver Name:
+                        {% elif field_key == 'receiver_phone' %}Receiver Phone:
+                        {% elif field_key == 'receiver_address' %}Receiver Address:
+                        {% elif field_key == 'destination' %}Destination:
+                        {% elif field_key == 'vehicle_number' %}Vehicle Number:
+                        {% elif field_key == 'driver_name' %}Driver Name:
+                        {% elif field_key == 'driver_phone' %}Driver Phone:
+                        {% elif field_key == 'remark' %}Remark:
+                        {% else %}{{ field_key|title }}:
+                        {% endif %}
+                      </strong> {{ field_value }}<br>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+          
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 8%;">S/N</th>
+                {% if waybill.template.table_columns %}
+                  {% for column in waybill.template.table_columns %}
+                    <th style="width: {{ column.width|default:'auto' }};">{{ column.label|upper }}</th>
+                  {% endfor %}
+                {% else %}
+                  <!-- Default columns matching invoice structure -->
+                  <th style="width: 25%;">PRODUCT / SERVICE</th>
+                  <th style="width: 35%;">DESCRIPTION</th>
+                  <th style="width: 20%;">QUANTITY</th>
+                  <th style="width: 20%;">WEIGHT</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in waybill.items.all %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                {% if waybill.template.table_columns %}
+                  {% for column in waybill.template.table_columns %}
+                    <td>{{ item.item_data|lookup:column.name|default:"" }}</td>
+                  {% endfor %}
+                {% else %}
+                  <!-- Default columns: get_first_key never looks up missing keys (avoids VariableDoesNotExist) -->
+                  <td>{{ item.item_data|get_first_key:"product_service,product"|default:"" }}</td>
+                  <td>{{ item.item_data|get_first_key:"description,item_description"|default:"" }}</td>
+                  <td>{{ item.item_data|lookup:'quantity'|default:"" }}</td>
+                  <td>{{ item.item_data|lookup:'weight'|default:"" }}</td>
+                {% endif %}
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="{% if waybill.template.table_columns %}{{ waybill.template.table_columns|length|add:1 }}{% else %}5{% endif %}" 
+                    style="text-align: center; padding: 20px; color: #999;">
+                  No items found for this waybill.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          
+          <!-- Notes Section -->
+          {% if waybill.notes %}
+          <div class="custom-section">
+            <div class="section-header">
+              <h3>NOTES</h3>
+            </div>
+            <p>{{ waybill.notes|linebreaks }}</p>
+          </div>
+          {% endif %}
+          
+          <!-- Signature and Bank Details (use user_prefs) -->
+          {% with user_prefs=user_preferences %}
+          <!-- Signature Section -->
+          {% if waybill.template.show_signature and user_prefs.show_signature != False and company_signature and company_profile.show_signature %}
+          <div class="signature-section">
+            <img src="{{ company_signature }}" alt="Signature">
+            <p><strong>Authorized Signature</strong></p>
+          </div>
+          {% endif %}
+          
+          <!-- Bank Details Section -->
+          {% if user_prefs.show_bank_details and bank_accounts and company_profile.show_bank_details %}
+          <div class="custom-section" style="background-color: #f0f8ff; border: 2px solid #007bff; padding: 20px; margin: 20px 0;">
+            <div class="section-header">
+              <h3 style="color: #007bff;">BANK DETAILS</h3>
+            </div>
+            <div class="custom-section-content">
+              {% for account in bank_accounts %}
+              <p style="margin-bottom: {% if not forloop.last %}12px; padding-bottom: 12px; border-bottom: 1px solid #ddd;{% else %}0;{% endif %}">
+                <strong>Bank Name:</strong> {{ account.bank_name }}<br>
+                <strong>Account No:</strong> {{ account.account_number }}<br>
+                <strong>Account Name:</strong> {{ account.account_name }}
+              </p>
+              {% endfor %}
+            </div>
+          </div>
+          {% elif waybill.template.show_bank_details and bank_accounts and company_profile.show_bank_details %}
+          <div class="custom-section">
+            <div class="section-header">
+              <h3>BANK DETAILS</h3>
+            </div>
+            <div class="custom-section-content">
+              {% for account in bank_accounts %}
+              <p style="margin-bottom: {% if not forloop.last %}12px; padding-bottom: 12px; border-bottom: 1px solid #ddd;{% else %}0;{% endif %}">
+                <strong>Bank Name:</strong> {{ account.bank_name }}<br>
+                <strong>Account No:</strong> {{ account.account_number }}<br>
+                <strong>Account Name:</strong> {{ account.account_name }}
+              </p>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% endwith %}
+        </div>
+        </div><!-- End preview-scroll-wrapper -->
+        
+        <!-- Debug Information (Only in development) -->
+        {% if False %}
+        <div class="row mt-4 no-print">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <h6>Debug Information:</h6>
+              <p><strong>Waybill Fields:</strong></p>
+              <ul>
+                <li>Waybill Number: {{ waybill.waybill_number }}</li>
+                <li>Template: {{ waybill.template.name }}</li>
+                <li>Document Title: {{ waybill.template.document_title }}</li>
+                <li>Status: {{ waybill.status }}</li>
+                <li>Delivery Date: {{ waybill.delivery_date }}</li>
+                <li>Notes: {{ waybill.notes }}</li>
+                <li>Items Count: {{ waybill.items.count }}</li>
+                <li>Custom Data: {{ waybill.custom_data }}</li>
+              </ul>
+              <p><strong>Template Settings:</strong></p>
+              <ul>
+                <li>Primary Color: {{ waybill.template.primary_color }}</li>
+                <li>Secondary Color: {{ waybill.template.secondary_color }}</li>
+                <li>Text Color: {{ waybill.template.text_color }}</li>
+                <li>Show Company Logo: {{ waybill.template.show_company_logo }}</li>
+                <li>Show Company Details: {{ waybill.template.show_company_details }}</li>
+                <li>Template Bank Details: {{ waybill.template.show_bank_details }}</li>
+            <li>User Bank Details Choice: {{ waybill.custom_data.user_preferences.show_bank_details|default:"Not set" }}</li>
+            <li>Custom Data Keys: {{ waybill.custom_data.keys|default:"No keys" }}</li>
+            <li>User Preferences: {{ waybill.custom_data.user_preferences|default:"No user preferences" }}</li>
+                <li>Show Signature: {{ waybill.template.show_signature }}</li>
+              </ul>
+              <p><strong>Context Variables:</strong></p>
+              <ul>
+                <li>Company Profile: {% if company_profile %}{{ company_profile.company_name }}{% else %}None{% endif %}</li>
+                <li>Logo: {% if company_logo %}{{ company_logo }}{% else %}None{% endif %}</li>
+                <li>Signature: {% if company_signature %}{{ company_signature }}{% else %}None{% endif %}</li>
+                <li>Bank Account: {% if default_bank_account %}{{ default_bank_account.bank_name }}{% else %}None{% endif %}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- Action Buttons -->
+        <div class="row mt-4 no-print">
+          <div class="col-12 text-center">
+            <a href="{% url 'waybills:list' %}" class="btn btn-outline-secondary me-2">
+              <i class="fas fa-arrow-left text-sm"></i> Back to Waybills
+            </a>
+            {% if can_change_waybill %}
+            <a href="{% url 'waybills:edit' waybill.pk %}" class="btn btn-primary">
+              <i class="fas fa-edit text-sm"></i> Edit Waybill
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Apply Company Profile theme colors
+    const primaryColor = '{{ theme_primary_color|default:"#1976d2" }}';
+    const secondaryColor = '{{ theme_secondary_color|default:"#f8f9fa" }}';
+    const textColor = '{{ theme_text_color|default:"#333333" }}';
+    
+    document.documentElement.style.setProperty('--primary-color', primaryColor);
+    document.documentElement.style.setProperty('--secondary-color', secondaryColor);
+    document.documentElement.style.setProperty('--text-color', textColor);
+});
+</script>
+
+<!-- Custom template filter for dict lookup -->
+{% load custom_filters %}
+
+{% endblock %}

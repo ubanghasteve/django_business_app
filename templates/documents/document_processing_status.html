@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Processing Status - Document{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <h2 class="mb-4">Document Processing Status</h2>
+  <div class="card">
+    <div class="card-body">
+      <p class="mb-2">Document ID: <strong id="doc-id">{{ document_id|default:'' }}</strong></p>
+      <p class="mb-2">Status: <span id="status-badge" class="badge bg-secondary">{{ status|default:'pending' }}</span></p>
+      <p class="mb-2 text-danger" id="status-error" style="display:none;"></p>
+      <button type="button" class="btn btn-outline-primary" id="poll-status">Refresh status</button>
+      <a href="{% url 'documents:list' %}" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var docId = document.getElementById('doc-id').textContent.trim();
+  if (!docId) return;
+  var statusUrl = '/documents/' + docId + '/status/';
+  var badge = document.getElementById('status-badge');
+  var errEl = document.getElementById('status-error');
+  function setStatus(s, err) {
+    badge.textContent = s;
+    badge.className = 'badge bg-' + (s === 'completed' ? 'success' : s === 'failed' ? 'danger' : s === 'processing' ? 'info' : 'secondary');
+    if (err) { errEl.textContent = err; errEl.style.display = 'block'; } else { errEl.style.display = 'none'; }
+  }
+  function poll() {
+    fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === 'success') {
+          setStatus(d.processing_status, d.processing_error || '');
+        }
+      })
+      .catch(function() { setStatus('error', 'Could not fetch status.'); });
+  }
+  document.getElementById('poll-status').addEventListener('click', poll);
+  poll();
+})();
+</script>
+{% endblock %}

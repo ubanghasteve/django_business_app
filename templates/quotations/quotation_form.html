@@ -1,0 +1,1296 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency_filters %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if create %}Create Quotation{% else %}Edit Quotation{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Theme colors from Company Profile */
+    :root {
+        --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+        --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+        --text-color: {{ theme_text_color|default:"#333333" }};
+        --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+    }
+    
+    .form-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .section-header {
+        background: var(--primary-color);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .section-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .line-item {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    
+    .line-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .line-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .add-item-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .add-item-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+    
+    .remove-item-btn {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+    
+    .remove-item-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+    
+    .totals-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        padding: 0.25rem 0;
+    }
+    
+    .total-row:last-child {
+        border-top: 2px solid rgba(255, 255, 255, 0.3);
+        margin-top: 1rem;
+        padding-top: 1rem;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .preview-section {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .preview-item {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+    
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        color: white;
+        text-decoration: none;
+    }
+    
+    /* Enhanced form field styling */
+    .form-control, .form-select {
+        border: 2px solid #dee2e6 !important;
+        border-radius: 0.375rem;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: all 0.15s ease-in-out;
+        background-color: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-control:hover, .form-select:hover {
+        border-color: #adb5bd !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+        outline: none;
+    }
+    
+    .form-label, label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        color: white;
+        font-size: 1.2rem;
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .pulse {
+        animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="form-container">
+                <form method="post" id="quotationForm" novalidate data-sync-model="quotations" data-sync-redirect="{% url 'quotations:quotation_list' %}" {% if quotation %}data-record-uuid="{{ quotation.uuid }}"{% endif %}>
+                    {% csrf_token %}
+                    {% if not create and form.instance.template_id %}
+                    <input type="hidden" name="template" value="{{ form.instance.template_id }}">
+                    {% endif %}
+                    
+                    <!-- Basic Information -->
+                    <div class="section-header">
+                        <h5><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.valid_until|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.client_name|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.client_address|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <!-- Line Items -->
+                    <div class="section-header">
+                        <h5><i class="fas fa-list me-2"></i>Line Items</h5>
+                    </div>
+                    
+                    {{ formset.management_form }}
+                    <div id="lineItemsContainer">
+                        {% for form in formset.forms %}
+                        <div class="line-item fade-in" data-form-index="{{ forloop.counter0 }}">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    {{ form.product_service|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form.description|as_crispy_field }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.quantity|as_crispy_field }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ form.unit_price|as_crispy_field }}
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Line Total</label>
+                                        <div class="form-control-plaintext line-total-display" style="font-weight: bold; color: #28a745;">
+                                            {{ user_currency_symbol|default:'$' }}0.00
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    {% if not forloop.first %}
+                                    <button type="button" class="remove-item-btn" onclick="removeLineItem(this)">
+                                        <i class="fas fa-trash"></i> Remove
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {{ form.id }}
+                            {{ form.DELETE }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button type="button" class="add-item-btn" id="addLineItem">
+                            <i class="fas fa-plus me-2"></i>Add Line Item
+                        </button>
+                    </div>
+
+                    <!-- Additional Charges -->
+                    <div class="section-header">
+                        <h5><i class="fas fa-calculator me-2"></i>Additional Charges & Terms</h5>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Tax/VAT</label>
+                                <div class="input-group">
+                                    <select name="tax_type" id="tax_type" class="form-select" style="max-width: 100px;">
+                                        <option value="percentage" {% if form.tax_type.value == 'percentage' or not form.tax_type.value %}selected{% endif %}>%</option>
+                                        <option value="fixed" {% if form.tax_type.value == 'fixed' %}selected{% endif %}>{{ user_currency_symbol|default:"₦" }}</option>
+                                    </select>
+                                    <input type="text" name="total_tax" class="form-control" placeholder="e.g., 7.5 or 7.5%" step="0.01" value="{{ form.total_tax.value|default:'' }}">
+                                </div>
+                                <small class="text-muted">Enter 5% for percentage</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Discount</label>
+                                <div class="input-group">
+                                    <select name="discount_type" id="discount_type" class="form-select" style="max-width: 100px;">
+                                        <option value="percentage" {% if form.discount_type.value == 'percentage' or not form.discount_type.value %}selected{% endif %}>%</option>
+                                        <option value="fixed" {% if form.discount_type.value == 'fixed' %}selected{% endif %}>{{ user_currency_symbol|default:"₦" }}</option>
+                                    </select>
+                                    <input type="text" name="total_discount" class="form-control" placeholder="e.g., 10 or 5k" step="0.01" value="{{ form.total_discount.value|default:'' }}">
+                                </div>
+                                <small class="text-muted">Enter 10% or 5k for {{ user_currency_symbol|default:"₦" }}5,000</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Shipping fee</label>
+                                <input type="text" name="shipping_fee" class="form-control" placeholder="0.00" step="0.01" value="{{ form.shipping_fee.value|default:'0.00' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-label">Other charges</label>
+                                <input type="text" name="other_charges" class="form-control" placeholder="0.00" step="0.01" value="{{ form.other_charges.value|default:'0.00' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.terms|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totals Sidebar -->
+            <div class="col-lg-4">
+                <!-- Preview Section -->
+                <div class="preview-section">
+                    <h6><i class="fas fa-eye me-2"></i>Quotation Preview</h6>
+                    <div id="quotationPreview">
+                        <p class="text-muted mb-2">Add line items to see preview</p>
+                    </div>
+                </div>
+
+                <div class="totals-section">
+                    <h6 class="mb-3"><i class="fas fa-calculator me-2"></i>Totals</h6>
+                    
+                    <div class="total-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotalDisplay">{{ user_currency_symbol|default:'$' }}0.00</span>
+                    </div>
+                    
+                    <div class="total-row">
+                        <span>Tax:</span>
+                        <span id="taxDisplay">{{ user_currency_symbol|default:'$' }}0.00</span>
+                    </div>
+                    
+                    <div class="total-row">
+                        <span>Discount:</span>
+                        <span id="discountDisplay">{{ user_currency_symbol|default:'$' }}0.00</span>
+                    </div>
+                    
+                    <div class="total-row">
+                        <span>Shipping:</span>
+                        <span id="shippingDisplay">{{ user_currency_symbol|default:'$' }}0.00</span>
+                    </div>
+                    
+                    <div class="total-row">
+                        <span>Other Charges:</span>
+                        <span id="otherDisplay">{{ user_currency_symbol|default:'$' }}0.00</span>
+                    </div>
+                    
+                    <div class="total-row">
+                        <span>Grand Total:</span>
+                        <span id="totalDisplay">{{ user_currency_symbol|default:'$' }}0.00</span>
+                    </div>
+                    
+                    <div class="mt-3 pt-3 border-top border-white">
+                        <div class="text-center">
+                            <small class="opacity-75">Amount in Words:</small>
+                            <div id="amountInWords" class="fw-bold">Zero {{ user_currency_code|default:'USD' }} Only</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="text-center mt-3">
+                    <button type="submit" class="btn btn-save me-2" id="submitBtn">
+                        <i class="fas fa-save me-2"></i>
+                        {% if create %}Create Quotation{% else %}Update Quotation{% endif %}
+                    </button>
+                    <a href="{% url 'quotations:quotation_list' %}" class="btn btn-cancel">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                </div>
+                
+                <!-- Preview Button -->
+                {% if not create %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'quotations:quotation_preview' quotation.pk %}" class="btn btn-outline-info" target="_blank">
+                        <i class="fas fa-eye me-2"></i>Preview
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const currencySymbol = '{{ user_currency_symbol|default:"$" }}';
+const currencyCode = '{{ user_currency_code|default:"USD" }}';
+let formCount = {{ formset.total_form_count|default:1 }};
+
+// Ajax form submission function
+function submitQuotationForm(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('quotationForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Prevent double submission
+    if (submitBtn.disabled) {
+        console.log('Form already being submitted, ignoring duplicate submission');
+        return;
+    }
+    
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    submitBtn.disabled = true;
+    
+    // Collect form data
+    const formData = new FormData(form);
+    
+    // Ensure all formset data is properly collected
+    // This includes the id fields for existing items
+    console.log('Form data collected:', formData);
+    console.log('Form action:', form.action || window.location.href);
+    console.log('CSRF token:', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    // Debug: Log current totals before submission
+    const currentTotals = {
+        subtotal: document.getElementById('subtotalDisplay')?.textContent || '0.00',
+        tax: document.getElementById('taxDisplay')?.textContent || '0.00',
+        discount: document.getElementById('discountDisplay')?.textContent || '0.00',
+        shipping: document.getElementById('shippingDisplay')?.textContent || '0.00',
+        other: document.getElementById('otherDisplay')?.textContent || '0.00',
+        grandTotal: document.getElementById('totalDisplay')?.textContent || '0.00'
+    };
+    console.log('Current totals before submission:', currentTotals);
+    
+    // Make Ajax request
+    fetch(form.action || window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error('Server error: ' + response.status);
+        }
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            // Show success message
+            console.log('Quotation saved successfully, showing notification...');
+            showNotification('Quotation saved successfully!', 'success');
+            
+            // Redirect to quotation list
+            console.log('Redirecting to:', data.redirect_url || '/quotations/');
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                window.location.href = '/quotations/';
+            }
+        } else {
+            console.error('Server returned error:', data.message);
+            throw new Error(data.message || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving quotation:', error);
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Show more specific error message
+        let errorMessage = 'An error occurred while saving the quotation. Please try again.';
+        if (error.message && error.message !== 'Unknown error occurred') {
+            errorMessage = error.message;
+        } else if (error.message && error.message.includes('Failed to fetch')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message && error.message.includes('Unexpected token')) {
+            errorMessage = 'Server error. Please refresh the page and try again.';
+        }
+        
+        showNotification(errorMessage, 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+// Show notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeForm();
+    updateTotals();
+    updatePreview();
+    setupEventListeners();
+    setupPercentageFields();
+    
+    // Add Ajax form submission - only add once
+    const form = document.getElementById('quotationForm');
+    if (form) {
+        // Remove any existing submit listeners to prevent duplicates
+        form.removeEventListener('submit', submitQuotationForm);
+        form.addEventListener('submit', submitQuotationForm);
+    }
+});
+
+function initializeForm() {
+    // Initialize existing line items
+    const existingItems = document.querySelectorAll('.line-item');
+    existingItems.forEach((item, index) => {
+        setupLineItemEventListeners(item, index);
+        calculateLineTotal(item);
+    });
+    
+    // Setup add button
+    const addButton = document.getElementById('addLineItem');
+    if (addButton) {
+        addButton.addEventListener('click', addLineItem);
+    }
+}
+
+function setupPercentageFields() {
+    // Add percentage indicators to tax and discount fields
+    const taxInput = document.querySelector('input[name="total_tax"]');
+    const discountInput = document.querySelector('input[name="total_discount"]');
+    
+    if (taxInput) {
+        // Add placeholder to indicate tax options
+        taxInput.placeholder = 'Enter tax (e.g., 10%, $50, or 100 naira)';
+        taxInput.title = 'Enter tax as percentage (10%) or fixed amount ($50, 100 naira)';
+        
+        // Add visual indicator
+        const taxGroup = taxInput.closest('.form-group') || taxInput.closest('.mb-3');
+        if (taxGroup) {
+            const label = taxGroup.querySelector('label');
+            if (label) {
+                label.innerHTML = label.innerHTML + ' <small class="text-muted">(% or $)</small>';
+            }
+        }
+    }
+    
+    if (discountInput) {
+        // Add placeholder to indicate discount options
+        discountInput.placeholder = 'Enter discount (e.g., 5%, $50, or 100 naira)';
+        discountInput.title = 'Enter discount as percentage (5%) or fixed amount ($50, 100 naira)';
+        
+        // Add visual indicator
+        const discountGroup = discountInput.closest('.form-group') || discountInput.closest('.mb-3');
+        if (discountGroup) {
+            const label = discountGroup.querySelector('label');
+            if (label) {
+                label.innerHTML = label.innerHTML + ' <small class="text-muted">(% or $)</small>';
+            }
+        }
+    }
+    
+    // Ensure all quantity and price inputs are text type for mixed input support
+    const quantityInputs = document.querySelectorAll('input[name$="-quantity"]');
+    const priceInputs = document.querySelectorAll('input[name$="-unit_price"]');
+    
+    quantityInputs.forEach(input => {
+        input.type = 'text';
+        if (!input.placeholder) {
+            input.placeholder = 'e.g., 2 or 2 pieces';
+        }
+    });
+    
+    priceInputs.forEach(input => {
+        input.type = 'text';
+        if (!input.placeholder) {
+            input.placeholder = 'e.g., 15 or # 15 naira';
+        }
+    });
+}
+
+function setupEventListeners() {
+    // Listen for changes in ALL form fields for real-time updates
+    document.addEventListener('input', function(e) {
+        // Line item fields
+        if (e.target.matches('input[name$="-quantity"], input[name$="-unit_price"], input[name$="-product_service"], textarea[name$="-description"]')) {
+            const lineItem = e.target.closest('.line-item');
+            if (lineItem) {
+                calculateLineTotal(lineItem);
+            }
+            
+            // Show extracted numeric value for quantity and price fields
+            if (e.target.matches('input[name$="-quantity"], input[name$="-unit_price"]')) {
+                showExtractedValue(e.target);
+            }
+            
+            updateTotals();
+            updatePreview();
+        }
+        
+        // Additional charges fields - trigger immediate recalculation
+        if (e.target.matches('input[name="total_tax"], input[name="total_discount"], input[name="shipping_fee"], input[name="other_charges"]')) {
+            // Use setTimeout to ensure the input value is updated
+            setTimeout(() => {
+                updateTotals();
+                updatePreview();
+            }, 10);
+            
+            // Add visual feedback for tax field changes
+            if (e.target.matches('input[name="total_tax"]')) {
+                e.target.style.backgroundColor = '#e8f5e8';
+                setTimeout(() => {
+                    e.target.style.backgroundColor = '';
+                }, 1000);
+            }
+        }
+        
+        // Client and template fields
+        if (e.target.matches('input[name="client_name"], textarea[name="client_address"], select[name="template"], input[name="valid_until"]')) {
+            updatePreview();
+        }
+        
+        // Terms and notes fields
+        if (e.target.matches('textarea[name="terms"], textarea[name="notes"]')) {
+            updatePreview();
+        }
+    });
+    
+    // Listen for changes in select fields and additional charges
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('input[name="client_name"], textarea[name="client_address"], select[name="template"], input[name="valid_until"]')) {
+            updatePreview();
+        }
+        
+        // Additional charges fields - also listen for change events
+        if (e.target.matches('input[name="total_tax"], input[name="total_discount"], input[name="shipping_fee"], input[name="other_charges"]')) {
+            updateTotals();
+            updatePreview();
+        }
+    });
+    
+    // Form submission is handled by submitQuotationForm function
+    // No need for duplicate handlers
+}
+
+function addLineItem() {
+    const container = document.getElementById('lineItemsContainer');
+    const formCountInput = document.getElementById('id_items-TOTAL_FORMS');
+    const currentCount = parseInt(formCountInput.value);
+    
+    // Create new line item HTML
+    const newItemHtml = `
+        <div class="line-item fade-in" data-form-index="${currentCount}">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="id_items-${currentCount}-product_service">Product/Service</label>
+                        <input type="text" name="items-${currentCount}-product_service" id="id_items-${currentCount}-product_service" class="form-control" placeholder="Enter product or service">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="id_items-${currentCount}-description">Description</label>
+                        <textarea name="items-${currentCount}-description" id="id_items-${currentCount}-description" class="form-control" rows="2" placeholder="Enter description"></textarea>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label for="id_items-${currentCount}-quantity">Quantity</label>
+                        <input type="text" name="items-${currentCount}-quantity" id="id_items-${currentCount}-quantity" class="form-control quantity-input" placeholder="e.g., 2 or 2 pieces">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label for="id_items-${currentCount}-unit_price">Unit Price</label>
+                        <input type="text" name="items-${currentCount}-unit_price" id="id_items-${currentCount}-unit_price" class="form-control price-input" placeholder="e.g., 15 or # 15 naira">
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Line Total</label>
+                        <div class="form-control-plaintext line-total-display" style="font-weight: bold; color: #28a745;">
+                            ${currencySymbol}0.00
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button type="button" class="remove-item-btn" onclick="removeLineItem(this)">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
+                </div>
+            </div>
+            <input type="hidden" name="items-${currentCount}-id" id="id_items-${currentCount}-id">
+            <input type="checkbox" name="items-${currentCount}-DELETE" id="id_items-${currentCount}-DELETE" style="display: none;">
+        </div>
+    `;
+    
+    // Add the new item
+    container.insertAdjacentHTML('beforeend', newItemHtml);
+    
+    // Update form count
+    formCountInput.value = currentCount + 1;
+    
+    // Setup event listeners for the new item
+    const newItem = container.lastElementChild;
+    setupLineItemEventListeners(newItem, currentCount);
+    
+    // Update totals and preview
+    updateTotals();
+    updatePreview();
+    
+    // Scroll to the new item
+    newItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    // Focus on the first input
+    newItem.querySelector('input[name$="-product_service"]').focus();
+}
+
+function removeLineItem(button) {
+    const lineItem = button.closest('.line-item');
+    const container = document.getElementById('lineItemsContainer');
+    
+    // Count visible items (not marked for deletion)
+    const visibleItems = container.querySelectorAll('.line-item:not([style*="display: none"])');
+    if (visibleItems.length <= 1) {
+        alert('Cannot remove the last line item. At least one item is required.');
+        return;
+    }
+    
+    // Hide the item with animation
+    lineItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    lineItem.style.opacity = '0';
+    lineItem.style.transform = 'translateX(-20px)';
+    
+    setTimeout(() => {
+        lineItem.style.display = 'none';
+        
+        // Mark for deletion
+        const deleteInput = lineItem.querySelector('input[name$="-DELETE"]');
+        if (deleteInput) {
+            deleteInput.checked = true;
+        }
+        
+        // Force recalculation of totals and preview
+        setTimeout(() => {
+            updateTotals();
+            updatePreview();
+        }, 50);
+    }, 300);
+}
+
+function setupLineItemEventListeners(item, index) {
+    const quantityInput = item.querySelector('input[name$="-quantity"]');
+    const priceInput = item.querySelector('input[name$="-unit_price"]');
+    const productInput = item.querySelector('input[name$="-product_service"]');
+    const descriptionInput = item.querySelector('textarea[name$="-description"]');
+    
+    // Setup quantity and price listeners
+    if (quantityInput && priceInput) {
+        quantityInput.addEventListener('input', function() {
+            calculateLineTotal(item);
+            showExtractedValue(quantityInput);
+            updateTotals();
+            updatePreview();
+        });
+        
+        priceInput.addEventListener('input', function() {
+            calculateLineTotal(item);
+            showExtractedValue(priceInput);
+            updateTotals();
+            updatePreview();
+        });
+    }
+    
+    // Setup product/service and description listeners for real-time preview
+    if (productInput) {
+        productInput.addEventListener('input', function() {
+            updatePreview();
+        });
+    }
+    
+    if (descriptionInput) {
+        descriptionInput.addEventListener('input', function() {
+            updatePreview();
+        });
+    }
+}
+
+function calculateLineTotal(item) {
+    const quantityInput = item.querySelector('input[name$="-quantity"]');
+    const priceInput = item.querySelector('input[name$="-unit_price"]');
+    const totalDisplay = item.querySelector('.line-total-display');
+    
+    if (quantityInput && priceInput && totalDisplay) {
+        // Extract numeric values from mixed text inputs
+        const quantity = extractNumericValue(quantityInput.value);
+        const price = extractNumericValue(priceInput.value);
+        const total = quantity * price;
+        
+        totalDisplay.textContent = `${currencySymbol}${formatNumberWithCommas(total)}`;
+        
+        // Add visual feedback
+        totalDisplay.style.backgroundColor = '#e8f5e8';
+        totalDisplay.style.padding = '0.5rem';
+        totalDisplay.style.borderRadius = '0.25rem';
+        setTimeout(() => {
+            totalDisplay.style.backgroundColor = '';
+            totalDisplay.style.padding = '';
+            totalDisplay.style.borderRadius = '';
+        }, 500);
+    }
+}
+
+// Function to extract numeric value from mixed text (e.g., "# 15 naira" -> 15)
+function extractNumericValue(inputValue) {
+    if (!inputValue || typeof inputValue !== 'string') {
+        return 0;
+    }
+    
+    // Remove all non-numeric characters except decimal point and minus sign
+    const numericString = inputValue.replace(/[^\d.-]/g, '');
+    
+    // Handle multiple decimal points by keeping only the first one
+    const parts = numericString.split('.');
+    if (parts.length > 2) {
+        const firstDecimal = parts[0] + '.' + parts.slice(1).join('');
+        return parseFloat(firstDecimal) || 0;
+    }
+    
+    return parseFloat(numericString) || 0;
+}
+
+// Function to show extracted numeric value in input field
+function showExtractedValue(input) {
+    if (!input) return;
+    
+    const originalValue = input.value;
+    const numericValue = extractNumericValue(originalValue);
+    
+    // Only show feedback if there's a difference between original and numeric
+    if (originalValue && originalValue !== numericValue.toString()) {
+        // Add a small indicator showing the extracted value
+        const indicator = input.parentNode.querySelector('.numeric-indicator');
+        if (indicator) {
+            indicator.textContent = `Using: ${numericValue}`;
+        } else {
+            const newIndicator = document.createElement('small');
+            newIndicator.className = 'numeric-indicator text-success';
+            newIndicator.textContent = `Using: ${numericValue}`;
+            newIndicator.style.display = 'block';
+            newIndicator.style.fontSize = '0.75rem';
+            newIndicator.style.marginTop = '2px';
+            input.parentNode.appendChild(newIndicator);
+        }
+    } else {
+        // Remove indicator if values match
+        const indicator = input.parentNode.querySelector('.numeric-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+}
+
+function updateTotals() {
+    let subtotal = 0;
+    const lineItems = document.querySelectorAll('.line-item:not([style*="display: none"])');
+    
+    // Calculate subtotal from line items
+    lineItems.forEach(item => {
+        // Skip items marked for deletion
+        const deleteInput = item.querySelector('input[name$="-DELETE"]');
+        if (deleteInput && deleteInput.checked) {
+            return;
+        }
+        
+            const quantityInput = item.querySelector('input[name$="-quantity"]');
+        const priceInput = item.querySelector('input[name$="-unit_price"]');
+        
+        if (quantityInput && priceInput) {
+            // Extract numeric values from mixed text inputs
+            const quantity = extractNumericValue(quantityInput.value);
+            const price = extractNumericValue(priceInput.value);
+            subtotal += quantity * price;
+        }
+    });
+    
+    // Get additional charges with flexible type support (percentage or fixed)
+    const taxInput = document.querySelector('input[name="total_tax"]');
+    const discountInput = document.querySelector('input[name="total_discount"]');
+    const taxTypeSelect = document.getElementById('tax_type');
+    const discountTypeSelect = document.getElementById('discount_type');
+    const shippingInput = document.querySelector('input[name="shipping_fee"]');
+    const otherInput = document.querySelector('input[name="other_charges"]');
+    
+    let tax = 0;
+    let discount = 0;
+    let shipping = 0;
+    let other = 0;
+    
+    // Parse tax with type detection
+    if (taxInput && taxInput.value.trim()) {
+        const taxValue = taxInput.value.trim();
+        let taxType = taxTypeSelect ? taxTypeSelect.value : 'percentage';
+        
+        // Auto-detect percentage from input
+        if (taxValue.includes('%')) {
+            taxType = 'percentage';
+            const numericValue = parseFloat(taxValue.replace('%', '')) || 0;
+            tax = Math.round((subtotal * (numericValue / 100)) * 100) / 100;
+        } else if (taxType === 'percentage') {
+            const taxRate = parseFloat(taxValue) || 0;
+            tax = Math.round((subtotal * (taxRate / 100)) * 100) / 100;
+        } else {
+            // Fixed amount - handle 'k' suffix for thousands
+            let fixedAmount = taxValue.toLowerCase();
+            if (fixedAmount.endsWith('k')) {
+                tax = (parseFloat(fixedAmount.replace('k', '')) || 0) * 1000;
+            } else if (fixedAmount.endsWith('m')) {
+                tax = (parseFloat(fixedAmount.replace('m', '')) || 0) * 1000000;
+            } else {
+                tax = parseFloat(taxValue.replace(/[₦$,]/g, '')) || 0;
+            }
+        }
+    }
+    
+    // Parse discount with type detection
+    if (discountInput && discountInput.value.trim()) {
+        const discountValue = discountInput.value.trim();
+        let discountType = discountTypeSelect ? discountTypeSelect.value : 'percentage';
+        
+        // Auto-detect percentage from input
+        if (discountValue.includes('%')) {
+            discountType = 'percentage';
+            const numericValue = parseFloat(discountValue.replace('%', '')) || 0;
+            discount = Math.round((subtotal * (numericValue / 100)) * 100) / 100;
+        } else if (discountType === 'percentage') {
+            const discountRate = parseFloat(discountValue) || 0;
+            discount = Math.round((subtotal * (discountRate / 100)) * 100) / 100;
+        } else {
+            // Fixed amount - handle 'k' suffix for thousands
+            let fixedAmount = discountValue.toLowerCase();
+            if (fixedAmount.endsWith('k')) {
+                discount = (parseFloat(fixedAmount.replace('k', '')) || 0) * 1000;
+            } else if (fixedAmount.endsWith('m')) {
+                discount = (parseFloat(fixedAmount.replace('m', '')) || 0) * 1000000;
+            } else {
+                discount = parseFloat(discountValue.replace(/[₦$,]/g, '')) || 0;
+            }
+        }
+    }
+    
+    if (shippingInput && shippingInput.value.trim()) {
+        let shippingValue = shippingInput.value.toLowerCase().trim();
+        if (shippingValue.endsWith('k')) {
+            shipping = (parseFloat(shippingValue.replace('k', '')) || 0) * 1000;
+        } else {
+            shipping = parseFloat(shippingInput.value.replace(/[₦$,]/g, '')) || 0;
+        }
+    }
+    
+    if (otherInput && otherInput.value.trim()) {
+        let otherValue = otherInput.value.toLowerCase().trim();
+        if (otherValue.endsWith('k')) {
+            other = (parseFloat(otherValue.replace('k', '')) || 0) * 1000;
+        } else {
+            other = parseFloat(otherInput.value.replace(/[₦$,]/g, '')) || 0;
+        }
+    }
+    
+    // Calculate final total
+    const finalTotal = subtotal + tax + shipping + other - discount;
+    
+    // Update display with animation
+    updateTotalDisplay('subtotalDisplay', subtotal);
+    updateTotalDisplay('taxDisplay', tax);
+    updateTotalDisplay('discountDisplay', discount);
+    updateTotalDisplay('shippingDisplay', shipping);
+    updateTotalDisplay('otherDisplay', other);
+    updateTotalDisplay('totalDisplay', finalTotal);
+    
+    // Update amount in words
+    updateAmountInWords(finalTotal);
+    
+    // Debug logging (remove in production)
+    console.log('Totals updated:', {
+        subtotal: subtotal,
+        tax: tax,
+        discount: discount,
+        shipping: shipping,
+        other: other,
+        finalTotal: finalTotal
+    });
+}
+
+function updateTotalDisplay(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = `${currencySymbol}${formatNumberWithCommas(value)}`;
+        
+        // Add visual feedback for total changes
+        if (elementId === 'totalDisplay') {
+            element.style.color = '#ffd700';
+            element.style.fontWeight = 'bold';
+            element.classList.add('pulse');
+            setTimeout(() => {
+                element.style.color = '';
+                element.style.fontWeight = '';
+                element.classList.remove('pulse');
+            }, 1000);
+        }
+    }
+}
+
+// Function to format numbers with commas
+function formatNumberWithCommas(value) {
+    return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function updateAmountInWords(amount) {
+    const amountInWordsDiv = document.getElementById('amountInWords');
+    if (amount === 0) {
+        amountInWordsDiv.textContent = `Zero ${currencyCode} Only`;
+        return;
+    }
+    
+    // Use server-side API for consistent formatting
+    fetch(`/api/core/num2words/?amount=${amount}&currency=${currencyCode}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.words) {
+                amountInWordsDiv.textContent = data.words;
+            } else {
+                // Fallback to client-side function
+                const words = numberToWords(amount);
+                amountInWordsDiv.textContent = words + ' ' + currencyCode + ' Only';
+            }
+        })
+        .catch(error => {
+            console.log('API error, using fallback:', error);
+            // Fallback to client-side function
+            const words = numberToWords(amount);
+            amountInWordsDiv.textContent = words + ' ' + currencyCode + ' Only';
+        });
+}
+
+function numberToWords(num) {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    
+    if (num === 0) return 'Zero';
+    if (num < 10) return ones[Math.floor(num)];
+    if (num < 20) return teens[Math.floor(num) - 10];
+    if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 ? ' ' + ones[num % 10] : '');
+    if (num < 1000) return ones[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' and ' + numberToWords(num % 100) : '');
+    if (num < 1000000) return numberToWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 ? ' ' + numberToWords(num % 1000) : '');
+    if (num < 1000000000) return numberToWords(Math.floor(num / 1000000)) + ' Million' + (num % 1000000 ? ' ' + numberToWords(num % 1000000) : '');
+    return numberToWords(Math.floor(num / 1000000000)) + ' Billion' + (num % 1000000000 ? ' ' + numberToWords(num % 1000000000) : '');
+}
+
+function updatePreview() {
+    const preview = document.getElementById('quotationPreview');
+    if (!preview) return;
+    
+    let previewHtml = '';
+    
+    // Get client information
+    const clientInput = document.querySelector('input[name="client_name"]');
+    const clientName = clientInput ? clientInput.value.trim() : '';
+    const clientAddressInput = document.querySelector('textarea[name="client_address"]');
+    const clientAddress = clientAddressInput ? clientAddressInput.value.trim() : '';
+    
+    // Get valid until date
+    const validUntilInput = document.querySelector('input[name="valid_until"]');
+    const validUntil = validUntilInput ? validUntilInput.value : '';
+    
+    // Get terms and notes
+    const termsTextarea = document.querySelector('textarea[name="terms"]');
+    const notesTextarea = document.querySelector('textarea[name="notes"]');
+    const terms = termsTextarea ? termsTextarea.value : '';
+    const notes = notesTextarea ? notesTextarea.value : '';
+    
+    // Build client information section
+    if (clientName || clientAddress || validUntil) {
+        previewHtml += `
+            <div class="preview-section mb-3 p-3 bg-light border rounded">
+                <h6 class="text-primary mb-2"><i class="fas fa-user me-2"></i>Client Information</h6>
+                ${clientName ? `<p class="mb-1"><strong>Client:</strong> ${clientName}</p>` : ''}
+                ${clientAddress ? `<p class="mb-1"><strong>Address:</strong><br><small class="text-muted">${clientAddress.replace(/\n/g, '<br>')}</small></p>` : ''}
+                ${validUntil ? `<p class="mb-0"><strong>Valid Until:</strong> ${validUntil}</p>` : ''}
+            </div>
+        `;
+    }
+    
+    // Build line items section
+    const lineItems = document.querySelectorAll('.line-item:not([style*="display: none"])');
+    let hasLineItems = false;
+    let lineItemsHtml = '';
+    
+    lineItems.forEach((item, index) => {
+        if (item.style.display !== 'none') {
+            const product = item.querySelector('input[name$="-product_service"]')?.value || '';
+            const quantity = item.querySelector('input[name$="-quantity"]')?.value || '';
+            const unitPrice = item.querySelector('input[name$="-unit_price"]')?.value || '';
+            const description = item.querySelector('textarea[name$="-description"]')?.value || '';
+            
+            if (product || quantity || unitPrice) {
+                hasLineItems = true;
+                // Extract numeric values from mixed text inputs
+                const numericQuantity = extractNumericValue(quantity);
+                const numericUnitPrice = extractNumericValue(unitPrice);
+                const total = numericQuantity * numericUnitPrice;
+                lineItemsHtml += `
+                    <div class="preview-item mb-2 p-2 border rounded">
+                        <div class="d-flex justify-content-between">
+                            <strong>${product || 'Product/Service'}</strong>
+                            <span class="text-success">${currencySymbol}${total.toFixed(2)}</span>
+                        </div>
+                        ${description ? `<small class="text-muted">${description}</small>` : ''}
+                        ${quantity || unitPrice ? `<div class="small text-muted">Qty: ${numericQuantity} × ${currencySymbol}${numericUnitPrice.toFixed(2)}</div>` : ''}
+                    </div>
+                `;
+            }
+        }
+    });
+    
+    if (hasLineItems) {
+        previewHtml += `
+            <div class="preview-section mb-3">
+                <h6 class="text-primary mb-2"><i class="fas fa-list me-2"></i>Line Items</h6>
+                ${lineItemsHtml}
+            </div>
+        `;
+    }
+    
+    // Build additional charges section
+    const taxInput = document.querySelector('input[name="total_tax"]');
+    const discountInput = document.querySelector('input[name="total_discount"]');
+    const shippingInput = document.querySelector('input[name="shipping_fee"]');
+    const otherInput = document.querySelector('input[name="other_charges"]');
+    
+    const tax = taxInput ? taxInput.value : '';
+    const discount = discountInput ? discountInput.value : '';
+    const shipping = shippingInput ? shippingInput.value : '';
+    const other = otherInput ? otherInput.value : '';
+    
+    if (tax || discount || shipping || other) {
+        // Get calculated amounts from display elements
+        const taxDisplay = document.getElementById('taxDisplay');
+        const discountDisplay = document.getElementById('discountDisplay');
+        const shippingDisplay = document.getElementById('shippingDisplay');
+        const otherDisplay = document.getElementById('otherDisplay');
+        
+        previewHtml += `
+            <div class="preview-section mb-3 p-3 bg-light border rounded">
+                <h6 class="text-primary mb-2"><i class="fas fa-calculator me-2"></i>Additional Charges</h6>
+                ${tax ? `<p class="mb-1"><strong>Tax (${taxInput.value}%):</strong> ${taxDisplay ? taxDisplay.textContent : currencySymbol + '0.00'}</p>` : ''}
+                ${discount ? `<p class="mb-1"><strong>Discount (${discountInput.value}%):</strong> ${discountDisplay ? discountDisplay.textContent : currencySymbol + '0.00'}</p>` : ''}
+                ${shipping ? `<p class="mb-1"><strong>Shipping:</strong> ${shippingDisplay ? shippingDisplay.textContent : currencySymbol + shipping}</p>` : ''}
+                ${other ? `<p class="mb-0"><strong>Other Charges:</strong> ${otherDisplay ? otherDisplay.textContent : currencySymbol + other}</p>` : ''}
+            </div>
+        `;
+    }
+    
+    // Build terms and notes section
+    if (terms || notes) {
+        previewHtml += `
+            <div class="preview-section mb-3 p-3 bg-light border rounded">
+                <h6 class="text-primary mb-2"><i class="fas fa-file-text me-2"></i>Terms & Notes</h6>
+                ${terms ? `<div class="mb-2"><strong>Terms:</strong><br><small>${terms}</small></div>` : ''}
+                ${notes ? `<div class="mb-0"><strong>Notes:</strong><br><small>${notes}</small></div>` : ''}
+            </div>
+        `;
+    }
+    
+    // Show totals if there are line items
+    if (hasLineItems) {
+        const subtotalDisplay = document.getElementById('subtotalDisplay');
+        const totalDisplay = document.getElementById('totalDisplay');
+        const amountInWordsDiv = document.getElementById('amountInWords');
+        
+        if (subtotalDisplay && totalDisplay) {
+            previewHtml += `
+                <div class="preview-section mb-3 p-3 bg-primary text-white border rounded">
+                    <h6 class="mb-2"><i class="fas fa-money-bill me-2"></i>Totals</h6>
+                    <p class="mb-1"><strong>Subtotal:</strong> ${subtotalDisplay.textContent}</p>
+                    <p class="mb-1"><strong>Grand Total:</strong> ${totalDisplay.textContent}</p>
+                    ${amountInWordsDiv ? `<p class="mb-0"><strong>Amount in Words:</strong><br><small>${amountInWordsDiv.textContent}</small></p>` : ''}
+                </div>
+            `;
+        }
+    }
+    
+    // Update the preview
+    if (previewHtml) {
+        preview.innerHTML = previewHtml;
+    } else {
+        preview.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-eye fa-2x mb-2"></i><br>Start filling the form to see the live preview</div>';
+    }
+}
+
+// submitForm function removed - using submitQuotationForm instead to prevent duplication
+
+// Auto-save functionality (optional)
+let autoSaveTimeout;
+function autoSave() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        // Only auto-save if there are line items with data
+        const hasData = document.querySelectorAll('.line-item input[value]:not([value=""])').length > 0;
+        if (hasData) {
+            console.log('Auto-saving...');
+            // You can implement auto-save logic here
+        }
+    }, 5000); // Auto-save after 5 seconds of inactivity
+}
+
+// Add auto-save listeners
+document.addEventListener('input', autoSave);
+</script>
+{% endblock %} 

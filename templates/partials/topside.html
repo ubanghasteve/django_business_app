@@ -1,0 +1,235 @@
+<!-- Page Header Section -->
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <div class="d-flex align-items-center">
+                        <h6 class="mb-0">Job Orders Management</h6>
+                        <div class="ms-auto">
+                            {% if perms.job_orders.add_product %}
+                            <a href="{% url 'job_orders:product_create' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus text-sm me-1"></i>
+                                New Job Order
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body px-0 pt-0 pb-2">
+                    <div class="row">
+                        {% if job_order_detail_view %}
+                        {# Job order detail page: show stats specific to this job order #}
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-primary">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-briefcase text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Job Order</p>
+                                                <h4 class="font-weight-bolder text-white mb-0">{% if product %}{{ product.job_order }}{% else %}—{% endif %}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-success">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-users text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Customer</p>
+                                                <h4 class="font-weight-bolder text-white mb-0">{{ customer_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-info">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-shopping-cart text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Orders (this job)</p>
+                                                <h4 class="font-weight-bolder text-white mb-0">{{ order_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-warning">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-clock text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Pending</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="pending-orders-count">{{ pending_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-success">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-check-circle text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Approved</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="approved-orders-count">{{ approved_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-danger">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-times-circle text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Rejected</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="rejected-orders-count">{{ rejected_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        {# Dashboard / list pages: show global job order stats #}
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-primary">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-briefcase text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Total Products</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="product-count">{{ product_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-success">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-users text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Active Customers</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="customer-count">{{ customer_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-info">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-shopping-cart text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Total Orders</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="order-count">{{ order_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-warning">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-clock text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Pending Orders</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="pending-orders-count">{{ pending_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-success">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-check-circle text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Approved</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="approved-orders-count">{{ approved_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-gradient-danger">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon icon-shape icon-sm icon-shape-white rounded me-3">
+                                            <i class="fas fa-times-circle text-sm opacity-10"></i>
+                                        </div>
+                                        <div>
+                                            <div class="numbers">
+                                                <p class="text-sm mb-0 text-white">Rejected</p>
+                                                <h4 class="font-weight-bolder text-white mb-0" id="rejected-orders-count">{{ rejected_count|default:0 }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

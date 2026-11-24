@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Custom Forms{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; border-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; border-color: #28a745 !important; }
+    .btn-danger { background-color: #dc3545 !important; border-color: #dc3545 !important; }
+    .btn-secondary { background-color: #6c757d !important; border-color: #6c757d !important; }
+    .form-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .color-strip { height: 6px; border-radius: 3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">Custom Forms</h5><p class="text-muted text-sm mb-0">Print-friendly form templates for store records</p></div>
+        <div class="col-auto">
+            <a href="{% url 'store:custom_form_create' %}" class="btn btn-success"><i class="fas fa-plus"></i> New Form</a>
+            <a href="{% url 'store:list' %}" class="btn btn-secondary"><i class="fas fa-boxes"></i> Store Items</a>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search forms...">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                {% if search %}<a href="{% url 'store:custom_form_list' %}" class="btn btn-secondary"><i class="fas fa-times"></i></a>{% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for form in page_obj %}
+        <div class="col-md-4 col-lg-3 mb-3">
+            <div class="card form-card">
+                <div class="color-strip" style="background: linear-gradient(90deg, {{ form.primary_color }} 0%, {{ form.secondary_color }} 100%);"></div>
+                <div class="card-body">
+                    <h6 class="mb-1">{{ form.name }}</h6>
+                    {% if form.description %}<p class="text-muted small mb-2">{{ form.description|truncatewords:2 }}</p>{% endif %}
+                    <div class="mb-2">
+                        {% if form.show_logo %}<span class="badge bg-secondary me-1">Logo</span>{% endif %}
+                        {% if form.show_company_name %}<span class="badge bg-secondary me-1">Company</span>{% endif %}
+                        {% if form.show_currency %}<span class="badge bg-secondary">Currency</span>{% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'store:custom_form_detail' form.pk %}" class="btn btn-sm btn-primary flex-fill"><i class="fas fa-eye"></i> View</a>
+                        <a href="{% url 'store:custom_form_update' form.pk %}" class="btn btn-sm btn-warning flex-fill"><i class="fas fa-edit"></i></a>
+                        <button class="btn btn-sm btn-danger flex-fill" onclick="confirmDelete({{ form.pk }}, '{{ form.name|escapejs }}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No custom forms yet</h5>
+                    <a href="{% url 'store:custom_form_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Create Form</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav><ul class="pagination justify-content-center mt-3">
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>{% endif %}
+        {% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>{% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Custom Form</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body"><p>Delete form "<strong id="deleteItemName"></strong>"?</p></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" action=""><button type="submit" class="btn btn-danger">Delete</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(pk, name) {
+    document.getElementById('deleteItemName').textContent = name;
+    document.getElementById('deleteForm').action = '/store/custom-form/delete/' + pk + '/';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

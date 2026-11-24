@@ -1,0 +1,58 @@
+{% extends 'videocalls/base.html' %}
+
+{% block title %}Recordings - {{ room.room_name }} - {{ block.super }}{% endblock %}
+
+{% block video_content %}
+<div class="recordings-container">
+    <div class="recordings-header">
+        <div>
+            <h2><i class="bi bi-collection"></i> Recordings</h2>
+            <p class="text-muted">{{ room.room_name }} - {{ room.room_code }}</p>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'videocalls:my_rooms' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Rooms
+            </a>
+        </div>
+    </div>
+    
+    {% if recordings %}
+    <div class="recordings-list">
+        {% for recording in recordings %}
+        <div class="recording-item">
+            <div class="recording-icon">
+                <i class="bi bi-file-earmark-play"></i>
+            </div>
+            <div class="recording-info">
+                <h5>{{ recording.file_name|default:"Recording" }}</h5>
+                <div class="recording-meta">
+                    <span><i class="bi bi-clock"></i> {{ recording.duration_formatted }}</span>
+                    <span><i class="bi bi-hdd"></i> {{ recording.file_size_mb }} MB</span>
+                    <span><i class="bi bi-calendar"></i> {{ recording.created_at|date:"M d, Y H:i" }}</span>
+                    <span><i class="bi bi-person"></i> {{ recording.recorded_by.get_full_name|default:recording.recorded_by.email|default:"Unknown" }}</span>
+                </div>
+            </div>
+            <div class="recording-actions">
+                {% if recording.recording_file %}
+                <a href="{% url 'videocalls:download_recording' recording.id %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-download"></i> Download
+                </a>
+                {% else %}
+                <span class="badge bg-warning">File not available</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-camera-video-off"></i>
+        <h3>No Recordings Yet</h3>
+        <p>There are no recordings for this room. Recordings are saved when you use the record button during a call.</p>
+        <a href="{% url 'videocalls:room' room.room_code %}" class="btn btn-primary">
+            <i class="bi bi-camera-video"></i> Go to Room
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

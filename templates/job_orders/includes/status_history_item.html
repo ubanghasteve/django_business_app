@@ -1,0 +1,53 @@
+<div class="timeline-item mb-3" id="status-{{ status.id }}">
+    <div class="d-flex">
+        <div class="flex-shrink-0">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                <i class="fas fa-info-circle"></i>
+            </div>
+        </div>
+        <div class="flex-grow-1 ms-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">
+                            Status Update #{{ status_number }}
+                            <span class="badge ms-2 priority-badge priority-{{ status.priority }}" id="priority-badge-{{ status.id }}">Priority: {{ status.get_priority_display }}</span>
+                        </h6>
+                        {% if can_edit or can_delete %}
+                        <div class="btn-group btn-group-sm">
+                            {% if can_edit %}
+                            <button class="btn btn-outline-primary btn-sm" onclick="editStatus({{ status.id }}, '{{ status.status|escapejs }}', {{ status.priority }})" title="Edit Status">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% endif %}
+                            {% if can_delete %}
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteStatus({{ status.id }})" title="Delete Status">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <p class="card-text" id="status-text-{{ status.id }}">{{ status.status }}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> {{ status.created_at|date:"Y-m-d H:i:s" }}
+                        </small>
+                        {% if status.updated_by %}
+                        <div class="user-info">
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-user"></i> {{ status.updated_by.get_full_name }}
+                                {% if status.updated_by.phone and status.updated_by.phone.strip %}
+                                    <br><small><i class="fas fa-phone"></i> {{ status.updated_by.phone }}</small>
+                                {% else %}
+                                    <br><small><i class="fas fa-phone-slash text-muted"></i> No phone</small>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

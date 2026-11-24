@@ -1,0 +1,1581 @@
+{% extends 'base.html' %}
+{% load static humanize expense_extras %}
+{% block title %}Expense List{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ---- Layout & container ---- */
+.expense-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: none; overflow: hidden; }
+.expense-page .card-header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: #fff; padding: 1rem 1.25rem; border: none; }
+.expense-page .card-header h6 { font-weight: 600; letter-spacing: 0.02em; }
+.expense-page .expense-list-header { padding: 1.25rem 1.5rem; }
+.expense-page .expense-list-title { font-size: 1.75rem; font-weight: 700; letter-spacing: 0.03em; text-shadow: 0 1px 2px rgba(0,0,0,.2); margin: 0; }
+.expense-page .card-body { padding: 1.25rem; }
+
+/* ---- Summary cards ---- */
+.expense-stats .card { border-radius: 10px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: transform .15s ease; }
+.expense-stats .card:hover { transform: translateY(-2px); }
+.expense-stats .card.bg-dark { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important; }
+.expense-stats .card-body { padding: 1rem 1.25rem; }
+
+/* ---- Filters (responsive) ---- */
+.expense-filters .form-control,
+.expense-filters .form-select { border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem; }
+.expense-filters .btn { border-radius: 8px; font-weight: 500; }
+@media (max-width: 768px) {
+  .expense-filters .col-auto { flex: 0 0 100%; max-width: 100%; margin-bottom: 0.5rem; }
+}
+
+/* ---- Table wrapper ---- */
+.expense-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  touch-action: manipulation;
+}
+.expense-table {
+  margin: 0;
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1400px;
+  font-size: 0.9rem;
+}
+/* ---- Table heading: professional gradient (matches page header) ---- */
+.expense-table thead th {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #234a70 100%);
+  padding: 14px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #fff;
+  border-bottom: 2px solid #1a334d;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+/* S/N column header: eye-catching accent so it draws attention ---- */
+.expense-table thead th:first-child {
+  position: relative;
+  background: linear-gradient(135deg, #2d4a6f 0%, #3d6a97 40%, #a67c2d 100%);
+  color: #fff;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  min-width: 4rem;
+}
+.expense-table thead th:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #d4af37 0%, #b8962e 100%);
+  border-radius: 2px 0 0 0;
+}
+.expense-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f3f5;
+  vertical-align: middle;
+}
+.expense-table tbody tr:hover { background-color: #f8fafc; }
+.expense-table tbody tr[data-row-type="new"] { background-color: #f0f7ff; }
+.expense-table tbody tr[data-row-type="new"] .editable-cell { background: #fff; }
+
+/* ---- S/N column cells: attractive pill (matches S/N header accent) ---- */
+.expense-sn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding: 5px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1a334d;
+  background: linear-gradient(135deg, #e8f0fe 0%, #d6e4f7 50%, #fef3d4 100%);
+  border-radius: 20px;
+  border: 1px solid #c9a227;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(201,162,39,.25);
+}
+.expense-sn.empty-sn { color: #6c757d; background: #f1f3f5; border-color: #dee2e6; box-shadow: none; }
+
+/* ---- Editable cells: clear input-like appearance ---- */
+.editable-cell {
+  display: inline-block;
+  min-width: 60px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #212529;
+  cursor: text;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  box-sizing: border-box;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-tap-highlight-color: transparent;
+}
+.editable-cell:hover {
+  border-color: #80bdff;
+  background: #f8fafc;
+}
+.editable-cell:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+  background: #fff;
+}
+.editable-cell[contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #adb5bd; }
+td .editable-cell { max-width: 100%; }
+
+/* New row placeholder style */
+tr[data-row-type="new"] .editable-cell {
+  border-style: dashed;
+  background: #fff;
+}
+tr[data-row-type="new"] .editable-cell:focus { border-style: solid; }
+
+/* New row date inputs: calendar on click + manual typing, compact in table */
+tr[data-row-type="new"] td input[type="date"] {
+  min-width: 130px;
+  max-width: 100%;
+  cursor: pointer;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+tr[data-row-type="new"] td input[type="date"]:hover { border-color: #80bdff; }
+tr[data-row-type="new"] td input[type="date"]:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+/* New row receipt upload: clear, clickable "Select file" button */
+.receipt-upload-cell { vertical-align: middle; }
+.btn-receipt-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 120px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0d6efd;
+  background: #e7f1ff;
+  border: 1px solid #0d6efd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  position: relative;
+}
+.btn-receipt-upload:hover {
+  background: #cfe2ff;
+  border-color: #0a58ca;
+  color: #0a58ca;
+}
+.btn-receipt-upload:has(input:focus) {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+.btn-receipt-upload input[type="file"] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+.btn-receipt-upload .receipt-file-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: #495057; }
+.receipt-view-link { font-weight: 500; }
+.receipt-view-link:hover { text-decoration: underline; }
+
+/* ---- Quantity & amounts ---- */
+.qty-in { color: #198754; font-weight: 600; }
+.qty-out { color: #dc3545; font-weight: 600; }
+.rem-qty { font-weight: 600; color: #0d6efd; }
+.rem-qty.negative { color: #dc3545; }
+.amount-cell { font-family: inherit; font-weight: 500; }
+
+/* ---- Badges ---- */
+.badge-status { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; }
+.approval-draft { background: #6c757d; color: #fff; }
+.approval-pending { background: #ffc107; color: #212529; }
+.approval-approved { background: #198754; color: #fff; }
+.approval-rejected { background: #dc3545; color: #fff; }
+/* Stock status: distinct, visible colors (no overlap) */
+.stock-out_of_stock { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #fff; box-shadow: 0 1px 3px rgba(185,28,28,.3); }
+.stock-low_stock { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; box-shadow: 0 1px 3px rgba(217,119,6,.3); }
+.stock-in_stock { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; box-shadow: 0 1px 3px rgba(4,120,87,.3); }
+
+/* ---- Approval + Stock column: stacked layout to prevent overlap with Remark ---- */
+.status-cell {
+  min-width: 140px;
+  max-width: 160px;
+  width: 160px;
+  overflow: hidden;
+  white-space: normal;
+  vertical-align: middle;
+  padding-right: 12px;
+}
+/* Remark column: ensure it never gets covered */
+.expense-table td:nth-child(14) { min-width: 100px; }
+.status-cell-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.status-cell .approval-select {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  height: auto;
+  min-height: 28px;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  box-sizing: border-box;
+}
+.status-cell .approval-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,.2); }
+.stock-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+.stock-label { font-size: 0.7rem; color: #6b7280; font-weight: 600; min-width: 38px; }
+.stock-badge-lg {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ---- Actions ---- */
+.actions-cell { white-space: nowrap; }
+.actions-cell .btn { border-radius: 6px; }
+@media (max-width: 768px) { .actions-cell .btn { display: inline-block; margin: 2px; } }
+
+/* ---- Add row button (below table) ---- */
+.expense-add-row-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+#expense-add-row-btn {
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.25);
+  transition: transform .1s ease, box-shadow .15s ease;
+}
+#expense-add-row-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+/* ---- Pagination: attractive, professional ---- */
+.expense-pagination {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+.expense-pagination .pagination-info {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+.expense-pagination .page-link {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+.expense-pagination .page-link.prev-next {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+  color: #fff;
+  border-color: #1a334d;
+  box-shadow: 0 2px 4px rgba(30,58,95,.25);
+}
+.expense-pagination .page-link.prev-next:hover {
+  background: linear-gradient(135deg, #2d5a87 0%, #3d6a97 100%);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(30,58,95,.3);
+}
+.expense-pagination .page-link.page-num {
+  background: #fff;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.expense-pagination .page-link.page-num:hover {
+  background: #e8eef5;
+  color: #1e3a5f;
+  border-color: #c5d4e8;
+}
+.expense-pagination .page-link.page-num.current {
+  background: linear-gradient(135deg, #2d4a6f 0%, #3d6a97 100%);
+  color: #fff;
+  border-color: #1e3a5f;
+  box-shadow: 0 2px 4px rgba(30,58,95,.25);
+}
+.expense-pagination .page-link.disabled,
+.expense-pagination .page-link.disabled:hover {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.expense-pagination .pagination-ellipsis {
+  padding: 0 0.25rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<input type="hidden" name="csrfmiddlewaretoken" id="expense-ajax-csrf" value="{{ csrf_token }}">
+<div class="container-fluid py-4 expense-page">
+    <div class="card">
+        <div class="card-header expense-list-header">
+            <h4 class="mb-0 text-white expense-list-title">Expense Management System</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">Comprehensive view of your product expense.</p>
+            <div class="row mb-3 expense-stats">
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-dark text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Products" data-card-key="total_products" data-card-count="{{ total_products|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}" data-card-desc="Total number of expense records.">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Total Products</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_products|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-success text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Quantity In" data-card-key="total_quantity_in" data-card-count="{{ total_quantity_in|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}" data-card-desc="Sum of all quantity received into expense.">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Total Quantity In</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_quantity_in|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-danger text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Quantity Out" data-card-key="total_quantity_out" data-card-count="{{ total_quantity_out|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}" data-card-desc="Sum of all quantity taken out of expense.">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Total Quantity Out</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_quantity_out|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3 expense-stats pt-3 justify-content-center">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Grand Total Balance" data-card-key="total_balance" data-card-format="currency" data-currency-symbol="{{ user_currency_symbol|default:'₦' }}" data-card-count="{{ total_balance|default:0 }}" data-card-href="{% url 'expense:list' %}" data-card-desc="Sum of all expense balance (Quantity In × Unit Price) across all records." style="background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Grand Total Balance</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ user_currency_symbol|default:"₦" }}{{ total_balance|floatformat:2|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-muted small mb-2">Approval status</p>
+            <div class="row mb-4 expense-stats">
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-secondary text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Draft" data-card-key="approval_counts.draft" data-card-count="{{ approval_counts.draft|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}?status=draft" data-card-desc="Records not yet submitted for approval.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Draft</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.draft|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-warning text-dark dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Pending" data-card-key="approval_counts.pending" data-card-count="{{ approval_counts.pending|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}?status=pending" data-card-desc="Records awaiting approval.">
+                        <div class="card-body py-2">
+                            <p class="small mb-0 opacity-75">Pending</p>
+                            <h4 class="mb-0 text-dark fw-bold dashboard-card-count">{{ approval_counts.pending|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-success text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Approved" data-card-key="approval_counts.approved" data-card-count="{{ approval_counts.approved|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}?status=approved" data-card-desc="Records that have been approved.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Approved</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.approved|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-danger text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Rejected" data-card-key="approval_counts.rejected" data-card-count="{{ approval_counts.rejected|default:0|intcomma }}" data-card-href="{% url 'expense:list' %}?status=rejected" data-card-desc="Records that were rejected.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Rejected</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.rejected|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <form method="get" class="mb-4 row g-2 expense-filters">
+                <div class="col-auto">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Search product, vendor, PO, category, description, S/N… (any text)" value="{{ search }}" title="Type one or more words; matches any part of product name, category, vendor, department, PO, description, or expense ID.">
+                </div>
+                <div class="col-auto">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">All status</option>
+                        {% for v, l in status_choices %}<option value="{{ v }}" {% if status_filter == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}" placeholder="From">
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}" placeholder="To">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Filter</button>
+                </div>
+                {% if perms.expense.print_expense or perms.expense.download_expense %}
+                <div class="col-auto ms-auto d-flex gap-1">
+                    {% if perms.expense.print_expense %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#expensePrintDownloadModal" title="Print Expense table (A4, with date range)">
+                        <i class="fas fa-print me-1"></i>Print
+                    </button>
+                    {% endif %}
+                    {% if perms.expense.download_expense %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#expensePrintDownloadModal" title="Open print view to print or save as PDF (A4, with date range)">
+                        <i class="fas fa-file-pdf me-1"></i>Download
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </form>
+
+            <div class="expense-table-wrap">
+                <table class="expense-table table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Expense ID</th>
+                            <th>Expense Date</th>
+                            <th>Expense Category</th>
+                            <th>Department</th>
+                            <th>Vendor</th>
+                            <th>PO Number</th>
+                            <th>Description</th>
+                            <th>Product ID</th>
+                            <th>Product Name</th>
+                            <th>Unit of Measurement</th>
+                            <th>Quantity Purchased</th>
+                            <th>Quantity Out</th>
+                            <th>Remaining Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total Purchase Value</th>
+                            <th>Stock Value Remaining</th>
+                            <th>Quantity Threshold</th>
+                            <th>Low Stock Alert</th>
+                            <th>Subtotal</th>
+                            <th>Tax</th>
+                            <th>Discount</th>
+                            <th>Payment Method</th>
+                            <th>Payment Date</th>
+                            <th>Receipt Upload</th>
+                            <th>Status</th>
+                            <th>Approved By</th>
+                            <th>Created By</th>
+                            <th>Created Date</th>
+                            <th>Last Updated</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expense-tbody">
+                        {% include 'expense/expense_list_rows_partial.html' %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="expense-add-row-footer">
+                {% if perms.expense.add_expense %}
+                <button type="button" id="expense-add-row-btn" class="btn btn-primary"><i class="fas fa-plus me-2"></i>ADD ROW</button>
+                {% endif %}
+            </div>
+
+            <div id="expense-pagination-wrap">
+            {% with base=pagination_base_query|default:"" %}
+            <nav class="expense-pagination" aria-label="Expense pagination">
+                <span class="pagination-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }})</span>
+                {% if page_obj.has_previous %}
+                <a class="page-link prev-next" href="?{% if base %}{{ base }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous page"><i class="fas fa-chevron-left me-1"></i>Previous</a>
+                {% else %}
+                <span class="page-link prev-next disabled" aria-disabled="true"><i class="fas fa-chevron-left me-1"></i>Previous</span>
+                {% endif %}
+                {% if page_obj.paginator.num_pages > 1 %}
+                {% for p in page_obj.paginator.page_range %}
+                  {% if p == page_obj.number %}
+                <span class="page-link page-num current" aria-current="page">{{ p }}</span>
+                  {% else %}
+                <a class="page-link page-num" href="?{% if base %}{{ base }}&{% endif %}page={{ p }}">{{ p }}</a>
+                  {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a class="page-link prev-next" href="?{% if base %}{{ base }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next page">Next<i class="fas fa-chevron-right ms-1"></i></a>
+                {% else %}
+                <span class="page-link prev-next disabled" aria-disabled="true">Next<i class="fas fa-chevron-right ms-1"></i></span>
+                {% endif %}
+            </nav>
+            {% endwith %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Print / Download expense with date range -->
+<div class="modal fade" id="expensePrintDownloadModal" tabindex="-1" aria-labelledby="expensePrintDownloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expensePrintDownloadModalLabel"><i class="fas fa-print me-2"></i>Print or Download Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Choose the date range for the report. Table will include company details and logo, fit to A4 with text wrapping.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Date range</label>
+                    <select id="expense-report-range-type" class="form-select form-select-sm">
+                        <option value="all">All records</option>
+                        <option value="day">Today</option>
+                        <option value="week">This week (Mon–Sun)</option>
+                        <option value="month">This month</option>
+                        <option value="quarter">This quarter</option>
+                        <option value="year">This year</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                </div>
+                <div id="expense-report-period-date-wrap" class="mb-3" style="display:none;">
+                    <label class="form-label small">Date</label>
+                    <input type="date" id="expense-report-period-date" class="form-control form-control-sm">
+                </div>
+                <div id="expense-report-custom-range-wrap" class="mb-3 row g-2" style="display:none;">
+                    <div class="col-6">
+                        <label class="form-label small">From</label>
+                        <input type="date" id="expense-report-date-from" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">To</label>
+                        <input type="date" id="expense-report-date-to" class="form-control form-control-sm">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if perms.expense.print_expense %}
+                <a href="#" id="expense-report-print-btn" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-print me-1"></i>Print</a>
+                {% endif %}
+                {% if perms.expense.download_expense %}
+                <a href="#" id="expense-report-pdf-btn" class="btn btn-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-file-pdf me-1"></i>Print / Save as PDF</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for dashboard cards (same as dashboard page) -->
+<div class="modal fade" id="dashboardCardModal" tabindex="-1" aria-labelledby="dashboardCardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dashboardCardModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2"><strong class="display-6 text-primary" id="dashboardCardModalCount"></strong></p>
+                <p class="text-muted small mb-0" id="dashboardCardModalDesc"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="dashboardCardModalLink"><i class="fas fa-list me-1"></i>View in list</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-card.cursor-pointer { cursor: pointer; }
+.dashboard-card:hover { opacity: 0.92; }
+.dashboard-card .dashboard-card-count { font-size: 1.25rem; line-height: 1.3; min-height: 1.5rem; visibility: visible; opacity: 1; }
+</style>
+
+<script>
+(function() {
+    var modal = document.getElementById('dashboardCardModal');
+    var listUrl = "{% url 'expense:list' %}";
+    var dashboardStatsUrl = "{% url 'expense:dashboard_stats_json' %}";
+    var titleToStatusParam = { 'Draft': 'draft', 'Pending': 'pending', 'Approved': 'approved', 'Rejected': 'rejected' };
+    function buildViewListHref(title) {
+        var param = titleToStatusParam[title];
+        if (param) return listUrl + (listUrl.indexOf('?') >= 0 ? '&' : '?') + 'status=' + encodeURIComponent(param);
+        return listUrl;
+    }
+    function getCountFromStats(stats, key) {
+        if (!stats || !key) return '0';
+        var parts = key.split('.');
+        var v = stats;
+        for (var i = 0; i < parts.length && v != null; i++) v = v[parts[i]];
+        return v != null ? v : (key === 'total_balance' ? 0 : '0');
+    }
+    function formatCardDisplay(card, value) {
+        if (card.getAttribute('data-card-format') === 'currency') {
+            var sym = card.getAttribute('data-currency-symbol') || '';
+            var n = parseFloat(String(value).replace(/,/g, ''));
+            return (sym + (isNaN(n) ? '0.00' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })));
+        }
+        return (typeof window.formatCount === 'function' ? window.formatCount(value) : value);
+    }
+    window.formatCurrency = function(num, symbol) {
+        var n = parseFloat(String(num).replace(/,/g, ''));
+        var s = symbol || '';
+        return s + (isNaN(n) ? '0.00' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    };
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function(e) {
+            var trigger = e.relatedTarget;
+            if (!trigger || !trigger.closest) return;
+            var card = trigger.closest('.dashboard-card');
+            if (!card) return;
+            var title = card.getAttribute('data-card-title') || '';
+            var count = card.getAttribute('data-card-count') || '0';
+            var desc = card.getAttribute('data-card-desc') || '';
+            document.getElementById('dashboardCardModalLabel').textContent = title;
+            document.getElementById('dashboardCardModalCount').textContent = formatCardDisplay(card, count);
+            document.getElementById('dashboardCardModalDesc').textContent = desc;
+            var linkEl = document.getElementById('dashboardCardModalLink');
+            if (linkEl) linkEl.setAttribute('href', buildViewListHref(title));
+            fetch(dashboardStatsUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(stats) {
+                    if (stats && card.getAttribute('data-card-key')) {
+                        var freshCount = getCountFromStats(stats, card.getAttribute('data-card-key'));
+                        var formatted = formatCardDisplay(card, freshCount);
+                        document.getElementById('dashboardCardModalCount').textContent = formatted;
+                        card.setAttribute('data-card-count', freshCount);
+                        var countEl = card.querySelector('.dashboard-card-count');
+                        if (countEl) countEl.textContent = formatted;
+                    }
+                })
+                .catch(function() {});
+        });
+    }
+    window.refreshDashboardCards = function() {
+        fetch(dashboardStatsUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(stats) {
+                if (!stats) return;
+                if (stats.currency_symbol) {
+                    document.querySelectorAll('.dashboard-card[data-card-format="currency"]').forEach(function(c) {
+                        c.setAttribute('data-currency-symbol', stats.currency_symbol);
+                    });
+                }
+                document.querySelectorAll('.dashboard-card[data-card-key]').forEach(function(card) {
+                    var key = card.getAttribute('data-card-key');
+                    var count = getCountFromStats(stats, key);
+                    var formatted = formatCardDisplay(card, count);
+                    card.setAttribute('data-card-count', count);
+                    var countEl = card.querySelector('.dashboard-card-count');
+                    if (countEl) countEl.textContent = formatted;
+                });
+            })
+            .catch(function() {});
+    };
+})();
+</script>
+
+<script>
+(function() {
+    var listPrintUrl = "{% url 'expense:list_print' %}";
+    var modal = document.getElementById('expensePrintDownloadModal');
+    var rangeSelect = document.getElementById('expense-report-range-type');
+    var periodWrap = document.getElementById('expense-report-period-date-wrap');
+    var periodInput = document.getElementById('expense-report-period-date');
+    var customWrap = document.getElementById('expense-report-custom-range-wrap');
+    var dateFromInput = document.getElementById('expense-report-date-from');
+    var dateToInput = document.getElementById('expense-report-date-to');
+    var printBtn = document.getElementById('expense-report-print-btn');
+    var pdfBtn = document.getElementById('expense-report-pdf-btn');
+
+    function todayStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function updateRangeVisibility() {
+        var v = rangeSelect ? rangeSelect.value : 'all';
+        if (periodWrap) periodWrap.style.display = (v && v !== 'all' && v !== 'custom') ? 'block' : 'none';
+        if (customWrap) customWrap.style.display = (v === 'custom') ? 'flex' : 'none';
+        if (v === 'day' || v === 'week' || v === 'month' || v === 'quarter' || v === 'year') {
+            if (periodInput && !periodInput.value) periodInput.value = todayStr();
+        }
+    }
+    function buildQueryString() {
+        var v = rangeSelect ? rangeSelect.value : 'all';
+        var params = new URLSearchParams();
+        params.set('range_type', v);
+        if (v === 'custom') {
+            if (dateFromInput && dateFromInput.value) params.set('date_from', dateFromInput.value);
+            if (dateToInput && dateToInput.value) params.set('date_to', dateToInput.value);
+        } else if (v && v !== 'all' && periodInput && periodInput.value) {
+            params.set('period_date', periodInput.value);
+        }
+        return params.toString();
+    }
+    function updatePrintDownloadUrls() {
+        var qs = buildQueryString();
+        var printHref = listPrintUrl + (qs ? '?' + qs : '');
+        if (printBtn) { printBtn.href = printHref; }
+        if (pdfBtn) { pdfBtn.href = printHref; }
+    }
+    if (rangeSelect) rangeSelect.addEventListener('change', function() { updateRangeVisibility(); updatePrintDownloadUrls(); });
+    if (periodInput) periodInput.addEventListener('change', updatePrintDownloadUrls);
+    if (dateFromInput) dateFromInput.addEventListener('change', updatePrintDownloadUrls);
+    if (dateToInput) dateToInput.addEventListener('change', updatePrintDownloadUrls);
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            updateRangeVisibility();
+            updatePrintDownloadUrls();
+        });
+    }
+    updateRangeVisibility();
+    updatePrintDownloadUrls();
+})();
+</script>
+
+<script>
+(function() {
+    // AJAX pagination: load next/previous/page without full reload
+    var tbody = document.getElementById('expense-tbody');
+    var wrap = document.getElementById('expense-pagination-wrap');
+    if (!tbody || !wrap) return;
+
+    function loadPage(url, pushState) {
+        if (pushState === undefined) pushState = true;
+        fetch(url, {
+            method: 'GET',
+            headers: { 'X-Pagination-Ajax': '1', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function(r) {
+            if (!r.ok) throw new Error('Load failed');
+            return r.json();
+        }).then(function(data) {
+            tbody.innerHTML = data.rows_html;
+            wrap.innerHTML = data.pagination_html;
+            if (pushState) history.pushState({ expensePage: true }, '', url);
+            document.querySelectorAll('#expense-tbody .status-select[data-pk]').forEach(function(sel) { sel.dataset.previousValue = sel.value; });
+            if (typeof window.attachRecalc === 'function') {
+                document.querySelectorAll('#expense-tbody tr[data-pk]').forEach(window.attachRecalc);
+            }
+        }).catch(function() { window.location.href = url; });
+    }
+    window.expenseLoadPage = loadPage;
+
+    document.addEventListener('click', function(e) {
+        var a = e.target.closest('#expense-pagination-wrap a.page-link[href*="page="]');
+        if (!a || a.classList.contains('disabled')) return;
+        e.preventDefault();
+        var url = a.getAttribute('href');
+        if (url) loadPage(url);
+    });
+
+    window.addEventListener('popstate', function() {
+        if (document.getElementById('expense-pagination-wrap')) {
+            loadPage(location.pathname + location.search, false);
+        }
+    });
+
+    // Live search: narrow results as user types (debounced)
+    var listUrl = "{% url 'expense:list' %}";
+    var filterForm = document.querySelector('form.expense-filters');
+    var searchInput = filterForm && filterForm.querySelector('input[name="search"]');
+    if (filterForm && searchInput && typeof window.expenseLoadPage === 'function') {
+        var searchDebounce;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(function() {
+                var params = new URLSearchParams(new FormData(filterForm));
+                params.set('page', '1');
+                var url = listUrl + (params.toString() ? '?' + params.toString() : '');
+                loadPage(url);
+            }, 380);
+        });
+    }
+
+    document.addEventListener('submit', function(e) {
+        var form = e.target;
+        if (!form || !form.classList.contains('expense-delete-form')) return;
+        e.preventDefault();
+        if (!confirm('Delete this record?')) return;
+        var row = form.closest('tr');
+        var expenseUuid = row && row.getAttribute('data-uuid');
+        if (!navigator.onLine && expenseUuid && window.OfflineSync && typeof window.OfflineSync.wrapDelete === 'function') {
+            var tenantId = (window.OfflineSync.getTenantId && window.OfflineSync.getTenantId()) || '';
+            var attemptAjax = function() {
+                var body = new FormData(form);
+                return fetch(form.getAttribute('action'), {
+                    method: 'POST',
+                    body: body,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                }).then(function(r) { return r.ok ? r.json() : Promise.reject(); });
+            };
+            window.OfflineSync.wrapDelete('expense', expenseUuid, tenantId, attemptAjax).then(function() {
+                row.style.opacity = '0';
+                setTimeout(function() {
+                    row.remove();
+                    if (typeof window.expenseLoadPage === 'function') window.expenseLoadPage(location.pathname + location.search, false);
+                    if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards();
+                }, 300);
+            }).catch(function() {});
+            return;
+        }
+        var url = form.getAttribute('action');
+        var body = new FormData(form);
+        fetch(url, {
+            method: 'POST',
+            body: body,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function(r) {
+            if (!r.ok) throw new Error('Delete failed');
+            return r.json();
+        }).then(function(data) {
+            if (data && data.success) {
+                if (typeof window.expenseLoadPage === 'function') {
+                    window.expenseLoadPage(location.pathname + location.search, false);
+                }
+                if (typeof window.refreshDashboardCards === 'function') {
+                    window.refreshDashboardCards();
+                }
+            } else {
+                window.location.reload();
+            }
+        }).catch(function() { window.location.href = location.pathname + location.search; });
+    });
+})();
+</script>
+
+<script>
+(function() {
+    // When user clicks Back, bring pagination into view (bfcache can leave it off-screen or unpainted)
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            var nav = document.querySelector('.expense-pagination');
+            if (nav) {
+                nav.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+    });
+    var csrf = document.querySelector('meta[name="csrf-token"]');
+    var csrfInput = document.getElementById('expense-ajax-csrf') || document.querySelector('input[name="csrfmiddlewaretoken"]');
+    var csrfToken = (csrf && csrf.getAttribute('content')) || (csrfInput && csrfInput.value) || '';
+    var currencySym = document.querySelector('meta[name="currency-symbol"]');
+    var sym = currencySym ? currencySym.getAttribute('content') || '' : '{{ user_currency_symbol|default:"₦"|escapejs }}';
+    var urlDetail = "{% url 'expense:detail' 0 %}".replace('/0/', '/');
+    var urlUpdate = "{% url 'expense:update' 0 %}".replace('/0/', '/');
+    var urlDelete = "{% url 'expense:delete' 0 %}".replace('/0/', '/');
+    var urlPrint = "{% url 'expense:print' 0 %}".replace('/0/', '/');
+    var urlReport = "{% url 'expense:product_report' 0 %}".replace('/0/', '/');
+    var perms = {
+        view: {% if perms.expense.view_expense %}true{% else %}false{% endif %},
+        change: {% if perms.expense.change_expense %}true{% else %}false{% endif %},
+        delete: {% if perms.expense.delete_expense %}true{% else %}false{% endif %},
+        print: {% if perms.expense.print_expense %}true{% else %}false{% endif %},
+        approve: {% if perms.expense.can_approve_expense %}true{% else %}false{% endif %}
+    };
+    var ajaxCreateUrl = "{% url 'expense:ajax_create' %}";
+    var ajaxUpdateUrl = "{% url 'expense:ajax_update_field' %}";
+    var ajaxStatusUpdateUrl = "{% url 'expense:ajax_status_update' %}";
+    var STATUS_OPTIONS = [['draft','Draft'],['pending','Pending'],['approved','Approved'],['rejected','Rejected']];
+
+    function esc(s) { if (s == null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function formatNum(v) {
+        var n = parseFloat(String(v).replace(/,/g, ''));
+        return isNaN(n) ? '0.00' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function formatCount(v) {
+        var n = Number(String(v).replace(/,/g, ''));
+        return isNaN(n) ? '0' : n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+    window.formatCount = formatCount;
+    function updateRowFromResponse(row, data) {
+        var rem = row.querySelector('.rem-qty');
+        if (rem && data.remaining_quantity !== undefined) {
+            var remText = formatNum(data.remaining_quantity);
+            var unit = (data.unit_label && String(data.unit_label).trim()) ? ' ' + data.unit_label : '';
+            if (!unit) {
+                var raw = (data.quantity_purchased_input && String(data.quantity_purchased_input).trim()) || (data.quantity_out_input && String(data.quantity_out_input).trim()) || '';
+                if (raw) { var u = raw.replace(/-?\d+(\.\d+)?/, '').trim().replace(/\b0+(\.0+)?\b/g, '').replace(/\.0+$/, '').trim(); if (u) unit = ' ' + u; }
+            }
+            rem.textContent = remText + unit;
+            rem.classList.toggle('negative', parseFloat(data.remaining_quantity) < 0);
+        }
+        var totalPurchaseCell = row.querySelector('.total-purchase-cell');
+        if (totalPurchaseCell && data.total_purchase_value !== undefined) totalPurchaseCell.textContent = sym + formatNum(data.total_purchase_value);
+        var stockValueCell = row.querySelector('.stock-value-cell');
+        if (stockValueCell && data.stock_value_remaining !== undefined) stockValueCell.textContent = sym + formatNum(data.stock_value_remaining);
+        function mixedDisplay(data, field) {
+            var raw = data[field + '_input'];
+            return (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw) : formatNum(data[field]);
+        }
+        // Only update editable cells when the new value differs (avoids caret jump — same as inventory).
+        var unitPriceSpan = row.querySelector('.editable-cell[data-field="unit_price"]');
+        if (unitPriceSpan && (data.unit_price !== undefined || data.unit_price_input !== undefined)) {
+            var upText = mixedDisplay(data, 'unit_price');
+            var currentUp = unitPriceSpan.textContent != null ? unitPriceSpan.textContent.trim() : '';
+            if (currentUp !== String(upText).trim()) {
+                unitPriceSpan.textContent = upText;
+                unitPriceSpan.setAttribute('data-initial-value', unitPriceSpan.textContent.trim());
+            }
+        }
+        var qtyInSpan = row.querySelector('.editable-cell[data-field="quantity_purchased"]');
+        if (qtyInSpan && (data.quantity_purchased !== undefined || data.quantity_purchased_input !== undefined)) {
+            var qiText = mixedDisplay(data, 'quantity_purchased');
+            var currentQi = qtyInSpan.textContent != null ? qtyInSpan.textContent.trim() : '';
+            if (currentQi !== String(qiText).trim()) {
+                qtyInSpan.textContent = qiText;
+                qtyInSpan.setAttribute('data-initial-value', qtyInSpan.textContent.trim());
+            }
+        }
+        var qtyOutSpan = row.querySelector('.editable-cell[data-field="quantity_out"]');
+        if (qtyOutSpan && (data.quantity_out !== undefined || data.quantity_out_input !== undefined)) {
+            var qoText = mixedDisplay(data, 'quantity_out');
+            var currentQo = qtyOutSpan.textContent != null ? qtyOutSpan.textContent.trim() : '';
+            if (currentQo !== String(qoText).trim()) {
+                qtyOutSpan.textContent = qoText;
+                qtyOutSpan.setAttribute('data-initial-value', qtyOutSpan.textContent.trim());
+            }
+        }
+        var thresholdSpan = row.querySelector('.editable-cell[data-field="quantity_threshold"]');
+        if (thresholdSpan && (data.quantity_threshold !== undefined || data.quantity_threshold_input !== undefined)) {
+            var thrText = mixedDisplay(data, 'quantity_threshold');
+            var currentThr = thresholdSpan.textContent != null ? thresholdSpan.textContent.trim() : '';
+            if (currentThr !== String(thrText).trim()) {
+                thresholdSpan.textContent = thrText;
+                thresholdSpan.setAttribute('data-initial-value', thresholdSpan.textContent.trim());
+            }
+        }
+        var subtotalSpan = row.querySelector('.editable-cell[data-field="subtotal"]');
+        if (subtotalSpan && data.subtotal !== undefined) {
+            var subText = formatNum(data.subtotal);
+            var currentSub = subtotalSpan.textContent != null ? subtotalSpan.textContent.trim() : '';
+            if (currentSub !== String(subText).trim()) { subtotalSpan.textContent = subText; subtotalSpan.setAttribute('data-initial-value', subtotalSpan.textContent.trim()); }
+        }
+        var taxSpan = row.querySelector('.editable-cell[data-field="tax"]');
+        if (taxSpan && data.tax !== undefined) {
+            var taxText = formatNum(data.tax);
+            var currentTax = taxSpan.textContent != null ? taxSpan.textContent.trim() : '';
+            if (currentTax !== String(taxText).trim()) { taxSpan.textContent = taxText; taxSpan.setAttribute('data-initial-value', taxSpan.textContent.trim()); }
+        }
+        var discountSpan = row.querySelector('.editable-cell[data-field="discount"]');
+        if (discountSpan && data.discount !== undefined) {
+            var discText = formatNum(data.discount);
+            var currentDisc = discountSpan.textContent != null ? discountSpan.textContent.trim() : '';
+            if (currentDisc !== String(discText).trim()) { discountSpan.textContent = discText; discountSpan.setAttribute('data-initial-value', discountSpan.textContent.trim()); }
+        }
+        if (data.status_display !== undefined) {
+            var sel = row.querySelector('.status-select');
+            if (sel) { sel.value = data.status || sel.value; sel.dataset.previousValue = sel.value; }
+        }
+        var lowStockCell = row.querySelector('.low-stock-cell');
+        if (lowStockCell && (data.remaining_quantity !== undefined || data.low_stock_alert !== undefined)) {
+            var rem = data.remaining_quantity !== undefined ? parseFloat(data.remaining_quantity) : parseCellNum(row.querySelector('.rem-qty'));
+            var thresh = data.quantity_threshold !== undefined ? parseFloat(data.quantity_threshold) : parseCellNum(row.querySelector('[data-field="quantity_threshold"]'));
+            lowStockCell.innerHTML = stockStatusHtml(rem, thresh);
+        }
+    }
+
+    /** Extract first number from mixed text (e.g. "500bags", "₦5,492", "45,000") — same idea as inventory. */
+    function parseMixedNum(text) {
+        if (text == null || text === undefined) return 0;
+        var s = String(text).replace(/,/g, '').trim();
+        var match = s.match(/-?\d+(\.\d+)?/);
+        return match ? parseFloat(match[0]) : 0;
+    }
+    function parseCellNum(el) {
+        if (!el || !el.textContent) return 0;
+        return parseMixedNum(el.textContent);
+    }
+    function stockStatusHtml(balance, threshold) {
+        var b = parseFloat(balance);
+        var t = parseFloat(threshold);
+        if (isNaN(b)) return '—';
+        if (b <= 0) return '<span class="badge stock-out_of_stock">Out of stock</span>';
+        if (isNaN(t) || b <= t) return '<span class="badge stock-low_stock">Low stock</span>';
+        return '<span class="badge stock-in_stock">In stock</span>';
+    }
+    function attachRecalc(row) {
+        var qtyIn = row.querySelector('[data-field="quantity_purchased"]');
+        var qtyOut = row.querySelector('[data-field="quantity_out"]');
+        var unitPrice = row.querySelector('[data-field="unit_price"]');
+        var subtotalEl = row.querySelector('[data-field="subtotal"]');
+        var taxEl = row.querySelector('[data-field="tax"]');
+        var discountEl = row.querySelector('[data-field="discount"]');
+        var rem = row.querySelector('.rem-qty');
+        var totalPurchaseCell = row.querySelector('.total-purchase-cell');
+        var stockValueCell = row.querySelector('.stock-value-cell');
+        var thresholdEl = row.querySelector('[data-field="quantity_threshold"]');
+        var lowStockCell = row.querySelector('.low-stock-cell');
+        var recalcScheduled = false;
+        function recalc() {
+            if (recalcScheduled) return;
+            recalcScheduled = true;
+            requestAnimationFrame(function() {
+                recalcScheduled = false;
+                var inText = (qtyIn && qtyIn.textContent) || '';
+                var outText = (qtyOut && qtyOut.textContent) || '';
+                var priceText = (unitPrice && unitPrice.textContent) || '';
+                var inVal = parseMixedNum(inText);
+                var outVal = parseMixedNum(outText);
+                var price = parseMixedNum(priceText);
+                var balance = inVal - outVal;
+                var thresholdVal = thresholdEl ? parseMixedNum(thresholdEl.textContent) : 0;
+                if (rem) {
+                    var sourceText = inText || outText || '';
+                    var unit = sourceText.replace(/-?\d+(\.\d+)?/, '').trim();
+                    unit = unit.replace(/\b0+(\.0+)?\b/g, '').replace(/\.0+$/, '').trim();
+                    rem.textContent = formatNum(balance) + (unit ? ' ' + unit : '');
+                    rem.classList.toggle('negative', balance < 0);
+                }
+                if (totalPurchaseCell) totalPurchaseCell.textContent = sym + formatNum(inVal * price);
+                if (stockValueCell) stockValueCell.textContent = sym + formatNum(balance * price);
+                if (lowStockCell) lowStockCell.innerHTML = stockStatusHtml(balance, thresholdVal);
+            });
+        }
+        if (qtyIn) { qtyIn.addEventListener('input', recalc); qtyIn.addEventListener('keyup', recalc); }
+        if (qtyOut) { qtyOut.addEventListener('input', recalc); qtyOut.addEventListener('keyup', recalc); }
+        if (unitPrice) { unitPrice.addEventListener('input', recalc); unitPrice.addEventListener('keyup', recalc); }
+        if (subtotalEl) subtotalEl.addEventListener('input', recalc);
+        if (taxEl) taxEl.addEventListener('input', recalc);
+        if (discountEl) discountEl.addEventListener('input', recalc);
+        if (thresholdEl) { thresholdEl.addEventListener('input', recalc); thresholdEl.addEventListener('keyup', recalc); }
+    }
+    window.attachRecalc = attachRecalc;
+
+    var tbody = document.getElementById('expense-tbody');
+    if (tbody) {
+        // Fix cursor/touch jumping: take over focus whenever user taps/clicks a table data cell
+        // so the correct editable gets focus and nothing else (cards, scroll, etc.) steals it.
+        function runCellFocusFix(ev) {
+            // Desktop (mouse): let the browser handle everything so the caret
+            // stays exactly where the user clicks.
+            if (ev.type === 'mousedown') {
+                return;
+            }
+            // Touch screens: we only ensure the correct editable cell receives focus.
+            // We no longer try to manually place the caret based on coordinates,
+            // which was causing jumping on some devices.
+            if (ev.target.closest('select, button, a, input')) return;
+            var td = ev.target.closest('td');
+            if (!td || !tbody.contains(td)) return;
+            var clickedEditable = ev.target.closest('.editable-cell');
+            var editable = td.querySelector('.editable-cell');
+            if (!editable) {
+                var row = td.closest('tr');
+                if (!row) return;
+                var tds = row.querySelectorAll('td');
+                var idx = -1;
+                for (var i = 0; i < tds.length; i++) { if (tds[i] === td) { idx = i; break; } }
+                for (var j = idx + 1; j < tds.length; j++) {
+                    var nextEditable = tds[j].querySelector('.editable-cell');
+                    if (nextEditable) { editable = nextEditable; break; }
+                }
+                if (!editable) {
+                    for (var k = idx - 1; k >= 0; k--) {
+                        var prevEditable = tds[k].querySelector('.editable-cell');
+                        if (prevEditable) { editable = prevEditable; break; }
+                    }
+                }
+            }
+            if (!editable) return;
+            var isTouch = ev.type === 'touchstart';
+            // If the user tapped directly inside an editable cell, let the browser
+            // handle caret placement completely.
+            if (clickedEditable) {
+                return;
+            }
+            // For taps on the cell background (not on the editable span), move
+            // focus into the first editable span in that cell and let the
+            // browser decide where to put the caret.
+            ev.stopPropagation();
+            if (isTouch) ev.preventDefault();
+            var el = editable;
+            function doFocus() {
+                if (document.activeElement !== el) el.focus({ preventScroll: true });
+            }
+            requestAnimationFrame(function() {
+                doFocus();
+            });
+            setTimeout(function() {
+                if (tbody.contains(el) && document.activeElement !== el) el.focus({ preventScroll: true });
+            }, 100);
+        }
+        tbody.addEventListener('mousedown', runCellFocusFix, true);
+        tbody.addEventListener('touchstart', runCellFocusFix, { passive: false, capture: true });
+        tbody.addEventListener('change', function(e) {
+            var sel = e.target;
+            if (!sel.classList || !sel.classList.contains('status-select')) return;
+            var row = sel.closest('tr');
+            var pk = row && row.getAttribute('data-pk');
+            var expenseUuid = (row && row.getAttribute('data-uuid')) || (sel.getAttribute('data-uuid')) || '';
+            if (!pk) return;
+            var previousValue = sel.dataset.previousValue !== undefined ? sel.dataset.previousValue : sel.value;
+            var newValue = sel.value;
+            if (!csrfToken) {
+                alert('Security token missing. Please refresh the page and try again.');
+                sel.value = previousValue;
+                return;
+            }
+            var feedback = row.querySelector('.status-saved-feedback');
+            var showFeedback = function(msg, isError) {
+                if (!feedback) return;
+                feedback.textContent = msg;
+                feedback.style.display = 'inline';
+                feedback.className = 'approval-saved-feedback ms-1 small ' + (isError ? 'text-danger' : 'text-success');
+            };
+            var hideFeedback = function() {
+                if (feedback) { feedback.style.display = 'none'; feedback.textContent = ''; }
+            };
+            sel.dataset.previousValue = newValue;
+            showFeedback('Saving…', false);
+            var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId) ? window.OfflineSync.getTenantId() : '';
+            var payload = { uuid: expenseUuid, status: newValue, updated_at: new Date().toISOString(), is_deleted: false };
+            var attemptAjax = function() {
+                var fd = new FormData();
+                fd.append('id', pk);
+                fd.append('status', newValue);
+                fd.append('csrfmiddlewaretoken', csrfToken);
+                return fetch(ajaxStatusUpdateUrl, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken } })
+                    .then(function(r) {
+                        if (!r.ok) {
+                            sel.value = previousValue;
+                            sel.dataset.previousValue = previousValue;
+                            hideFeedback();
+                            return r.json().catch(function() { return {}; }).then(function(data) {
+                                alert(data.message || 'Failed to update approval status (HTTP ' + r.status + '). Please try again.');
+                                return { success: false };
+                            });
+                        }
+                        return r.json();
+                    });
+            };
+            var requestPromise = (window.OfflineSync && window.OfflineSync.wrapSubmit && expenseUuid)
+                ? window.OfflineSync.wrapSubmit('expense', payload, tenantId, attemptAjax)
+                : attemptAjax();
+            requestPromise.then(function(data) {
+                if (data && data.savedOffline) {
+                    showFeedback('Saved offline', false);
+                    setTimeout(hideFeedback, 2000);
+                    if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards();
+                } else if (data && data.success) {
+                    sel.value = data.status;
+                    sel.dataset.previousValue = data.status;
+                    showFeedback('Saved', false);
+                    setTimeout(hideFeedback, 2000);
+                    if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards();
+                    try { window.dispatchEvent(new CustomEvent('notifications-changed')); setTimeout(function(){ if (window.refreshNotifications) window.refreshNotifications(); }, 500); } catch (e) {}
+                } else if (data && !data.success) {
+                    sel.value = previousValue;
+                    sel.dataset.previousValue = previousValue;
+                    hideFeedback();
+                    alert(data.message || 'Could not update status.');
+                } else {
+                    hideFeedback();
+                }
+            }).catch(function(err) {
+                sel.value = previousValue;
+                sel.dataset.previousValue = previousValue;
+                hideFeedback();
+                alert('Network error. Approval status was not saved. Please try again.');
+            });
+        }, true);
+        document.querySelectorAll('.status-select[data-pk]').forEach(function(sel) {
+            sel.dataset.previousValue = sel.value;
+        });
+        tbody.addEventListener('focusin', function(e) {
+            var cell = e.target;
+            if (!cell.classList || !cell.classList.contains('editable-cell')) return;
+            cell.setAttribute('data-initial-value', cell.textContent.trim());
+        }, true);
+        // Removed auto-save on input to avoid caret jumping while the user types.
+        // We now only save on blur, which keeps editing smooth and predictable (same as inventory).
+        tbody.addEventListener('blur', function(e) {
+            var cell = e.target;
+            if (!cell.classList || !cell.classList.contains('editable-cell')) return;
+            var row = cell.closest('tr');
+            var pk = row && row.getAttribute('data-pk');
+            var field = cell.getAttribute('data-field');
+            var value = cell.textContent.trim();
+            if (!pk || !field || row.getAttribute('data-row-type') === 'new') return;
+            var initial = cell.getAttribute('data-initial-value') || '';
+            if (value === initial) return;
+            var feedback = row.querySelector('.inline-edit-feedback');
+            if (!feedback) {
+                var statusCell = row.querySelector('.status-cell .status-cell-inner');
+                if (statusCell) {
+                    var span = document.createElement('span');
+                    span.className = 'inline-edit-feedback ms-1 small text-success';
+                    span.setAttribute('aria-live', 'polite');
+                    statusCell.appendChild(span);
+                    feedback = span;
+                }
+            }
+            function showFeedback(msg, isError) {
+                if (feedback) {
+                    feedback.textContent = msg;
+                    feedback.className = 'inline-edit-feedback ms-1 small ' + (isError ? 'text-danger' : 'text-success');
+                    feedback.style.display = 'inline';
+                }
+            }
+            function hideFeedback() {
+                if (feedback) { feedback.style.display = 'none'; feedback.textContent = ''; }
+            }
+            showFeedback('Saving…', false);
+            var fd = new FormData();
+            fd.append('id', pk);
+            fd.append('field', field);
+            fd.append('value', value);
+            fd.append('csrfmiddlewaretoken', csrfToken);
+            var headers = { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken };
+            fetch(ajaxUpdateUrl, { method: 'POST', body: fd, headers: headers, cache: 'no-store' })
+                .then(function(r) { return r.json().catch(function() { return { success: false, message: 'Invalid response' }; }); })
+                .then(function(data) {
+                    if (data.success) {
+                        updateRowFromResponse(row, data);
+                        cell.setAttribute('data-initial-value', cell.textContent.trim());
+                        showFeedback('Saved', false);
+                        setTimeout(hideFeedback, 2000);
+                        afterTableUpdate();
+                    } else {
+                        cell.textContent = initial;
+                        cell.setAttribute('data-initial-value', initial);
+                        showFeedback('Error', true);
+                        alert(data.message || 'Could not save. Please try again.');
+                        setTimeout(hideFeedback, 3000);
+                    }
+                })
+                .catch(function() {
+                    cell.textContent = initial;
+                    cell.setAttribute('data-initial-value', initial);
+                    showFeedback('Error', true);
+                    alert('Network error. Change was not saved.');
+                    setTimeout(hideFeedback, 3000);
+                });
+        }, true);
+    }
+
+    function afterTableUpdate() { if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards(); }
+
+    var expenseTbody = document.getElementById('expense-tbody');
+    if (expenseTbody) {
+        expenseTbody.querySelectorAll('tr[data-pk]').forEach(attachRecalc);
+    }
+
+    function buildSavedRowHtml(data) {
+        var remClass = 'rem-qty' + (parseFloat(data.remaining_quantity) < 0 ? ' negative' : '');
+        var remText = formatNum(data.remaining_quantity);
+        if (data.unit_label && String(data.unit_label).trim()) remText += ' ' + data.unit_label;
+        else {
+            var raw = (data.quantity_purchased_input && String(data.quantity_purchased_input).trim()) || (data.quantity_out_input && String(data.quantity_out_input).trim()) || '';
+            if (raw) { var u = raw.replace(/-?\d+(\.\d+)?/, '').trim().replace(/\b0+(\.0+)?\b/g, '').replace(/\.0+$/, '').trim(); if (u) remText += ' ' + u; }
+        }
+        var lowStock = stockStatusHtml(data.remaining_quantity, data.quantity_threshold);
+        var receipt = (data.receipt_url ? '<a href="' + esc(data.receipt_url) + '" target="_blank" rel="noopener" class="receipt-view-link"><i class="fas fa-file-invoice me-1"></i>View receipt</a>' : '—');
+        var action = '';
+        if (perms.view) action += '<a href="' + urlDetail + data.id + '/" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a> ';
+        if (perms.delete) action += '<form method="post" action="' + urlDelete + data.id + '/" class="d-inline expense-delete-form"><input type="hidden" name="csrfmiddlewaretoken" value="' + esc(csrfToken) + '"><button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form> ';
+        if (perms.print) action += '<a href="' + urlPrint + data.id + '/" class="btn btn-sm btn-outline-secondary" title="Print"><i class="fas fa-print"></i></a> ';
+        if (perms.view) action += '<a href="' + urlReport + data.id + '/" class="btn btn-sm btn-info" title="Ledger / Report"><i class="fas fa-chart-line me-1"></i>Report</a>';
+        var statusCellHtml;
+        if (perms.approve) {
+            statusCellHtml =
+                '<select class="form-select form-select-sm status-select" data-pk="' + esc(data.id) + '" data-uuid="' + esc(data.uuid || '') + '" title="Status">' +
+                STATUS_OPTIONS.map(function(o){ return '<option value="' + esc(o[0]) + '"' + (o[0] === (data.status || 'draft') ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') +
+                '</select><span class="status-saved-feedback ms-1 small text-success" style="display:none;"></span>';
+        } else {
+            var s = data.status || 'draft';
+            var statusClass = (s === 'approved') ? 'approval-approved'
+                            : (s === 'pending') ? 'approval-pending'
+                            : (s === 'rejected') ? 'approval-rejected'
+                            : 'approval-draft';
+            statusCellHtml =
+                '<span class="badge badge-status ' + statusClass + '">' +
+                esc(data.status_display || '') +
+                '</span>';
+        }
+        return '<tr data-pk="' + esc(data.id) + '" data-uuid="' + esc(data.uuid || '') + '">' +
+            '<td class="text-center"><span class="expense-sn">' + esc(data.transaction_id || data.sn) + '</span></td>' +
+            '<td>' + esc(data.expense_date || '') + '</td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="expense_category">' + esc(data.expense_category || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="department">' + esc(data.department || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="vendor">' + esc(data.vendor || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="po_number">' + esc(data.po_number || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="description">' + esc(data.description || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="product_id">' + esc(data.product_id || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="product_name">' + esc(data.product_name || '') + '</span></td>' +
+            '<td><span class="editable-cell" contenteditable="true" data-field="unit_of_measurement">' + esc(data.unit_of_measurement || '') + '</span></td>' +
+            '<td class="qty-in"><span class="editable-cell" contenteditable="true" data-field="quantity_purchased">' + esc((data.quantity_purchased_input && String(data.quantity_purchased_input).trim() !== '') ? data.quantity_purchased_input : formatNum(data.quantity_purchased)) + '</span></td>' +
+            '<td class="qty-out"><span class="editable-cell" contenteditable="true" data-field="quantity_out">' + esc((data.quantity_out_input && String(data.quantity_out_input).trim() !== '') ? data.quantity_out_input : formatNum(data.quantity_out)) + '</span></td>' +
+            '<td class="' + remClass + '">' + esc(remText) + '</td>' +
+            '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="unit_price">' + esc((data.unit_price_input && String(data.unit_price_input).trim() !== '') ? data.unit_price_input : formatNum(data.unit_price)) + '</span></td>' +
+            '<td class="text-end total-purchase-cell">' + sym + esc(formatNum(data.total_purchase_value)) + '</td>' +
+            '<td class="text-end stock-value-cell">' + sym + esc(formatNum(data.stock_value_remaining)) + '</td>' +
+            '<td class="text-end"><span class="editable-cell" contenteditable="true" data-field="quantity_threshold">' + esc((data.quantity_threshold_input && String(data.quantity_threshold_input).trim() !== '') ? data.quantity_threshold_input : formatNum(data.quantity_threshold)) + '</span></td>' +
+            '<td class="text-center">' + lowStock + '</td>' +
+            '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="subtotal">' + esc(formatNum(data.subtotal)) + '</span></td>' +
+            '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="tax">' + esc(formatNum(data.tax)) + '</span></td>' +
+            '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="discount">' + esc(formatNum(data.discount)) + '</span></td>' +
+            '<td>' + esc(data.payment_method || '') + '</td>' +
+            '<td>' + esc(data.payment_date || '') + '</td>' +
+            '<td>' + receipt + '</td>' +
+            '<td class="status-cell"><div class="status-cell-inner">' + statusCellHtml + '</div></td>' +
+            '<td>' + esc(data.approved_by_display || '—') + '</td>' +
+            '<td>' + esc(data.created_by_display || '—') + '</td>' +
+            '<td>' + esc(data.created_at || '') + '</td>' +
+            '<td>' + esc(data.updated_at || '') + '</td>' +
+            '<td class="actions-cell">' + action + '</td></tr>';
+    }
+
+    var addRowBtn = document.getElementById('expense-add-row-btn');
+    if (addRowBtn && tbody) {
+        addRowBtn.addEventListener('click', function() {
+            var emptyRow = tbody.querySelector('tr[data-empty-row]');
+            if (emptyRow) emptyRow.remove();
+            var todayStr = (function() {
+                var d = new Date();
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            })();
+            var newRowHtml = '<tr data-row-type="new">' +
+                '<td class="text-center"><span class="expense-sn empty-sn">—</span></td>' +
+                '<td><input type="date" class="form-control form-control-sm" data-field="expense_date" data-new="1" value="' + todayStr + '" title="Expense Date – click for calendar or type"></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="expense_category" data-placeholder="Category" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="department" data-placeholder="Dept" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="vendor" data-placeholder="Vendor" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="po_number" data-placeholder="PO" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="description" data-placeholder="Description" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="product_id" data-placeholder="ID" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="product_name" data-placeholder="Product name" data-new="1"></span></td>' +
+                '<td><span class="editable-cell" contenteditable="true" data-field="unit_of_measurement" data-placeholder="UoM" data-new="1"></span></td>' +
+                '<td class="qty-in"><span class="editable-cell" contenteditable="true" data-field="quantity_purchased" data-new="1">0</span></td>' +
+                '<td class="qty-out"><span class="editable-cell" contenteditable="true" data-field="quantity_out" data-new="1">0</span></td>' +
+                '<td class="rem-qty">0</td>' +
+                '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="unit_price" data-new="1">0</span></td>' +
+                '<td class="text-end total-purchase-cell">' + sym + '0.00</td>' +
+                '<td class="text-end stock-value-cell">' + sym + '0.00</td>' +
+                '<td class="text-end"><span class="editable-cell" contenteditable="true" data-field="quantity_threshold" data-new="1">0</span></td>' +
+                '<td class="text-center low-stock-cell">—</td>' +
+                '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="subtotal" data-new="1">0</span></td>' +
+                '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="tax" data-new="1">0</span></td>' +
+                '<td class="text-end">' + sym + '<span class="editable-cell" contenteditable="true" data-field="discount" data-new="1">0</span></td>' +
+                '<td><select class="form-select form-select-sm" data-field="payment_method" data-new="1"><option value="cash" selected>Cash</option><option value="card">Card</option><option value="transfer">Bank Transfer</option><option value="cheque">Cheque</option><option value="mobile">Mobile Money</option><option value="other">Other</option></select></td>' +
+                '<td><input type="date" class="form-control form-control-sm" data-field="payment_date" data-new="1" placeholder="Date" title="Payment Date – click for calendar or type"></td>' +
+                '<td class="receipt-upload-cell"><label class="btn-receipt-upload"><input type="file" name="receipt_upload" data-field="receipt_upload" data-new="1" accept="image/*,.pdf" title="Upload receipt (image or PDF)"><span class="btn-receipt-text">Select file</span></label></td>' +
+                '<td class="status-cell"><div class="status-cell-inner"><select class="form-select form-select-sm" data-field="status" data-new="1"><option value="draft" selected>Draft</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div></td>' +
+                '<td>—</td><td>—</td><td>—</td><td>—</td>' +
+                '<td class="actions-cell"><button type="button" class="btn btn-sm btn-success me-1 expense-save-new-row">Save</button><button type="button" class="btn btn-sm btn-outline-secondary expense-cancel-new-row">Cancel</button></td></tr>';
+            tbody.insertAdjacentHTML('beforeend', newRowHtml);
+            var newTr = tbody.querySelector('tr[data-row-type="new"]');
+            var saveBtn = newTr.querySelector('.expense-save-new-row');
+            var cancelBtn = newTr.querySelector('.expense-cancel-new-row');
+            var receiptInput = newTr.querySelector('input[data-field="receipt_upload"]');
+            if (receiptInput) {
+                receiptInput.addEventListener('change', function() {
+                    var label = newTr.querySelector('.btn-receipt-upload');
+                    var textSpan = label ? label.querySelector('.btn-receipt-text') : null;
+                    if (this.files && this.files[0] && textSpan) {
+                        textSpan.textContent = this.files[0].name.length > 18 ? this.files[0].name.slice(0, 15) + '…' : this.files[0].name;
+                    } else if (textSpan) {
+                        textSpan.textContent = 'Select file';
+                    }
+                });
+            }
+            function getVal(field) {
+                var el = newTr.querySelector('[data-field="' + field + '"]');
+                if (!el) return '';
+                if (el.tagName === 'SELECT') return el.value || '';
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return (el.value || '').trim();
+                return (el.textContent || '').trim();
+            }
+            saveBtn.addEventListener('click', function() {
+                var productName = getVal('product_name');
+                if (!productName) { alert('Product name is required.'); return; }
+                saveBtn.disabled = true;
+                var fd = new FormData();
+                fd.append('expense_date', getVal('expense_date') || todayStr);
+                fd.append('expense_category', getVal('expense_category'));
+                fd.append('department', getVal('department'));
+                fd.append('vendor', getVal('vendor'));
+                fd.append('po_number', getVal('po_number'));
+                fd.append('description', getVal('description'));
+                fd.append('product_id', getVal('product_id'));
+                fd.append('product_name', productName);
+                fd.append('unit_of_measurement', getVal('unit_of_measurement'));
+                fd.append('quantity_purchased', getVal('quantity_purchased') || '0');
+                fd.append('quantity_out', getVal('quantity_out') || '0');
+                fd.append('unit_price', getVal('unit_price') || '0');
+                fd.append('quantity_threshold', getVal('quantity_threshold') || '0');
+                fd.append('subtotal', getVal('subtotal') || '');
+                fd.append('tax', getVal('tax') || '0');
+                fd.append('discount', getVal('discount') || '0');
+                fd.append('payment_method', getVal('payment_method') || 'cash');
+                fd.append('payment_date', getVal('payment_date') || '');
+                fd.append('status', getVal('status') || 'draft');
+                var receiptInput = newTr.querySelector('input[data-field="receipt_upload"]');
+                if (receiptInput && receiptInput.files && receiptInput.files[0]) {
+                    fd.append('receipt_upload', receiptInput.files[0]);
+                }
+                fd.append('csrfmiddlewaretoken', csrfToken);
+                var payload = {
+                    updated_at: new Date().toISOString(),
+                    is_deleted: false,
+                    expense_date: getVal('expense_date') || todayStr,
+                    expense_category: getVal('expense_category'),
+                    department: getVal('department'),
+                    vendor: getVal('vendor'),
+                    po_number: getVal('po_number'),
+                    description: getVal('description'),
+                    product_id: getVal('product_id'),
+                    product_name: productName,
+                    unit_of_measurement: getVal('unit_of_measurement'),
+                    quantity_purchased: getVal('quantity_purchased') || '0',
+                    quantity_out: getVal('quantity_out') || '0',
+                    unit_price: getVal('unit_price') || '0',
+                    quantity_threshold: getVal('quantity_threshold') || '0',
+                    subtotal: getVal('subtotal') || '',
+                    tax: getVal('tax') || '0',
+                    discount: getVal('discount') || '0',
+                    payment_method: getVal('payment_method') || 'cash',
+                    payment_date: getVal('payment_date') || '',
+                    status: getVal('status') || 'draft'
+                };
+                var attemptAjax = function() {
+                    return fetch(ajaxCreateUrl, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r) { return r.json(); });
+                };
+                var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId) ? window.OfflineSync.getTenantId() : '';
+                if (window.OfflineSync && window.OfflineSync.wrapSubmit) {
+                    window.OfflineSync.wrapSubmit('expense', payload, tenantId, attemptAjax)
+                        .then(function(data) {
+                            if (data && data.savedOffline) {
+                                newTr.remove();
+                                if (tbody.querySelectorAll('tr[data-pk]').length === 0) {
+                                    tbody.insertAdjacentHTML('beforeend', '<tr data-empty-row><td colspan="30" class="text-center text-muted py-4">No expense records. Click &quot;Add row&quot; to create one.</td></tr>');
+                                }
+                                alert('Saved offline. It will sync when you are back online.');
+                                if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards();
+                            } else if (data && data.success) {
+                                newTr.outerHTML = buildSavedRowHtml(data);
+                                var inserted = tbody.querySelector('tr[data-pk="' + data.id + '"]');
+                                if (inserted) attachRecalc(inserted);
+                                if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards();
+                            } else {
+                                alert(data && data.message ? data.message : 'Could not save.');
+                                saveBtn.disabled = false;
+                            }
+                        })
+                        .catch(function() { alert('Request failed.'); saveBtn.disabled = false; });
+                } else {
+                    attemptAjax()
+                        .then(function(data) {
+                            if (data.success) {
+                                newTr.outerHTML = buildSavedRowHtml(data);
+                                var inserted = tbody.querySelector('tr[data-pk="' + data.id + '"]');
+                                if (inserted) attachRecalc(inserted);
+                                if (typeof window.refreshDashboardCards === 'function') window.refreshDashboardCards();
+                            } else {
+                                alert(data.message || 'Could not save.');
+                                saveBtn.disabled = false;
+                            }
+                        })
+                        .catch(function() { alert('Request failed.'); saveBtn.disabled = false; });
+                }
+            });
+            cancelBtn.addEventListener('click', function() {
+                newTr.remove();
+                if (tbody.querySelectorAll('tr[data-pk]').length === 0) {
+                    tbody.insertAdjacentHTML('beforeend', '<tr data-empty-row><td colspan="30" class="text-center text-muted py-4">No expense records. Click &quot;Add row&quot; to create one.</td></tr>');
+                }
+            });
+            var newRem = newTr.querySelector('.rem-qty');
+            var newTotalPurchase = newTr.querySelector('.total-purchase-cell');
+            var newStockValue = newTr.querySelector('.stock-value-cell');
+            var newLowStock = newTr.querySelector('.low-stock-cell');
+            function newRecalc() {
+                var inText = (newTr.querySelector('[data-field="quantity_purchased"]') || {}).textContent || '';
+                var outText = (newTr.querySelector('[data-field="quantity_out"]') || {}).textContent || '';
+                var priceText = (newTr.querySelector('[data-field="unit_price"]') || {}).textContent || '';
+                var inVal = parseMixedNum(inText);
+                var outVal = parseMixedNum(outText);
+                var price = parseMixedNum(priceText);
+                var balance = inVal - outVal;
+                var thresholdVal = parseMixedNum((newTr.querySelector('[data-field="quantity_threshold"]') || {}).textContent);
+                if (newRem) {
+                    var sourceText = inText || outText || '';
+                    var unit = sourceText.replace(/-?\d+(\.\d+)?/, '').trim().replace(/\b0+(\.0+)?\b/g, '').replace(/\.0+$/, '').trim();
+                    newRem.textContent = formatNum(balance) + (unit ? ' ' + unit : '');
+                    newRem.classList.toggle('negative', balance < 0);
+                }
+                if (newTotalPurchase) newTotalPurchase.textContent = sym + formatNum(inVal * price);
+                if (newStockValue) newStockValue.textContent = sym + formatNum(balance * price);
+                if (newLowStock) newLowStock.innerHTML = stockStatusHtml(balance, thresholdVal);
+            }
+            ['quantity_purchased','quantity_out','unit_price','quantity_threshold'].forEach(function(f) {
+                var el = newTr.querySelector('[data-field="' + f + '"]');
+                if (el) { el.addEventListener('input', newRecalc); el.addEventListener('keyup', newRecalc); }
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

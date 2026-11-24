@@ -1,0 +1,47 @@
+{% load humanize %}
+<div id="payrollRecentRunsContainer" data-initial-runs='{{ initial_runs|escapejs }}'>
+    {% if initial_runs %}
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th>Status</th>
+                    <th class="text-end">Gross</th>
+                    <th class="text-end">Deductions</th>
+                    <th class="text-end">Net</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in initial_runs %}
+                <tr>
+                    <td class="fw-semibold">{{ run.period }}</td>
+                    <td>
+                        {% if run.status == 'draft' %}
+                        <span class="payroll-status-badge payroll-status-draft">Draft</span>
+                        {% elif run.status == 'processing' %}
+                        <span class="payroll-status-badge payroll-status-processing">Processing</span>
+                        {% elif run.status == 'pending_approval' %}
+                        <span class="payroll-status-badge payroll-status-pending_approval">Pending</span>
+                        {% elif run.status == 'approved' %}
+                        <span class="payroll-status-badge payroll-status-approved">Approved</span>
+                        {% elif run.status == 'paid' %}
+                        <span class="payroll-status-badge payroll-status-paid">Paid</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ run.total_gross|floatformat:2|intcomma }}</td>
+                    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ run.total_deductions|floatformat:2|intcomma }}</td>
+                    <td class="text-end fw-bold">{{ user_currency_symbol|default:"₦" }}{{ run.total_net|floatformat:2|intcomma }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'payroll:payroll_summary' run.period_id %}" class="btn btn-sm btn-outline-primary">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted small mb-0">No payroll runs yet. Click "Run Payroll" to create the first one.</p>
+    {% endif %}
+</div>

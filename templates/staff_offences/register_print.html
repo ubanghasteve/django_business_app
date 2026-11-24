@@ -1,0 +1,442 @@
+{% load humanize static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <title>{{ register.reference_number }} — Staff Offence Register</title>
+  {% if company_logo_url or company_logo %}
+  <link rel="icon" href="{{ company_logo_url|default:company_logo }}">
+  <link rel="shortcut icon" href="{{ company_logo_url|default:company_logo }}">
+  <link rel="apple-touch-icon" href="{{ company_logo_url|default:company_logo }}">
+  {% else %}
+  <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=7">
+  <link rel="shortcut icon" href="/favicon.ico?v=7">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/apple-icon.png' %}?v=7">
+  {% endif %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root {
+      --so-primary: {{ theme_primary_color|default:"#f97316" }};
+      --so-soft: {{ theme_accent_color|default:"#ffedd5" }};
+      --so-card: {{ theme_secondary_color|default:"#fff7ed" }};
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: #111827;
+      margin: 0;
+      padding: 24px;
+      padding-bottom: 96px;
+      background: #f3f4f6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .preview-scroll-wrapper { width: 100%; overflow-x: auto; }
+    .a5-fit-wrapper { margin: 0 auto; }
+    .page {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 28px;
+      border-radius: 12px;
+    }
+    .company-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .company-logo { flex-shrink: 0; }
+    .company-logo img {
+      max-height: 80px;
+      max-width: 200px;
+      object-fit: contain;
+      display: block;
+    }
+    .company-details { flex: 1; min-width: 0; text-align: left; }
+    .company-details h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--so-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      line-height: 1.25;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .company-details p {
+      margin: 3px 0;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .doc-banner {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+      padding: 10px 12px;
+      background: var(--so-card);
+      border-radius: 8px;
+    }
+    .doc-banner .icon {
+      width: 36px; height: 36px; border-radius: 8px; background: var(--so-primary);
+      color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      font-size: 14px;
+    }
+    .doc-banner h1 { margin: 0; font-size: 16px; font-weight: 700; color: #111827; }
+    .doc-banner .sub { margin: 2px 0 0; color: #6b7280; font-size: 12px; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 16px; }
+    .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #9ca3af; }
+    .value { font-weight: 700; }
+    .pay-badge {
+      display: inline-block; border-radius: 999px; padding: 4px 10px;
+      font-size: 12px; font-weight: 700;
+    }
+    .pay-unpaid { background: #fee2e2; color: #991b1b; }
+    .pay-partially_paid { background: #ffedd5; color: #9a3412; }
+    .pay-paid { background: #dcfce7; color: #166534; }
+    .pay-waived { background: #374151; color: #fff; }
+    .pay-pending_approval { background: #e5e7eb; color: #374151; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+    .stat { background: var(--so-card); border-radius: 10px; padding: 14px 16px; }
+    .stat strong { display: block; font-size: 24px; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: var(--so-soft); text-align: left; padding: 10px 12px;
+      font-size: 13px; color: #6b7280;
+    }
+    td { padding: 10px 12px; border-top: 1px solid #f3f4f6; font-size: 14px; vertical-align: top; }
+    td:nth-child(3) { word-break: break-word; overflow-wrap: anywhere; }
+    .footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;
+    }
+    .grand { font-size: 22px; font-weight: 700; color: var(--so-primary); }
+    .signature-section {
+      margin-top: 28px; padding-top: 16px; border-top: 1px solid #e5e7eb; max-width: 280px;
+    }
+    .signature-section .label { margin-bottom: 8px; }
+    .signature-section img {
+      max-height: 80px; max-width: 220px; object-fit: contain; display: block; margin-bottom: 8px;
+    }
+    .signature-section .signatory { font-weight: 700; font-size: 14px; }
+    .signature-section .role { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .signature-blank {
+      margin-top: 28px; padding-top: 16px; border-top: 1px solid #e5e7eb; max-width: 280px;
+    }
+    .signature-blank .line {
+      margin-top: 48px; border-top: 1px solid #9ca3af; padding-top: 6px;
+      font-size: 12px; color: #6b7280;
+    }
+
+    /* A5: fixed page box; content is scaled with zoom to fit one page */
+    body.paper-a5 .preview-scroll-wrapper { overflow: visible; }
+    body.paper-a5 .a5-fit-wrapper {
+      width: 148mm;
+      height: 210mm;
+      overflow: hidden;
+      margin: 0 auto;
+      position: relative;
+      background: #fff;
+    }
+    body.paper-a5 .page {
+      max-width: none;
+      margin: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .print-nav-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 15px 20px;
+      display: flex; justify-content: center; align-items: center;
+      gap: 15px; flex-wrap: wrap;
+      box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+    }
+    .print-nav-bar .nav-btn {
+      padding: 10px 20px; border-radius: 25px; font-weight: 600; font-size: 14px;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+      border: none; cursor: pointer; color: white;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .print-nav-bar .btn-back { background: linear-gradient(135deg, #6c757d, #495057); }
+    .print-nav-bar .btn-list { background: linear-gradient(135deg, var(--so-primary), #c2410c); }
+    .print-nav-bar .btn-print { background: linear-gradient(135deg, #28a745, #218838); }
+    .print-nav-bar .btn-close-tab { background: linear-gradient(135deg, #dc3545, #c82333); }
+    .print-nav-bar .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); color: #fff; }
+    .paper-size-select { display: flex; align-items: center; gap: 8px; }
+    .paper-size-select label { color: #fff; font-size: 13px; font-weight: 500; }
+    .paper-size-select select {
+      padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.15); color: #fff; font-size: 13px; cursor: pointer;
+    }
+    .paper-size-select select option { color: #111; background: #fff; }
+
+    @media print {
+      @page { size: A4; margin: 0.5cm; }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body { background: #fff; padding: 0; margin: 0; }
+      .preview-scroll-wrapper { overflow: visible; }
+      .print-nav-bar, .no-print { display: none !important; }
+      .page { box-shadow: none; border-radius: 0; max-width: none; }
+      body.paper-a5 .a5-fit-wrapper {
+        width: 148mm !important;
+        height: 210mm !important;
+        overflow: hidden !important;
+      }
+    }
+    @media screen and (max-width: 600px) {
+      .print-nav-bar { padding: 12px 15px; gap: 10px; }
+      .print-nav-bar .nav-btn { padding: 8px 15px; font-size: 12px; }
+    }
+  </style>
+  <script>
+    function applyA5Scale() {
+      var content = document.getElementById('soPrintContent');
+      var wrapper = document.getElementById('a5FitWrapper');
+      if (!content || !document.body.classList.contains('paper-a5')) return;
+
+      content.style.zoom = '1';
+      content.style.transform = '';
+      content.style.transformOrigin = '';
+      content.style.width = '';
+
+      var cw = Math.max(content.scrollWidth, content.offsetWidth, 1);
+      var ch = Math.max(content.scrollHeight, content.offsetHeight, 1);
+      // A5 printable area (148×210mm) with small margin allowance
+      var aw = (148 * 96 / 25.4) - 18;
+      var ah = (210 * 96 / 25.4) - 18;
+      var scale = Math.min(aw / cw, ah / ch, 1);
+
+      if (typeof content.style.zoom !== 'undefined') {
+        content.style.zoom = String(scale);
+      } else {
+        content.style.transformOrigin = 'top left';
+        content.style.transform = 'scale(' + scale + ')';
+        content.style.width = (100 / scale) + '%';
+      }
+
+      if (wrapper) {
+        wrapper.style.width = '148mm';
+        wrapper.style.height = '210mm';
+        wrapper.style.overflow = 'hidden';
+      }
+    }
+
+    function setPaperSize(size) {
+      var styleId = 'paper-size-style';
+      var existing = document.getElementById(styleId);
+      if (existing) existing.remove();
+
+      document.body.classList.remove('paper-a5');
+      var wrapper = document.getElementById('a5FitWrapper');
+      var content = document.getElementById('soPrintContent');
+      if (content) {
+        content.style.zoom = '';
+        content.style.transform = '';
+        content.style.transformOrigin = '';
+        content.style.width = '';
+      }
+      if (wrapper) {
+        wrapper.style.width = '';
+        wrapper.style.height = '';
+        wrapper.style.overflow = '';
+      }
+
+      if (size === 'a5') {
+        document.body.classList.add('paper-a5');
+        var style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = '@media print { @page { size: A5; margin: 0.3cm; } }';
+        document.head.appendChild(style);
+        applyA5Scale();
+        requestAnimationFrame(applyA5Scale);
+        setTimeout(applyA5Scale, 200);
+        setTimeout(applyA5Scale, 800);
+      } else {
+        var a4 = document.createElement('style');
+        a4.id = styleId;
+        a4.textContent = '@media print { @page { size: A4; margin: 0.5cm; } }';
+        document.head.appendChild(a4);
+      }
+
+      try { localStorage.setItem('printPaperSize', size); } catch (e) {}
+    }
+
+    function printRegister() {
+      if (document.body.classList.contains('paper-a5')) applyA5Scale();
+      window.print();
+    }
+
+    window.addEventListener('beforeprint', function() {
+      if (document.body.classList.contains('paper-a5')) applyA5Scale();
+    });
+
+    window.addEventListener('load', function() {
+      var saved = null;
+      try { saved = localStorage.getItem('printPaperSize'); } catch (e) {}
+      var sel = document.getElementById('paperSize');
+      if (sel) {
+        if (saved === 'a5') {
+          sel.value = 'a5';
+          setPaperSize('a5');
+        } else {
+          sel.value = 'a4';
+          setPaperSize('a4');
+        }
+      }
+      // Re-fit after signature image loads (changes content height)
+      document.querySelectorAll('#soPrintContent img').forEach(function(img) {
+        if (!img.complete) {
+          img.addEventListener('load', function() {
+            if (document.body.classList.contains('paper-a5')) applyA5Scale();
+          });
+        }
+      });
+    });
+
+    window.addEventListener('resize', function() {
+      if (document.body.classList.contains('paper-a5')) applyA5Scale();
+    });
+  </script>
+</head>
+<body>
+  <div class="preview-scroll-wrapper">
+    <div class="a5-fit-wrapper" id="a5FitWrapper">
+      <div class="page" id="soPrintContent">
+        <div class="company-header">
+          <div class="company-logo">
+            {% if company_logo_url or company_logo %}
+            <img src="{{ company_logo_url|default:company_logo }}" alt="{{ company_profile.company_name|default:'Company' }} logo">
+            {% endif %}
+          </div>
+          <div class="company-details">
+            <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+            {% if company_profile.address %}
+            <p>{{ company_profile.address }}</p>
+            {% endif %}
+            {% if company_profile.phone %}
+            <p>{{ company_profile.phone }}</p>
+            {% endif %}
+            {% if company_profile.email %}
+            <p>{{ company_profile.email }}</p>
+            {% endif %}
+            {% if company_profile.website %}
+            <p>{{ company_profile.website }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="doc-banner">
+          <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div>
+            <h1>Staff Offence Management</h1>
+            <p class="sub">
+              Human Resources · Monthly Register
+              {% if print_is_filtered %}
+                · Selected {{ offence_count }} of {{ print_total_register_count }}
+              {% endif %}
+            </p>
+          </div>
+        </div>
+
+        <div class="meta">
+          <div><div class="label">Staff Member</div><div class="value">{{ register.staff_name }}</div></div>
+          <div><div class="label">Department</div><div class="value">{{ register.department_name|default:"—" }}</div></div>
+          <div><div class="label">Month</div><div class="value">{{ register.month_label }}</div></div>
+          <div><div class="label">Record No.</div><div class="value">{{ register.reference_number }}</div></div>
+          <div>
+            <div class="label">Payment Status</div>
+            <div class="value">
+              <span class="pay-badge pay-{{ register.payment_status }}">{{ register.payment_status_label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="label">Total Offences</div><strong>{{ offence_count }}</strong></div>
+          <div class="stat"><div class="label">Monthly Total</div><strong>{{ currency_symbol }}{{ monthly_total|floatformat:0|intcomma }}</strong></div>
+        </div>
+
+        <h3 style="margin:0 0 10px;font-size:16px;">
+          {% if print_is_filtered and offence_count == 1 %}Selected Offence{% elif print_is_filtered %}Selected Offences{% else %}Offence History{% endif %}
+        </h3>
+        <table>
+          <thead>
+            <tr><th>S/N</th><th>Date</th><th>Description</th><th>Amount</th></tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ entry.date|date:"d M" }}</td>
+              <td>{{ entry.description }}</td>
+              <td>{{ currency_symbol }}{{ entry.amount|floatformat:0|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:24px;">No offences recorded.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>
+            <strong>Grand Total</strong><br>
+            <span style="color:#9ca3af;font-size:13px;">{{ offence_count }} offence entr{{ offence_count|pluralize:"y,ies" }}</span>
+          </div>
+          <div class="grand">{{ currency_symbol }}{{ monthly_total|floatformat:0|intcomma }}</div>
+        </div>
+
+        {% if authorized_signature_url %}
+        <div class="signature-section">
+          <div class="label">Authorized Signature</div>
+          <img src="{{ authorized_signature_url }}" alt="Authorized signature">
+          {% if authorized_signatory_name %}
+          <div class="signatory">{{ authorized_signatory_name }}</div>
+          {% endif %}
+          <div class="role">Authorized Officer</div>
+        </div>
+        {% else %}
+        <div class="signature-blank">
+          <div class="label">Authorized Signature</div>
+          <div class="line">Signature / Name</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="print-nav-bar no-print">
+    <div class="paper-size-select">
+      <label>Paper:</label>
+      <select id="paperSize" onchange="setPaperSize(this.value)" aria-label="Paper size">
+        <option value="a4">A4</option>
+        <option value="a5">A5</option>
+      </select>
+    </div>
+    <a href="{% url 'staff_offences:detail' register.pk %}" class="nav-btn btn-back">
+      <i class="fas fa-arrow-left"></i> Back to Register
+    </a>
+    <a href="{% url 'staff_offences:list' %}" class="nav-btn btn-list">
+      <i class="fas fa-list"></i> Register List
+    </a>
+    <button type="button" onclick="printRegister()" class="nav-btn btn-print">
+      <i class="fas fa-print"></i> Print / Save as PDF
+    </button>
+    <button type="button" onclick="window.close()" class="nav-btn btn-close-tab">
+      <i class="fas fa-times"></i> Close
+    </button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency_filters %}
+{% load quotation_extras %}
+
+{% block title %}Delete Quotation - {{ quotation.quotation_number }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Delete Quotation
+                    </h4>
+                </div>
+                    <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Warning!
+                        </h5>
+                        <p class="mb-0">
+                            You are about to delete the quotation <strong>{{ quotation.quotation_number }}</strong>. 
+                            This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <div class="quotation-details">
+                        <h6 class="text-muted mb-3">Quotation Details:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Quotation Number:</strong> {{ quotation.quotation_number }}</p>
+                                <p><strong>Date:</strong> {{ quotation.quotation_date|date:"F j, Y" }}</p>
+                                <p><strong>Status:</strong> 
+                                    <span class="badge bg-{% if quotation.status == 'accepted' %}success{% elif quotation.status == 'declined' %}danger{% elif quotation.status == 'sent' %}info{% else %}warning{% endif %}">
+                                        {{ quotation.get_status_display }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Client:</strong> 
+                                    {% if quotation.client %}
+                                        {{ quotation.client.name }}
+                                        {% if quotation.client.address %}<br><small class="text-muted">{{ quotation.client.address|truncatewords:12 }}</small>{% endif %}
+                                    {% else %}
+                                        <span class="text-muted">No client</span>
+                                    {% endif %}
+                                </p>
+                                <p><strong>Valid Until:</strong> 
+                                    {% if quotation.valid_until %}
+                                        {{ quotation.valid_until|date:"F j, Y" }}
+                                    {% else %}
+                                        <span class="text-muted">No expiry</span>
+                                    {% endif %}
+                                </p>
+                                <p><strong>Total Amount:</strong> 
+                                    <span class="text-primary fw-bold">
+                                        {{ quotation.grand_total|currency_format_with_symbol:company_profile }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        {% if quotation.items.exists %}
+                        <div class="mt-4">
+                            <h6 class="text-muted mb-3">Line Items:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in quotation.items.all %}
+                                        <tr>
+                                            <td>{{ item.product_service|default:"-" }}</td>
+                                            <td>{{ item.quantity }}</td>
+                                            <td>{{ item.unit_price|currency_format_with_symbol:company_profile }}</td>
+                                            <td>{{ item.line_total|currency_format_with_symbol:company_profile }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <form method="post" class="mt-4 d-inline" data-quotation-delete="true" data-offline-queue="true" data-record-uuid="{{ quotation.uuid|default:'' }}">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'quotations:quotation_detail' quotation.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Delete Quotation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form[data-quotation-delete="true"]');
+  if (!form) return;
+
+  form.addEventListener('submit', function (ev) {
+    if (typeof navigator === 'undefined' ||
+        navigator.onLine ||
+        !window.OfflineSync ||
+        typeof window.OfflineSync.wrapDelete !== 'function') {
+      return;
+    }
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+    }
+
+    var uuid = form.getAttribute('data-record-uuid') || '';
+    if (!uuid) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      alert('Cannot delete this quotation offline because it has no sync identifier.');
+      return;
+    }
+
+    var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+
+    window.OfflineSync.wrapDelete(
+      'quotations',
+      uuid,
+      tenantId,
+      function () {
+        return Promise.reject(new Error('online'));
+      }
+    ).then(function () {
+      alert('Deletion queued offline. It will sync when you are back online.');
+      window.location.href = '{% url "quotations:quotation_list" %}';
+    }).catch(function (err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      if (!err || err.message !== 'online') {
+        alert('Could not queue this delete operation offline. Please try again when you are back online.');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

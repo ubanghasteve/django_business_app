@@ -1,0 +1,2431 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  
+  <!-- ==========================================================================
+       SUPER FAST LOADING OPTIMIZATIONS
+       - Critical CSS inlined for instant render
+       - Non-critical CSS deferred
+       - Fonts loaded async with display=swap
+       - Service Worker for offline & instant repeat visits
+       ========================================================================== -->
+  
+  <!-- Favicon & PWA (?v= busts sticky browser tab icon cache) -->
+  <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=6">
+  <link rel="shortcut icon" href="/favicon.ico?v=6">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/apple-icon.png' %}?v=6">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>{% block title %}City Prints & Packaging{% endblock %}</title>
+  
+  <!-- Currency Meta Tags -->
+  <meta name="currency-symbol" content="{{ user_currency_symbol|default:'$' }}">
+  <meta name="currency-code" content="{{ user_currency_code|default:'USD' }}">
+  <!-- CSRF token for AJAX (required when CSRF_USE_SESSIONS=True - no cookie set) -->
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  {% if user.is_authenticated and user.account_id %}<meta name="tenant-id" content="{{ user.account_id }}">{% endif %}
+  
+  <!-- Theme color / installability for mobile & desktop browsers -->
+  <meta name="theme-color" content="#ff6600">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="City Prints">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="application-name" content="City Prints">
+  {% block extra_head_meta %}{% endblock %}
+  
+  <!-- ==========================================================================
+       CRITICAL CSS - Inlined for instant first paint (no external CSS blocking)
+       ========================================================================== -->
+  <style>
+    /* =========================================================================
+       GLOBAL THEME COLORS - From Company Profile
+       These CSS variables are used across all templates for consistent branding
+       ========================================================================= */
+    :root {
+      /* Theme colors from Company Profile */
+      --theme-primary-color: {{ theme_primary_color|default:"#1976d2" }};
+      --theme-secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+      --theme-accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+      --theme-text-color: {{ theme_text_color|default:"#333333" }};
+      
+      /* Alias for backwards compatibility - some templates use these shorter names */
+      --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+      --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+      --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+      --text-color: {{ theme_text_color|default:"#333333" }};
+      
+      /* Derived colors for convenience */
+      --theme-primary-light: {{ theme_primary_color|default:"#1976d2" }}20;
+      --theme-primary-dark: {{ theme_primary_color|default:"#1976d2" }};
+    }
+    
+    /* Theme utility classes - Use these in your templates */
+    .theme-primary-bg { background-color: var(--theme-primary-color) !important; }
+    .theme-primary-text { color: var(--theme-primary-color) !important; }
+    .theme-primary-border { border-color: var(--theme-primary-color) !important; }
+    .theme-secondary-bg { background-color: var(--theme-secondary-color) !important; }
+    .theme-accent-bg { background-color: var(--theme-accent-color) !important; }
+    .theme-text-color { color: var(--theme-text-color) !important; }
+    
+    /* Apply theme to common elements */
+    .bg-gradient-primary {
+      background: linear-gradient(195deg, var(--theme-primary-color) 0%, var(--theme-primary-color) 100%) !important;
+    }
+    
+    /* Critical CSS - Inlined for instant above-the-fold rendering */
+    *,*::before,*::after{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%;line-height:1.15}
+    body{margin:0;font-family:"Roboto",Helvetica,Arial,sans-serif;font-size:1rem;font-weight:400;line-height:1.5;color:#7b809a;background-color:#f0f2f5;-webkit-font-smoothing:antialiased}
+    
+    /* Loading screen - Shows instantly while page loads */
+    .page-loader{
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      z-index:9999;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      transition:opacity .4s ease-out;
+      /* Never block clicks if, for any reason, it fails to hide */
+      pointer-events:none;
+    }
+    .page-loader.loaded{
+      opacity:0;
+      pointer-events:none;
+    }
+    .loader-content{text-align:center;color:#fff}
+    .loader-spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
+    .loader-text{font-size:1.1rem;font-weight:500;opacity:.9}
+    .loader-subtext{font-size:.875rem;opacity:.7;margin-top:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    
+    /* App Shell - Sidebar skeleton */
+    .sidenav{position:fixed;top:0;left:0;z-index:1035;width:15.625rem;height:100vh;background:linear-gradient(195deg,#42424a 0%,#191919 100%);transition:transform .2s}
+    .sidenav-header{padding:1.5rem 1rem}
+    .sidenav .navbar-brand-img{max-height:2rem}
+    .sidenav .nav-link{padding:.675rem 1rem;margin:.25rem 1rem;font-size:.875rem;color:#fff}
+    
+    /* Main content area */
+    .main-content{position:relative;margin-left:17.125rem;min-height:100vh;transition:margin .2s;z-index:1}
+    .g-sidenav-show .main-content{margin-left:17.125rem}
+    
+    /* Cards */
+    .card{position:relative;display:flex;flex-direction:column;min-width:0;word-wrap:break-word;background-color:#fff;border-radius:.75rem;box-shadow:0 4px 6px -1px rgba(0,0,0,.1)}
+    .card-header{padding:1rem 1.5rem;background:transparent;border-bottom:0}
+    .card-body{padding:1.5rem}
+    
+    /* Container */
+    .container-fluid{width:100%;padding-right:1.5rem;padding-left:1.5rem;margin-right:auto;margin-left:auto}
+    .py-4{padding-top:1.5rem!important;padding-bottom:1.5rem!important}
+    
+    /* Typography */
+    h6,.h6{font-size:.875rem;font-weight:600;color:#344767;margin-bottom:.5rem}
+    .text-white{color:#fff!important}
+    .font-weight-bolder{font-weight:700!important}
+    
+    /* Buttons */
+    .btn{display:inline-block;padding:.625rem 1.5rem;font-size:.875rem;font-weight:700;text-align:center;text-decoration:none;border-radius:.5rem;cursor:pointer;transition:all .15s;color:#fff}
+    .btn-primary{background-color:#007bff;border-color:#007bff}
+    .btn-success{background-color:#28a745;border-color:#28a745}
+    .btn-info{background-color:#17a2b8;border-color:#17a2b8}
+    .btn-warning{background-color:#ffc107;border-color:#ffc107;color:#212529}
+    .btn-danger{background-color:#dc3545;border-color:#dc3545}
+    .btn-secondary{background-color:#6c757d;border-color:#6c757d}
+    
+    /* Alert messages */
+    .alert{position:relative;padding:1rem 1.25rem;margin-bottom:1rem;border:1px solid transparent;border-radius:.375rem}
+    .alert-success{color:#0f5132;background-color:#d1e7dd;border-color:#badbcc}
+    .alert-danger{color:#842029;background-color:#f8d7da;border-color:#f5c2c7}
+    .alert-warning{color:#664d03;background-color:#fff3cd;border-color:#ffecb5}
+    .alert-info{color:#055160;background-color:#cff4fc;border-color:#b6effb}
+    .alert-dismissible .btn-close{position:absolute;top:0;right:0;z-index:2;padding:1.25rem 1rem;background:transparent;border:0}
+    
+    /* Grid system */
+    .row{display:flex;flex-wrap:wrap;margin-right:-.75rem;margin-left:-.75rem}
+    .col-md-4,.col-md-6,.col-lg-3,.col-lg-4,.col-lg-6,.col-xl-3{position:relative;width:100%;padding-right:.75rem;padding-left:.75rem}
+    @media(min-width:768px){.col-md-4{flex:0 0 33.333%;max-width:33.333%}.col-md-6{flex:0 0 50%;max-width:50%}}
+    @media(min-width:992px){.col-lg-3{flex:0 0 25%;max-width:25%}.col-lg-4{flex:0 0 33.333%;max-width:33.333%}.col-lg-6{flex:0 0 50%;max-width:50%}}
+    @media(min-width:1200px){.col-xl-3{flex:0 0 25%;max-width:25%}}
+    
+    /* Utilities */
+    .d-flex{display:flex!important}
+    .d-none{display:none!important}
+    .align-items-center{align-items:center!important}
+    .justify-content-center{justify-content:center!important}
+    .justify-content-between{justify-content:space-between!important}
+    .mb-0{margin-bottom:0!important}
+    .mb-3{margin-bottom:1rem!important}
+    .mb-4{margin-bottom:1.5rem!important}
+    .mt-3{margin-top:1rem!important}
+    .me-2{margin-right:.5rem!important}
+    .ms-1{margin-left:.25rem!important}
+    .ms-3{margin-left:1rem!important}
+    .p-3{padding:1rem!important}
+    .text-center{text-align:center!important}
+    .text-sm{font-size:.875rem!important}
+    .opacity-5{opacity:.5!important}
+    .opacity-10{opacity:1!important}
+    
+    /* Form elements */
+    .form-control{display:block;width:100%;padding:.5rem .75rem;font-size:1rem;line-height:1.5;color:#495057;background-color:#fff;border:1px solid #d2d6da;border-radius:.5rem}
+    
+    /* Tables */
+    .table{width:100%;margin-bottom:1rem;color:#7b809a;vertical-align:middle}
+    .table th,.table td{padding:.75rem 1rem;border-bottom:1px solid #e9ecef}
+    
+    /* Navbar */
+    .navbar{padding:.5rem 1rem;background:transparent}
+    .breadcrumb{display:flex;flex-wrap:wrap;padding:0;margin-bottom:0;list-style:none}
+    
+    /* Footer */
+    .footer{padding:1rem 0;color:#7b809a;font-size:.875rem}
+    /* Centered "Contact the developer" CTA – visible and attractive */
+    .footer-contact-cta-row{margin-bottom:.5rem}
+    .footer-contact-cta-row .col-12:empty{display:none}
+    .footer-contact-cta-row .col-12:not(:empty){display:flex;align-items:center;justify-content:center;min-height:2.5rem}
+    .btn-contact-developer{
+      display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+      padding:.6rem 1.5rem;font-size:1rem;font-weight:600;border:none;border-radius:50px;
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      color:#fff !important;text-decoration:none;cursor:pointer;
+      box-shadow:0 4px 15px rgba(102,126,234,.45);
+      transition:transform .2s ease,box-shadow .25s ease;
+    }
+    .btn-contact-developer:hover{
+      transform:translateY(-2px);
+      box-shadow:0 8px 25px rgba(102,126,234,.5);
+      color:#fff !important;
+    }
+    .btn-contact-developer:active{transform:translateY(0)}
+    .btn-contact-developer .fa-headset{font-size:1.1em}
+    
+    /* Icon base styles */
+    .material-icons{font-family:'Material Icons',sans-serif;font-weight:normal;font-style:normal;font-size:24px;display:inline-block;line-height:1;vertical-align:middle}
+    
+    /* Responsive sidebar: show by default for viewport >= 992px so it displays correctly in Cursor and normal browser */
+    @media(max-width:991.98px){.sidenav{transform:translateX(-100%)}.g-sidenav-show .sidenav{transform:translateX(0)}.main-content{margin-left:0}}
+    
+    /* Lazy load images - blur up technique */
+    img[data-src]{filter:blur(5px);transition:filter .3s}
+    img.loaded{filter:blur(0)}
+  </style>
+  
+  <!-- ==========================================================================
+       RESOURCE HINTS - Tell browser what to fetch early
+       ========================================================================== -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://code.jquery.com" crossorigin>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+  
+  <!-- ==========================================================================
+       NON-CRITICAL CSS - Loaded async to not block rendering
+       ========================================================================== -->
+  <!-- Fonts: load as stylesheet (no preload to avoid "preloaded but not used" warning) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" media="print" onload="this.media='all'">
+  <!-- Font Awesome - primary icon library (sync load for reliable display) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+  
+  <!-- Main CSS - Loaded with low priority -->
+  <link href="{% static 'css/nucleo-icons.css' %}" rel="stylesheet" media="print" onload="this.media='all'">
+  <link href="{% static 'css/nucleo-svg.css' %}" rel="stylesheet" media="print" onload="this.media='all'">
+  <link id="pagestyle" href="{% static 'css/material-dashboard.min.css' %}?v=3.0.0" rel="stylesheet" media="print" onload="this.media='all'">
+  
+  <!-- Fallback for browsers without JS -->
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="{% static 'css/nucleo-icons.css' %}" rel="stylesheet">
+    <link href="{% static 'css/nucleo-svg.css' %}" rel="stylesheet">
+    <link href="{% static 'css/material-dashboard.min.css' %}" rel="stylesheet">
+  </noscript>
+  
+  <style>
+    /* Button visibility fixes - Global */
+    .btn {
+        color: white !important;
+        font-weight: 500;
+    }
+    .btn-primary {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+    }
+    .btn-info {
+        background-color: #17a2b8 !important;
+        border-color: #17a2b8 !important;
+    }
+    .btn-success {
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+    }
+    .btn-warning {
+        background-color: #ffc107 !important;
+        border-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+    .btn-danger {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+    }
+    .btn-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+    }
+    .btn-outline-primary {
+        color: #007bff !important;
+        border-color: #007bff !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-secondary {
+        color: #6c757d !important;
+        border-color: #6c757d !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-success {
+        color: #28a745 !important;
+        border-color: #28a745 !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-danger {
+        color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        background-color: transparent !important;
+    }
+    
+    /* Additional button styles for missing variants */
+    .btn-outline-white {
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-white:hover {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+    
+    .btn-outline-info {
+        color: #17a2b8 !important;
+        border-color: #17a2b8 !important;
+        background-color: transparent !important;
+    }
+    
+    .btn-outline-warning {
+        color: #ffc107 !important;
+        border-color: #ffc107 !important;
+        background-color: transparent !important;
+    }
+    
+    .btn-outline-light {
+        color: #f8f9fa !important;
+        border-color: #f8f9fa !important;
+        background-color: transparent !important;
+    }
+    
+    .btn-outline-dark {
+        color: #343a40 !important;
+        border-color: #343a40 !important;
+        background-color: transparent !important;
+    }
+    
+    /* Fix for buttons with only 'btn' class */
+    .btn:not([class*="btn-"]) {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+    
+    /* Ensure all buttons have proper hover states */
+    .btn:hover {
+        opacity: 0.9;
+    }
+    
+    /* Fix for any custom button classes */
+    .btn-submit {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+    }
+    
+    .btn-action {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: white !important;
+    }
+    
+    /* Light button styling */
+    .btn-light {
+        background-color: #f8f9fa !important;
+        border-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+    .btn-light:hover {
+        background-color: #e2e6ea !important;
+        border-color: #dae0e5 !important;
+        color: #212529 !important;
+    }
+    
+    /* Link button styling */
+    .btn-link {
+        background-color: transparent !important;
+        border-color: transparent !important;
+        color: #007bff !important;
+        text-decoration: none !important;
+    }
+    .btn-link:hover {
+        background-color: transparent !important;
+        border-color: transparent !important;
+        color: #0056b3 !important;
+        text-decoration: underline !important;
+    }
+    
+    /* Additional button size and state styles */
+    .btn-sm {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.875rem !important;
+        border-radius: 0.2rem !important;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1.5rem !important;
+        font-size: 1.25rem !important;
+        border-radius: 0.3rem !important;
+    }
+    
+    /* Disabled button styling */
+    .btn:disabled,
+    .btn.disabled {
+        opacity: 0.65 !important;
+        pointer-events: none !important;
+    }
+    
+    /* Close button styling */
+    .btn-close {
+        background-color: transparent !important;
+        border: 0 !important;
+        color: #000 !important;
+        opacity: 0.5 !important;
+    }
+    .btn-close:hover {
+        opacity: 0.75 !important;
+    }
+    
+    /* Quick action button styling */
+    .quick-action-btn {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: white !important;
+        margin: 0.25rem !important;
+    }
+    
+    /* COMPLETE ICON FIX - Override all conflicting styles */
+    .material-icons {
+      font-family: 'Material Icons' !important;
+      font-weight: normal !important;
+      font-style: normal !important;
+      font-size: 24px !important;
+      line-height: 1 !important;
+      letter-spacing: normal !important;
+      text-transform: none !important;
+      display: inline-block !important;
+      white-space: nowrap !important;
+      word-wrap: normal !important;
+      direction: ltr !important;
+    }
+    
+    /* Font Awesome Icon Fixes */
+    .fas, .far, .fab, .fa {
+      font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 6 Brands' !important;
+      font-weight: 900 !important;
+      font-style: normal !important;
+      font-variant: normal !important;
+      text-rendering: auto !important;
+      -webkit-font-smoothing: antialiased !important;
+      -moz-osx-font-smoothing: grayscale !important;
+      display: inline-block !important;
+      speak: none !important;
+      font-feature-settings: normal !important;
+      font-variant-ligatures: normal !important;
+      text-transform: none !important;
+    }
+    
+    .far {
+      font-weight: 400 !important;
+    }
+    
+    .fab {
+      font-weight: 400 !important;
+    }
+    
+    /* Ensure Font Awesome icons are visible */
+    .fas::before, .far::before, .fab::before, .fa::before {
+      display: inline-block !important;
+      font-style: normal !important;
+      font-variant: normal !important;
+      text-rendering: auto !important;
+      -webkit-font-smoothing: antialiased !important;
+    }
+    
+    /* Material Icons fixes */
+    .material-icons {
+      -webkit-font-feature-settings: 'liga' !important;
+      -webkit-font-smoothing: antialiased !important;
+      text-rendering: optimizeLegibility !important;
+      -moz-osx-font-smoothing: grayscale !important;
+      font-feature-settings: 'liga' !important;
+      vertical-align: middle !important;
+      overflow: visible !important;
+      height: auto !important;
+      min-height: auto !important;
+      max-height: none !important;
+      width: auto !important;
+      min-width: auto !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      background: none !important;
+      box-shadow: none !important;
+      position: static !important;
+    }
+    
+    /* Sidebar icons specific sizing */
+    .sidenav .nav-link .material-icons,
+    .sidenav .nav-link .fas {
+      font-size: 16px !important;
+      margin-right: 8px !important;
+    }
+    
+    /* Navbar icons */
+    .navbar .material-icons,
+    .navbar .fas {
+      font-size: 18px !important;
+    }
+    
+    /* Button icons */
+    .btn .material-icons,
+    .btn .fas {
+      font-size: 16px !important;
+      vertical-align: middle !important;
+    }
+    
+    /* Card header icons */
+    .card-header .material-icons,
+    .card-header .fas {
+      font-size: 20px !important;
+    }
+    
+    /* Large icons */
+    .icon .material-icons {
+      font-size: 24px !important;
+    }
+    
+    /* Ensure icons work in all contexts */
+    .material-icons.text-xs { font-size: 12px !important; }
+    .material-icons.text-sm { font-size: 14px !important; }
+    .material-icons.text-lg { font-size: 20px !important; }
+    .material-icons.text-xl { font-size: 24px !important; }
+    
+    /* Fix any layout issues with icons */
+    .d-flex .material-icons {
+      align-self: center !important;
+    }
+    
+    /* Override any invoice template conflicts */
+    .invoice-creator .material-icons,
+    .invoice-preview .material-icons {
+      font-family: 'Material Icons' !important;
+      display: inline-block !important;
+      font-size: inherit !important;
+      line-height: inherit !important;
+      vertical-align: middle !important;
+    }
+  </style>
+  
+  <!-- Notification bell & dropdown - beautiful styling -->
+  <style>
+  .global-notification-bell {
+    position: relative;
+    width: 2.5rem; height: 2.5rem;
+    background: linear-gradient(135deg, rgba(var(--theme-primary-rgb, 25, 118, 210), 0.08) 0%, rgba(var(--theme-primary-rgb, 25, 118, 210), 0.04) 100%);
+    color: var(--theme-primary-color, #1976d2) !important;
+    transition: all 0.25s ease;
+    border: 1px solid rgba(var(--theme-primary-rgb, 25, 118, 210), 0.2);
+  }
+  .global-notification-bell:hover {
+    background: linear-gradient(135deg, rgba(var(--theme-primary-rgb, 25, 118, 210), 0.15) 0%, rgba(var(--theme-primary-rgb, 25, 118, 210), 0.08) 100%) !important;
+    color: var(--theme-primary-color, #1976d2) !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(var(--theme-primary-rgb, 25, 118, 210), 0.2);
+  }
+  .global-notif-badge { font-weight: 600; line-height: 1.2; white-space: nowrap; }
+  .global-notif-badge.global-notif-badge-zero { background-color: rgba(108, 117, 125, 0.9) !important; font-size: 0.55rem; }
+  .global-notif-badge.large-count { font-size: 0.5rem !important; padding: 0.15rem 0.35rem !important; }
+  .profile-nav-link { transition: opacity 0.2s; }
+  .profile-nav-link:hover { opacity: 0.85; }
+  .global-notification-dropdown .dropdown-item:hover { background-color: rgba(25, 118, 210, 0.06) !important; }
+  /* Keep notification dropdown above page content - critical for invoice and other pages */
+  .navbar-main,
+  .navbar-main .container-fluid,
+  .navbar-main .navbar-collapse,
+  .navbar-main .navbar-nav {
+    overflow: visible !important;
+  }
+  .navbar-main .nav-item.dropdown {
+    position: relative !important;
+    z-index: 99998 !important;
+  }
+  #navbarBlur,
+  .navbar-main {
+    position: relative;
+    z-index: 99997 !important;
+    overflow: visible !important;
+  }
+  /* Flex layout only when dropdown is open – do not override Bootstrap's display: none when closed */
+  .global-notification-dropdown {
+    /* Use fixed positioning to always stay above page content */
+    position: fixed !important;
+    top: 60px !important;
+    right: 0 !important;
+    z-index: 99999 !important;
+    overflow: visible !important;
+    max-width: 360px !important;
+  }
+  .global-notification-dropdown.show {
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: min(420px, 70vh) !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+  
+  /* Mobile responsive - fully responsive notification dropdown */
+  @media (max-width: 1024px) {
+    .global-notification-dropdown {
+      width: calc(100vw - 2rem) !important;
+      max-width: calc(100vw - 2rem) !important;
+      max-height: 65vh !important;
+      right: 1rem !important;
+    }
+  }
+  
+  /* Tablets (768px and below) */
+  @media (max-width: 767.98px) {
+    .global-notification-dropdown {
+      width: calc(100vw - 1rem) !important;
+      max-width: calc(100vw - 1rem) !important;
+      max-height: 70vh !important;
+      right: 0.5rem !important;
+      left: 0.5rem !important;
+      top: 50px !important;
+      overflow: visible !important;
+    }
+    .global-notification-dropdown.show {
+      overflow: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      overscroll-behavior: contain !important;
+    }
+    #globalNotificationList {
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+      overflow-x: auto !important;
+      overflow-y: auto !important;
+    }
+    /* Header: stack title and buttons vertically if needed */
+    .global-notification-dropdown .d-flex.align-items-center.justify-content-between.px-3.py-2 h6 {
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+    }
+    /* Smaller buttons on tablet */
+    .global-notification-dropdown .d-flex.gap-1 .btn {
+      padding: 0.2rem 0.4rem;
+      font-size: 0.7rem;
+    }
+    /* Navbar notification bell - ensure it doesn't overflow */
+    .nav-item.dropdown.me-2.me-lg-1 {
+      margin-right: 0.5rem !important;
+    }
+  }
+  
+  /* Large phones (576px and below) */
+  @media (max-width: 575.98px) {
+    .global-notification-dropdown {
+      width: calc(100vw - 1rem) !important;
+      max-width: calc(100vw - 1rem) !important;
+      max-height: 75vh !important;
+      right: 0.5rem !important;
+      left: 0.5rem !important;
+      top: 50px !important;
+      position: fixed !important;
+    }
+    .global-notification-dropdown.show {
+      overflow: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    /* Enable horizontal scroll for notification items */
+    #globalNotificationList {
+      overflow-x: auto !important;
+      overflow-y: auto !important;
+      white-space: nowrap !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    .global-notification-dropdown .dropdown-item {
+      white-space: normal !important;
+      overflow-x: visible !important;
+      min-width: calc(100vw - 2rem) !important;
+    }
+    /* Header adjustments */
+    .global-notification-dropdown .d-flex.align-items-center.justify-content-between.px-3.py-2 {
+      padding: 0.75rem !important;
+      flex-wrap: wrap !important;
+    }
+    .global-notification-dropdown .d-flex.gap-1 .btn {
+      padding: 0.15rem 0.35rem;
+      font-size: 0.65rem;
+    }
+    /* Footer adjustments */
+    .global-notification-dropdown .border-top {
+      padding: 0.75rem !important;
+      flex-wrap: wrap !important;
+    }
+    .global-notification-dropdown .border-top .btn {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+    /* Item text adjustments */
+    .global-notification-dropdown .dropdown-item {
+      padding: 0.75rem !important;
+      font-size: 0.875rem;
+    }
+    /* Bell icon adjustments */
+    .global-notification-bell {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+  }
+  
+  /* Extra small: very narrow phones (400px and below) */
+  @media (max-width: 400px) {
+    .global-notification-dropdown {
+      width: calc(100vw - 0.5rem) !important;
+      max-width: calc(100vw - 0.5rem) !important;
+      max-height: 80vh !important;
+      right: 0.25rem !important;
+      left: 0.25rem !important;
+      top: 45px !important;
+    }
+    /* Stack header elements */
+    .global-notification-dropdown .d-flex.align-items-center.justify-content-between.px-3.py-2 {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 0.5rem !important;
+    }
+    .global-notification-dropdown .d-flex.gap-1 {
+      width: 100%;
+      justify-content: flex-start;
+    }
+    /* Footer: stack elements */
+    .global-notification-dropdown .border-top {
+      flex-direction: column !important;
+      gap: 0.5rem !important;
+      align-items: flex-start !important;
+    }
+    .global-notification-dropdown .border-top .btn {
+      width: 100%;
+      text-align: center;
+    }
+  }
+  
+  /* Ultra small: iPhone SE / very old phones (320px) */
+  @media (max-width: 320px) {
+    .global-notification-dropdown {
+      width: calc(100vw - 0.25rem) !important;
+      max-width: calc(100vw - 0.25rem) !important;
+      max-height: 85vh !important;
+      right: 0.125rem !important;
+      left: 0.125rem !important;
+      top: 40px !important;
+    }
+    .global-notification-dropdown .dropdown-item {
+      padding: 0.5rem !important;
+      font-size: 0.8rem;
+    }
+    /* Hide some non-essential elements on very small screens */
+    .global-notification-bell {
+      width: 2rem;
+      height: 2rem;
+    }
+  }
+  
+  /* Smaller button variant for tight spaces */
+  .btn-smaller {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+  
+  /* Sound toggle button */
+  .sound-toggle-btn {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--theme-primary-color, #6c757d) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+  }
+  .sound-toggle-btn:hover {
+    background: rgba(var(--theme-primary-rgb, 25, 118, 210), 0.1);
+    border-color: var(--theme-primary-color, #1976d2);
+    color: var(--theme-primary-color, #1976d2) !important;
+  }
+  .sound-toggle-btn.enabled {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+    color: #28a745 !important;
+  }
+  .sound-toggle-btn.enabled:hover {
+    background: rgba(40, 167, 69, 0.2);
+  }
+  .sound-toggle-btn i {
+    font-size: 14px;
+  }
+  
+  /* Text truncation helpers */
+  .text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  </style>
+  
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body class="g-sidenav-show bg-gray-200" 
+      data-currency-symbol="{{ user_currency_symbol|default:'$' }}" 
+      data-currency-code="{{ user_currency_code|default:'USD' }}">
+  
+  <!-- ==========================================================================
+       LOADING SCREEN - Shows instantly while page loads (critical for slow connections)
+       ========================================================================== -->
+  <div class="page-loader" id="pageLoader">
+    <div class="loader-content">
+      <div class="loader-spinner"></div>
+      <div class="loader-text">Loading...</div>
+      <div class="loader-subtext">Please wait a moment</div>
+    </div>
+  </div>
+  
+  <!-- Sidebar -->
+  <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark" id="sidenav-main">
+    <div class="sidenav-header">
+      <i class="fas fa-times p-3 cursor-pointer text-white opacity-5 position-absolute end-0 top-0 d-none d-xl-none" aria-hidden="true" id="iconSidenav"></i>
+      <a class="navbar-brand m-0" href="{% url 'core:dashboard' %}">
+        {% if company_logo %}
+          <img src="{{ company_logo }}" class="navbar-brand-img h-100" alt="logo">
+        {% else %}
+          <img src="{% static 'img/logo-ct.png' %}" class="navbar-brand-img h-100" alt="logo">
+        {% endif %}
+        <span class="ms-1 font-weight-bold text-white">
+          {% if company_profile.company_name %}{{ company_profile.company_name }}{% else %}Business App{% endif %}
+        </span>
+      </a>
+    </div>
+    <hr class="horizontal light mt-0 mb-2">
+    
+    <div class="collapse navbar-collapse w-auto max-height-vh-100" id="sidenav-collapse-main">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.view_name == 'core:dashboard' %}active bg-gradient-primary{% endif %}" href="{% url 'core:dashboard' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-tachometer-alt opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Dashboard</span>
+          </a>
+        </li>
+        
+        {% if account_has_full_access and perms.invoices.view_invoice %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and 'invoices' in request.resolver_match.namespace|default:'' and 'template' not in request.resolver_match.view_name|default:'' %}active bg-gradient-primary{% endif %}" href="{% url 'invoices:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-file-invoice opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Invoices</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.invoices.view_invoicetemplate %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and 'template' in request.resolver_match.view_name|default:'' %}active bg-gradient-primary{% endif %}" href="{% url 'invoices:template_list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-palette opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Invoice Templates</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.receipts.view_receipt %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'receipts' %}active bg-gradient-primary{% endif %}" href="{% url 'receipts:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-receipt opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Receipts</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.requisitions.view_requisition %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'requisitions' %}active bg-gradient-primary{% endif %}" href="{% url 'requisitions:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-clipboard-list opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Requisitions</span>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if account_has_full_access and perms.staff_offences.view_staffoffenceregister %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'staff_offences' %}active bg-gradient-primary{% endif %}" href="{% url 'staff_offences:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-exclamation-triangle opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Staff Offences</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.waybills.view_waybill %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'waybills' %}active bg-gradient-primary{% endif %}" href="{% url 'waybills:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-truck opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Waybills</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access %}
+        {% if perms.job_orders.view_product or perms.job_orders.view_order %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'job_orders' %}active bg-gradient-primary{% endif %}" href="{% url 'job_orders:products' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-briefcase opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Job Orders</span>
+          </a>
+        </li>
+        {% endif %}
+        {% endif %}
+        
+        {% if account_has_full_access and perms.job_orders.view_jobordertemplate %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'job_orders' and request.resolver_match.url_name == 'layout_list' %}active bg-gradient-primary{% endif %}" href="{% url 'job_orders:layout_list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-table opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Job Order Layouts</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.quotations.view_quotation %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'quotations' %}active bg-gradient-primary{% endif %}" href="{% url 'quotations:quotation_list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-file-invoice-dollar opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Quotations</span>
+          </a>
+        </li>
+        {% endif %}
+        {% if account_has_full_access and perms.inventory.view_inventory %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'inventory' and request.resolver_match.url_name == 'list' %}active bg-gradient-primary{% endif %}" href="{% url 'inventory:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-boxes opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Inventory</span>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if account_has_full_access and perms.store.view_store %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'store' and request.resolver_match.url_name == 'list' %}active bg-gradient-primary{% endif %}" href="{% url 'store:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-store opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Store</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.expense.view_expense %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'expense' %}active bg-gradient-primary{% endif %}" href="{% url 'expense:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-money-bill-wave opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Expense</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.clients.view_client %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'clients' %}active bg-gradient-primary{% endif %}" href="{% url 'clients:client_list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-users opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Clients</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.accounting.view_transaction %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'accounting' %}active bg-gradient-primary{% endif %}" href="{% url 'accounting:dashboard' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-chart-bar opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Accounting</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.messaging.view_conversation %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'messaging' %}active bg-gradient-primary{% endif %}" href="{% url 'messaging:inbox' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-comments opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Messaging</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.mailing.use_bulk_mailing %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'mailing' %}active bg-gradient-primary{% endif %}" href="{% url 'mailing:bulk_send' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-paper-plane opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Bulk Mailing</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.payroll.view_payroll or perms.payroll.run_payroll or perms.payroll.approve_payroll %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'payroll' %}active bg-gradient-primary{% endif %}" href="{% url 'payroll:dashboard' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-money-check-alt opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Payroll</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.hr_staff.view_hr_dashboard or perms.hr_staff.view_own_hr_dashboard %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'hr_staff' %}active bg-gradient-primary{% endif %}" href="{% if perms.hr_staff.view_hr_dashboard %}{% url 'hr_staff:dashboard' %}{% else %}{% url 'hr_staff:employee_portal_dashboard' %}{% endif %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-user-tie opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">HR & Staff</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if perms.videocalls.view_videocallroom %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.url_name == 'lobby' %}active bg-gradient-primary{% endif %}" href="{% url 'videocalls:lobby' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-users opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Video Calls</span>
+          </a>
+        </li>
+        {% endif %}
+        {% if perms.videocalls.view_callrecording %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.url_name == 'local_recordings' %}active bg-gradient-primary{% endif %}" href="{% url 'videocalls:local_recordings' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-folder-open opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">My Recordings</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if account_has_full_access and perms.smart_attendance.view_attendance_dashboard %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'smart_attendance' and request.resolver_match.url_name == 'dashboard' %}active bg-gradient-primary{% endif %}" href="{% url 'smart_attendance:dashboard' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-user-check opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Attendance</span>
+          </a>
+        </li>
+        {% if account_has_full_access and perms.smart_attendance.view_biometricdevice %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'smart_attendance' and request.resolver_match.url_name == 'devices' or request.resolver_match and request.resolver_match.app_name == 'smart_attendance' and request.resolver_match.url_name == 'register_device' or request.resolver_match and request.resolver_match.app_name == 'smart_attendance' and request.resolver_match.url_name == 'device_detail' %}active bg-gradient-primary{% endif %}" href="{% url 'smart_attendance:devices' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-fingerprint opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Devices</span>
+          </a>
+        </li>
+        {% endif %}
+        {% endif %}
+        
+        {% if account_has_full_access and perms.documents.view_document %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'documents' %}active bg-gradient-primary{% endif %}" href="{% url 'documents:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-file-invoice opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Documents (Tax)</span>
+          </a>
+        </li>
+        {% endif %}
+        {% if account_has_full_access and perms.documents.view_tax_report %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'reports' %}active bg-gradient-primary{% endif %}" href="{% url 'reports:tax_dashboard' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-calculator opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Tax Reports</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        <li class="nav-item mt-3">
+          <h6 class="ps-4 ms-2 text-uppercase text-xs text-white font-weight-bolder opacity-8">Account</h6>
+        </li>
+        
+        {% if account_has_full_access and perms.notifications.view_notification %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'notifications' %}active bg-gradient-primary{% endif %}" href="{% url 'notifications:list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-bell opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Notifications</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        <li class="nav-item">
+          <a class="nav-link text-white {% if request.resolver_match and request.resolver_match.app_name == 'accounts' and request.resolver_match.url_name == 'profile' %}active bg-gradient-primary{% endif %}" href="{% url 'accounts:profile' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-user opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">My Profile</span>
+          </a>
+        </li>
+        
+        {% if account_has_full_access and perms.accounts.view_useractivity %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if 'security' in request.path %}active bg-gradient-primary{% endif %}" href="{% url 'accounts:security_dashboard' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-shield-alt opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Security</span>
+          </a>
+        </li>
+        {% endif %}
+        {% if account_has_full_access and perms.accounts.view_subuser %}
+        <li class="nav-item">
+          <a class="nav-link text-white {% if 'subuser' in request.path %}active bg-gradient-primary{% endif %}" href="{% url 'accounts:subuser_list' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-user-plus opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Team Members</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        {% if user_can_access_company_profile %}
+        <li class="nav-item">
+          <a class="nav-link text-white" href="{% url 'core:company_profile' %}">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-building opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Company Profile</span>
+          </a>
+        </li>
+        {% endif %}
+        
+        <li class="nav-item">
+          <a class="nav-link text-white" href="{% url 'accounts:logout' %}" id="logoutLink">
+            <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fas fa-sign-out-alt opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Sign Out</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </aside>
+  
+  <!-- Main Content -->
+  <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg ">
+    <!-- Navbar -->
+    <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl" id="navbarBlur" data-scroll="true">
+      <div class="container-fluid py-1 px-3">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
+            <li class="breadcrumb-item text-sm"><a class="opacity-5 text-dark" href="{% url 'core:dashboard' %}">Pages</a></li>
+            <li class="breadcrumb-item text-sm text-dark active" aria-current="page">{% block breadcrumb %}Dashboard{% endblock %}</li>
+          </ol>
+          <h6 class="font-weight-bolder mb-0">{% block page_title %}Dashboard{% endblock %}</h6>
+        </nav>
+        <div class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4" id="navbar">
+          <div class="ms-md-auto pe-md-3 d-flex align-items-center">
+          </div>
+          <ul class="navbar-nav  justify-content-end align-items-center">
+            {% if request.user.is_authenticated %}
+            <li class="nav-item me-3 d-flex align-items-center">
+              <span id="connection-status-icon"
+                    class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                    style="width:18px;height:18px;background-color:#28a745;"
+                    title="Online – Changes sync automatically.">
+              </span>
+            </li>
+            <li class="nav-item dropdown position-relative me-2 me-lg-1">
+              <a class="nav-link global-notification-bell d-flex align-items-center justify-content-center rounded-circle" href="javascript:void(0)" role="button" id="globalNotificationDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifications">
+                <i class="fas fa-bell"></i>
+                <span class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger global-notif-badge" id="globalNotificationBadge" style="font-size:0.6rem;min-width:1.1rem;" title="Unread notifications">0</span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 p-0 global-notification-dropdown" aria-labelledby="globalNotificationDropdown">
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light flex-shrink-0 gap-2">
+                  <h6 class="mb-0 fw-bold text-truncate">Notifications</h6>
+                  <div class="d-flex gap-1 flex-shrink-0 align-items-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-smaller" id="globalNotifMarkAllRead" title="Mark all read">✓ Read</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-smaller" id="globalNotifClearAll" title="Clear all">Clear</button>
+                    <button type="button" class="btn-close btn-sm" id="globalNotifClose" aria-label="Close"></button>
+                  </div>
+                </div>
+                <div class="overflow-auto" id="globalNotificationList" tabindex="0">
+                  <div class="text-center text-muted py-4">
+                    <p class="mb-0 small">Loading…</p>
+                  </div>
+                </div>
+                <div class="border-top px-3 py-2 bg-light d-flex justify-content-between align-items-center flex-shrink-0 flex-wrap gap-2">
+                  <span class="small text-muted text-truncate" id="globalNotifSummary" style="min-width:0;max-width:50%;">0 unread</span>
+                  <a href="{% url 'notifications:list' %}" class="btn btn-sm btn-primary flex-shrink-0 btn-smaller">View more</a>
+                </div>
+              </div>
+            </li>
+            <!-- Sound Toggle Button -->
+            <li class="nav-item d-flex align-items-center ms-1">
+              <button type="button" class="btn btn-sm sound-toggle-btn" id="soundToggleBtn" title="Toggle notification sounds" onclick="toggleNotificationSound()">
+                <i class="fas fa-volume-up" id="soundToggleIcon"></i>
+              </button>
+            </li>
+            {% endif %}
+            <li class="nav-item d-flex align-items-center ms-2">
+              <a href="{% url 'accounts:profile' %}" class="nav-link text-body font-weight-bold px-2 d-flex align-items-center profile-nav-link">
+                <i class="fa fa-user me-sm-1"></i>
+                <span class="d-sm-inline d-none">{% if current_sub_user %}{{ current_sub_user.full_name }} <small class="text-muted">(team)</small>{% elif request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.email }}{% else %}Guest User{% endif %}</span>
+              </a>
+            </li>
+            <li class="nav-item d-xl-none ps-3 d-flex align-items-center">
+              <a href="javascript:;" class="nav-link text-body p-0" id="iconNavbarSidenav">
+                <div class="sidenav-toggler-inner">
+                  <i class="sidenav-toggler-line"></i>
+                  <i class="sidenav-toggler-line"></i>
+                  <i class="sidenav-toggler-line"></i>
+                </div>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Connection status icon: navigator.onLine + periodic server ping for real connectivity -->
+    <script>
+    (function() {
+      var PING_URL = '{% url "core:api_ping" %}';
+      var PING_TIMEOUT_MS = 5000;
+      var PING_INTERVAL_MS = 30000;
+      var icon = null;
+      var pingTimer = null;
+
+      function setIconFromResult(online) {
+        var el = icon || document.getElementById('connection-status-icon');
+        if (!el) return;
+        el.style.backgroundColor = online ? '#28a745' : '#dc3545';
+        el.setAttribute('title', online ? 'Online – Changes sync automatically.' : 'Offline – Changes will sync automatically when you reconnect.');
+      }
+
+      function checkServerReachability() {
+        return new Promise(function(resolve) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            resolve(false);
+            return;
+          }
+          var timeoutId = setTimeout(function() {
+            resolve(false);
+          }, PING_TIMEOUT_MS);
+          fetch(PING_URL, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) {
+              clearTimeout(timeoutId);
+              if (!r.ok) { resolve(false); return; }
+              r.json().then(function(data) { resolve(data && data.ok === true); }, function() { resolve(false); });
+            })
+            .catch(function() {
+              clearTimeout(timeoutId);
+              resolve(false);
+            });
+        });
+      }
+
+      function updateConnectionIconFromServer() {
+        checkServerReachability().then(function(reachable) {
+          setIconFromResult(reachable);
+        });
+      }
+
+      function updateConnectionIcon() {
+        icon = document.getElementById('connection-status-icon');
+        if (!icon) return;
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setIconFromResult(false);
+          return;
+        }
+        updateConnectionIconFromServer();
+      }
+
+      function schedulePeriodicPing() {
+        if (pingTimer) clearInterval(pingTimer);
+        pingTimer = setInterval(function() {
+          if (document.visibilityState !== 'visible') return;
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setIconFromResult(false);
+            return;
+          }
+          updateConnectionIconFromServer();
+        }, PING_INTERVAL_MS);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          updateConnectionIcon();
+          schedulePeriodicPing();
+        });
+      } else {
+        updateConnectionIcon();
+        schedulePeriodicPing();
+      }
+      window.addEventListener('online', updateConnectionIcon);
+      window.addEventListener('offline', function() {
+        setIconFromResult(false);
+      });
+    })();
+    </script>
+    
+    <!-- Content -->
+    <div class="container-fluid py-4">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      <div id="offline-unsynced-banner" class="alert alert-info alert-dismissible fade show mb-3" role="alert" style="display: none;">
+        <span id="offline-unsynced-text"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      <!-- Connection status banner - shows online/offline status -->
+      <div id="connection-status-banner" class="alert alert-success d-flex align-items-center justify-content-between py-2 px-3 mb-3" style="display: none;">
+        <span id="connection-status-text">Online – Changes sync automatically.</span>
+        <span id="connection-status-dot" class="d-inline-block rounded-circle" style="width: 12px; height: 12px; background-color: #28a745;"></span>
+      </div>
+      {% block content %}{% endblock %}
+      
+      <!-- Footer -->
+      <footer class="footer py-4">
+        <div class="container-fluid">
+          <div class="row justify-content-center text-center footer-contact-cta-row">
+            <div class="col-12">
+              {% block footer_extra %}{% endblock %}
+            </div>
+          </div>
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <script>document.write(new Date().getFullYear())</script> Multi-Purpose Business App | Developed by <a href="https://nazarng.com/steve.html" target="_blank" class="text-decoration-none">Steve Ubangha</a>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <ul class="nav nav-footer justify-content-center justify-content-lg-end">
+                <li class="nav-item">
+                  <a href="#" class="nav-link text-muted">About Us</a>
+                </li>
+                <li class="nav-item">
+                  <a href="#" class="nav-link text-muted">Blog</a>
+                </li>
+                <li class="nav-item">
+                  <a href="#" class="nav-link text-muted">License</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </main>
+  
+  <!-- ==========================================================================
+       OPTIMIZED JAVASCRIPT LOADING
+       - Core scripts loaded with defer for non-blocking
+       - Service Worker for offline support
+       - Lazy loading for images
+       ========================================================================== -->
+  
+  <!-- Hide loading screen as soon as DOM is ready (super fast: 0ms delay for Inventory, Expense, HR & all apps) -->
+  <script>
+    (function() {
+      function hideLoader() {
+        var loader = document.getElementById('pageLoader');
+        if (loader) {
+          loader.classList.add('loaded');
+          setTimeout(function() { loader.remove(); }, 400);
+        }
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hideLoader);
+      } else {
+        hideLoader();
+      }
+    })();
+  </script>
+  
+  <!-- Bootstrap JS - Load without defer to ensure components work immediately -->
+  <script src="{% static 'js/core/popper.min.js' %}"></script>
+  <script src="{% static 'js/core/bootstrap.min.js' %}"></script>
+  
+  <!-- Core JS Files -->
+  <!-- jQuery deferred for faster DOMContentLoaded (inventory opens in split second) -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+  <script src="{% static 'js/plugins/perfect-scrollbar.min.js' %}" defer></script>
+  <script src="{% static 'js/plugins/smooth-scrollbar.min.js' %}" defer></script>
+  <script src="{% static 'js/material-dashboard.js' %}?v=3.0.1" defer></script>
+  
+  <!-- Currency Utilities -->
+  <script src="{% static 'js/currency-utils.js' %}" defer></script>
+  <!-- Offline-first sync: IndexedDB + wrap AJAX + auto sync when online -->
+  <script src="{% static 'js/offline-sync.js' %}" defer></script>
+  <!-- Unified offline sync engine wrapper (scheduling, queues, connection banner) -->
+  <script src="{% static 'js/unified-sync.js' %}" defer></script>
+  
+  <!-- Initialize on DOMContentLoaded (runs after deferred scripts) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize currency from Django context
+      var currencySymbol = '{{ user_currency_symbol|default:"$" }}';
+      var currencyCode = '{{ user_currency_code|default:"USD" }}';
+      
+      // Store in localStorage for immediate access on next visit
+      try {
+        localStorage.setItem('user_currency_symbol', currencySymbol);
+        localStorage.setItem('user_currency_code', currencyCode);
+        localStorage.setItem('app_currency', JSON.stringify({
+          symbol: currencySymbol,
+          code: currencyCode
+        }));
+      } catch(e) {}
+      
+      // Update currency manager if it exists
+      if (window.currencyManager) {
+        window.currencyManager.currentCurrency = {
+          symbol: currencySymbol,
+          code: currencyCode
+        };
+      }
+      
+      // Lazy load images for faster page load
+      var lazyImages = document.querySelectorAll('img[data-src]');
+      if ('IntersectionObserver' in window) {
+        var imageObserver = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              var img = entry.target;
+              img.src = img.dataset.src;
+              img.classList.add('loaded');
+              imageObserver.unobserve(img);
+            }
+          });
+        }, { rootMargin: '50px' });
+        
+        lazyImages.forEach(function(img) {
+          imageObserver.observe(img);
+        });
+      } else {
+        // Fallback for older browsers
+        lazyImages.forEach(function(img) {
+          img.src = img.dataset.src;
+          img.classList.add('loaded');
+        });
+      }
+    });
+  </script>
+
+  <!-- Global Notification Dropdown (Ajax real-time) -->
+  {% if request.user.is_authenticated %}
+  <script>
+  (function() {
+    var API = "{% url 'notifications:api_list' %}".replace(/\/$/, '');
+    var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    function getCookie(n) {
+      var v = document.cookie.match('(?:^|;)\\s*' + n.replace(/[\\.*+?^${}()|[\]\\\\]/g, '\\\\$&') + '\\s*=\\s*([^;]*)');
+      return v ? decodeURIComponent(v[1]) : '';
+    }
+    var token = csrf || getCookie('csrftoken');
+    function fetchOpts(m) {
+      var o={method:m||'GET',credentials:'same-origin',cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}};
+      if(token&&m!=='GET')o.headers['X-CSRFToken']=token;
+      return o;
+    }
+    function apiUrl(path, bust) { return API + path + (bust ? '?_=' + Date.now() : ''); }
+    var pollTimer = null;
+    var badgeTimer = null;
+    var POLL_MS = 1500;   /* Split-second real-time: poll every 1.5s when dropdown open */
+    var BADGE_POLL_MS = 3000;  /* Badge count updates every 3s without page reload */
+    // Track last unread count globally so we only play sounds for new notifications
+    if (typeof window.__lastUnreadCount === 'undefined') {
+      window.__lastUnreadCount = null;
+    }
+
+    function refreshBadgeOnly() {
+      fetch(apiUrl('/badge/', true), fetchOpts('GET')).then(function(r){return r.ok?r.json():null;}).then(function(d){ if(d&&typeof d.unread_count==='number') updateBadge(d.unread_count); }).catch(function(){});
+    }
+
+    function renderNotif(n) {
+      var url = n.action_url ? ' href="' + n.action_url + '"' : ' href="#"';
+      var cls = 'dropdown-item d-flex align-items-start py-3 border-bottom notif-clickable' + (n.is_read ? '' : ' bg-light');
+      var avatar = n.actor_avatar ? '<img src="' + n.actor_avatar + '" class="rounded-circle me-2 flex-shrink-0" width="36" height="36" alt="">' : '<div class="rounded-circle bg-secondary me-2 flex-shrink-0 d-flex align-items-center justify-content-center text-white" style="width:36px;height:36px;font-size:0.85rem">' + (n.actor_name ? n.actor_name.charAt(0) : '?') + '</div>';
+      var dataId = n.id ? ' data-notif-id="' + n.id + '"' : '';
+      var actorLabel = 'By ';
+      if (n.actor_display && n.title) {
+        var t = (n.title||'').toLowerCase();
+        if (t.indexOf('approved')>=0) actorLabel = 'Approved by ';
+        else if (t.indexOf('rejected')>=0) actorLabel = 'Rejected by ';
+      }
+      var byLine = n.actor_display ? actorLabel + (n.actor_display||'').replace(/</g,'&lt;') + ' · ' : '';
+      var meta = byLine + (n.date_display||'') + (n.time_display ? ' at ' + n.time_display : '');
+      return '<a class="' + cls + ' text-decoration-none text-dark position-relative"' + url + dataId + '><div class="d-flex w-100">' + avatar + '<div class="flex-grow-1 min-w-0"><span class="fw-semibold d-block">' + (n.title||'').replace(/</g,'&lt;') + '</span><span class="small text-muted d-block">' + (n.message||'').replace(/</g,'&lt;') + '</span><span class="small text-muted d-block mt-1">' + (n.source_app_display||n.source_app) + ' · ' + meta + '</span></div></div></a>';
+    }
+
+    function updateBadge(count) {
+      var b = document.getElementById('globalNotificationBadge');
+      if (!b) return;
+      var n = typeof count === 'number' ? count : 0;
+      if (n > 999) {
+        b.textContent = '999+';
+        b.classList.add('large-count');
+      } else {
+        b.textContent = String(n);
+        b.classList.remove('large-count');
+      }
+      b.style.display = 'inline';
+      if (n === 0) {
+        b.classList.add('global-notif-badge-zero');
+        b.setAttribute('aria-label', '0 unread notifications');
+      } else {
+        b.classList.remove('global-notif-badge-zero');
+        b.setAttribute('aria-label', n + ' unread notification' + (n === 1 ? '' : 's'));
+      }
+      if (n > 99) {
+        b.style.fontSize = '0.5rem';
+        b.style.minWidth = '1.4rem';
+      } else {
+        b.style.fontSize = '0.6rem';
+        b.style.minWidth = '1.1rem';
+      }
+      // Play a sound only when the unread count increases (new notifications)
+      var prev = typeof window.__lastUnreadCount === 'number' ? window.__lastUnreadCount : null;
+      window.__lastUnreadCount = n;
+      if (prev !== null && n > prev && typeof window.playNotificationSound === 'function') {
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          try { window.playNotificationSound(); } catch (e) {}
+        }
+      }
+    }
+
+    function setEmptyNotifications(message, updateBadgeToZero) {
+      var list = document.getElementById('globalNotificationList');
+      var summary = document.getElementById('globalNotifSummary');
+      if (list) {
+        list.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0 small">' + (message || 'No notifications.') + '</p></div>';
+      }
+      if (summary) summary.textContent = '0 unread';
+      if (updateBadgeToZero !== false) updateBadge(0);
+    }
+
+    var initialLoaded = false;
+
+    function loadNotifications() {
+      var list = document.getElementById('globalNotificationList');
+      var summary = document.getElementById('globalNotifSummary');
+      if (!initialLoaded) {
+        if (summary) summary.textContent = '…';
+        if (list) list.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0 small">Loading…</p></div>';
+      }
+      fetch(apiUrl('/', true), fetchOpts('GET'))
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){
+          if(!d) {
+            if (list) list.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0 small">Failed to load notifications.</p></div>';
+            if (summary) summary.textContent = '0 unread';
+            refreshBadgeOnly();
+            return;
+          }
+          if(list) {
+            if (d.notifications && d.notifications.length) {
+              list.innerHTML = d.notifications.map(renderNotif).join('');
+              list.querySelectorAll('a.notif-clickable[data-notif-id]').forEach(function(a){
+                a.addEventListener('click', function(ev){
+                  if(a.href && a.href!=='#' && !a.href.endsWith('#')) {
+                    var id = a.getAttribute('data-notif-id');
+                    if (id) {
+                      var url = API + '/' + id + '/mark-read/';
+                      if (typeof navigator !== 'undefined' && !navigator.onLine && window.OfflineSync && typeof window.OfflineSync.queuePendingNotification === 'function') {
+                        window.OfflineSync.queuePendingNotification(url, 'POST', null).catch(function () {});
+                      } else {
+                        fetch(url, fetchOpts('POST'));
+                      }
+                    }
+                  }
+                });
+              });
+            } else {
+              list.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0 small">You have no notifications.</p></div>';
+            }
+          }
+          var unread = typeof d.unread_count === 'number' ? d.unread_count : 0;
+          if(summary) summary.textContent = unread + ' unread';
+          updateBadge(unread);
+          initialLoaded = true;
+        })
+        .catch(function(){
+          if (list) list.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0 small">Failed to load notifications.</p></div>';
+          if (summary) summary.textContent = '0 unread';
+          refreshBadgeOnly();
+        });
+    }
+
+    var listEl = document.getElementById('globalNotificationList');
+    if (listEl) {
+      listEl.addEventListener('wheel', function(e) {
+        var canScrollV = listEl.scrollHeight > listEl.clientHeight;
+        var canScrollH = listEl.scrollWidth > listEl.clientWidth;
+        var consumed = false;
+        if (canScrollV && e.deltaY !== 0) {
+          var atTop = listEl.scrollTop <= 0;
+          var atBottom = listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight;
+          if ((e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom)) {
+            listEl.scrollTop += e.deltaY;
+            consumed = true;
+          }
+        }
+        if (canScrollH && (e.deltaX !== 0 || (e.shiftKey && e.deltaY !== 0))) {
+          var dx = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+          var atLeft = listEl.scrollLeft <= 0;
+          var atRight = listEl.scrollLeft + listEl.clientWidth >= listEl.scrollWidth;
+          if ((dx < 0 && !atLeft) || (dx > 0 && !atRight)) {
+            listEl.scrollLeft += dx;
+            consumed = true;
+          }
+        }
+        if (consumed) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, { passive: false });
+    }
+
+    var dd = document.getElementById('globalNotificationDropdown');
+    var dropdownEl = dd ? dd.closest('.dropdown') : null;
+    
+    // Remove Bootstrap's data-bs-toggle to prevent conflict with our handler
+    dd && dd.removeAttribute('data-bs-toggle');
+    
+    // Fallback click handler - ensures dropdown works without Bootstrap conflicts
+    if (dd) {
+      dd.addEventListener('click', function(e) {
+        e.preventDefault();
+        var menu = this.nextElementSibling;
+        if (menu && menu.classList.contains('dropdown-menu')) {
+          var isShown = menu.classList.contains('show');
+          // Close all other dropdowns first
+          document.querySelectorAll('.dropdown-menu.show').forEach(function(m) {
+            if (m !== menu) m.classList.remove('show');
+          });
+          // Toggle this dropdown
+          menu.classList.toggle('show', !isShown);
+          menu.style.display = isShown ? '' : 'flex';
+          this.setAttribute('aria-expanded', String(!isShown));
+          // Load notifications when opening
+          if (!isShown && typeof loadNotifications === 'function') {
+            loadNotifications();
+          }
+        }
+      });
+      
+      // Also listen for clicks outside to close the dropdown
+      document.addEventListener('click', function(e) {
+        var menu = dd.nextElementSibling;
+        if (menu && menu.classList.contains('show') && !dd.contains(e.target) && !menu.contains(e.target)) {
+          menu.classList.remove('show');
+          menu.style.display = '';
+          dd.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+    
+    if (dropdownEl) {
+      dropdownEl.addEventListener('shown.bs.dropdown', function() { loadNotifications(); if(pollTimer) clearInterval(pollTimer); pollTimer = setInterval(loadNotifications, POLL_MS); });
+      dropdownEl.addEventListener('hidden.bs.dropdown', function() { if(pollTimer) { clearInterval(pollTimer); pollTimer = null; } });
+      /* Ensure Bootstrap Dropdown is initialized after Bootstrap has loaded (defer) */
+      function initNotificationDropdown() {
+        if (!dd || typeof bootstrap === 'undefined') return;
+        if (!bootstrap.Dropdown.getInstance(dd)) {
+          new bootstrap.Dropdown(dd, { boundary: 'clippingParents', display: 'dynamic' });
+        }
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initNotificationDropdown);
+      } else {
+        setTimeout(initNotificationDropdown, 0);
+      }
+    }
+    function doRefreshNotifications() {
+      refreshBadgeOnly();
+      loadNotifications();
+    }
+    window.refreshNotifications = doRefreshNotifications;
+    window.addEventListener('notifications-changed', function() {
+      /* Short delay so server has committed the save and the new notification is visible */
+      setTimeout(doRefreshNotifications, 400);
+    });
+    function startBadgePolling() {
+      refreshBadgeOnly();
+      if (typeof document.hidden !== 'undefined') {
+        document.addEventListener('visibilitychange', function() {
+          if (document.hidden) { if(badgeTimer){clearInterval(badgeTimer);badgeTimer=null;} }
+          else { refreshBadgeOnly(); if(!badgeTimer) badgeTimer = setInterval(refreshBadgeOnly, BADGE_POLL_MS); }
+        });
+        if (!document.hidden) badgeTimer = setInterval(refreshBadgeOnly, BADGE_POLL_MS);
+      }
+      window.addEventListener('focus', function() { refreshBadgeOnly(); });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startBadgePolling);
+    } else {
+      startBadgePolling();
+    }
+    document.getElementById('globalNotifMarkAllRead') && document.getElementById('globalNotifMarkAllRead').addEventListener('click', function(e){
+      e.preventDefault();
+      var url = API + '/mark-all-read/';
+      if (typeof navigator !== 'undefined' && !navigator.onLine && window.OfflineSync && typeof window.OfflineSync.queuePendingNotification === 'function') {
+        window.OfflineSync.queuePendingNotification(url, 'POST', null).then(function () {
+          setEmptyNotifications('All notifications will be marked as read when you are back online.', false);
+        }).catch(function () {
+        });
+        return;
+      }
+      fetch(url, fetchOpts('POST')).then(function(){ loadNotifications(); refreshBadgeOnly(); });
+    });
+    document.getElementById('globalNotifClearAll') && document.getElementById('globalNotifClearAll').addEventListener('click', function(e){
+      e.preventDefault();
+      var url = API + '/clear-all/';
+      if (!confirm('Clear all notifications?')) return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine && window.OfflineSync && typeof window.OfflineSync.queuePendingNotification === 'function') {
+        window.OfflineSync.queuePendingNotification(url, 'POST', null).then(function () {
+          setEmptyNotifications('All notifications will be cleared when you are back online.', true);
+        }).catch(function () {
+        });
+        return;
+      }
+      fetch(url, fetchOpts('POST')).then(function(){ loadNotifications(); refreshBadgeOnly(); });
+    });
+    document.getElementById('globalNotifClose') && document.getElementById('globalNotifClose').addEventListener('click', function(){ var t=document.getElementById('globalNotificationDropdown'); if(t&&typeof bootstrap!=='undefined'){ var d=bootstrap.Dropdown.getInstance(t); if(d)d.hide(); } });
+  })();
+  </script>
+  {% endif %}
+
+  <!-- Notification sound utility (used by global notifications and toasts) -->
+  <script>
+  (function() {
+    var NOTIF_SOUND_URL = "{% static 'sounds/notification.mp3' %}";
+    var SOUND_ENABLED_KEY = 'notification_sound_enabled';
+
+    function isSoundEnabled() {
+      try {
+        return localStorage.getItem(SOUND_ENABLED_KEY) === 'true';
+      } catch (e) {
+        return false;
+      }
+    }
+
+    window.playNotificationSound = function() {
+      try {
+        if (!isSoundEnabled()) return;
+        if (typeof window.playStoredSound === 'function') {
+          window.playStoredSound();
+        }
+      } catch (e) {}
+    };
+  })();
+  </script>
+
+  <!-- Notification Utilities -->
+  <script>
+  // Global notification function
+  function showNotification(message, type) {
+    type = type || 'info';
+    // Optional sound for in-app toast notifications (only when online)
+    if (typeof window.playNotificationSound === 'function') {
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        try { window.playNotificationSound(); } catch (e) {}
+      }
+    }
+    var notification = document.createElement('div');
+    notification.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed';
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 90vw;';
+    notification.innerHTML = '<strong>' + type.charAt(0).toUpperCase() + type.slice(1) + '!</strong><br>' +
+      message + '<button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>';
+    document.body.appendChild(notification);
+    
+    setTimeout(function() {
+      if (notification.parentElement) {
+        notification.style.opacity = '0';
+        setTimeout(function() { notification.remove(); }, 300);
+      }
+    }, 5000);
+  }
+  </script>
+
+  <!-- Patch for material-dashboard.min.js null classList error -->
+  <script>
+  window.addEventListener('load', function() {
+    try {
+      if (typeof navbarColorOnResize === 'function') {
+        var nav = document.querySelector('.navbar');
+        if (nav && nav.classList) {
+          navbarColorOnResize();
+        }
+      }
+    } catch (e) { /* Silently ignore */ }
+  });
+  </script>
+
+  <!-- ==========================================================================
+       SERVICE WORKER - Offline support (install uses browser native UI)
+       ========================================================================== -->
+  <script>
+  // Register Service Worker for offline support and fast repeat visits.
+  // Do NOT call preventDefault on beforeinstallprompt — that lets Chrome/Edge
+  // show their own install icon in the address bar / browser menu.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function(registration) {
+          console.log('[App] Service Worker registered successfully');
+          setInterval(function() {
+            registration.update();
+          }, 60000);
+        })
+        .catch(function(error) {
+          console.log('[App] Service Worker registration failed:', error);
+        });
+    });
+
+    // On logout, clear app caches so next login (possibly different user/company) gets fresh pages
+    document.addEventListener('DOMContentLoaded', function() {
+      var logoutLink = document.getElementById('logoutLink');
+      if (logoutLink) {
+        logoutLink.addEventListener('click', function() {
+          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage('clearAppCaches');
+          }
+        });
+      }
+    });
+  }
+  </script>
+
+  {% block extra_js %}{% endblock %}
+
+  <!-- Dashboard metrics refresh: fetch summaries and update textContent only (no WebSocket). -->
+  {% if user.is_authenticated %}
+  <script src="{% static 'js/dashboard-metrics-refresh.js' %}" defer></script>
+  {% endif %}
+
+  <!-- Offline-first: banner + unsynced indicator; UnifiedSyncEngine handles scheduling & queues -->
+  <script>
+  (function() {
+    function updateUnsyncedBanner() {
+      var banner = document.getElementById('offline-unsynced-banner');
+      var textEl = document.getElementById('offline-unsynced-text');
+      if (!banner || !textEl) return;
+      if (navigator.onLine) { banner.style.display = 'none'; return; }
+      var path = (typeof location !== 'undefined' && location.pathname) ? location.pathname : '';
+      var model = null;
+      if (/^\/invoices(\/|$)/.test(path)) model = 'invoices';
+      else if (/^\/expense(\/|$)/.test(path)) model = 'expense';
+      else if (/^\/clients(\/|$)/.test(path)) model = 'clients';
+      else if (/^\/requisitions(\/|$)/.test(path)) model = 'requisitions';
+      else if (/^\/receipts(\/|$)/.test(path)) model = 'receipts';
+      else if (/^\/waybills(\/|$)/.test(path)) model = 'waybills';
+      else if (/^\/quotations(\/|$)/.test(path)) model = 'quotations';
+      else if (/^\/job-orders(\/|$)/.test(path)) model = 'job_orders';
+      else if (/^\/inventory(\/|$)/.test(path)) model = 'inventory';
+      else if (/^\/accounting(\/|$)/.test(path)) model = 'accounting';
+      else if (/^\/hr-staff(\/|$)/.test(path)) model = 'hr_staff';
+      else if (/^\/payroll(\/|$)/.test(path)) model = 'payroll';
+      else if (/^\/attendance(\/|$)/.test(path)) model = 'attendance_logs';
+      else if (/^\/documents(\/|$)/.test(path)) model = 'documents';
+      // For other pages, check all stores for any pending changes
+      if (!model) {
+        checkAllPendingChanges(banner, textEl);
+        return;
+      }
+      if (!model || !window.OfflineSync || typeof window.OfflineSync.getUnsynced !== 'function') {
+        banner.style.display = 'none';
+        return;
+      }
+      window.OfflineSync.getUnsynced(model).then(function(rows) {
+        if (rows && rows.length > 0) {
+          textEl.textContent = 'You have ' + rows.length + ' pending change(s). They will sync when you\'re back online.';
+          banner.style.display = 'block';
+        } else {
+          banner.style.display = 'none';
+        }
+      }).catch(function() { banner.style.display = 'none'; });
+    }
+    
+    function checkAllPendingChanges(banner, textEl) {
+      if (!window.OfflineSync || typeof window.OfflineSync.getUnsynced !== 'function') {
+        banner.style.display = 'none';
+        return;
+      }
+      var models = ['clients', 'invoices', 'requisitions', 'expense', 'receipts', 'waybills', 'quotations', 'inventory', 'job_orders', 'hr_staff', 'accounting', 'payroll', 'attendance_logs', 'documents'];
+      var checks = models.map(function(m) {
+        return window.OfflineSync.getUnsynced(m).then(function(rows) {
+          return rows ? rows.length : 0;
+        }).catch(function() { return 0; });
+      });
+      Promise.all(checks).then(function(counts) {
+        var total = counts.reduce(function(a, b) { return a + b; }, 0);
+        if (total > 0) {
+          textEl.textContent = 'You have ' + total + ' pending change(s) across all apps. They will sync when you\'re back online.';
+          banner.style.display = 'block';
+        } else {
+          banner.style.display = 'none';
+        }
+      }).catch(function() { banner.style.display = 'none'; });
+    }
+    
+    window.addEventListener('offline', updateUnsyncedBanner);
+    if (document.readyState === 'complete') {
+      setTimeout(function() {
+        if (window.unifiedSyncEngine && typeof window.unifiedSyncEngine.updateConnectionBanner === 'function') {
+          window.unifiedSyncEngine.updateConnectionBanner();
+        }
+        updateUnsyncedBanner();
+      }, 200);
+    } else {
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (window.unifiedSyncEngine && typeof window.unifiedSyncEngine.updateConnectionBanner === 'function') {
+            window.unifiedSyncEngine.updateConnectionBanner();
+          }
+          updateUnsyncedBanner();
+        }, 200);
+      });
+    }
+  })();
+  </script>
+
+  <!-- Listen for sync complete events to auto-refresh data -->
+  <script>
+  (function() {
+    // Listen for sync complete events from UnifiedSyncEngine
+    document.addEventListener('offlineDataSynced', function(e) {
+      console.log('[App] Data synced, refreshing...', e.detail);
+      
+      // Try to find and refresh data tables if they exist
+      var dataTables = document.querySelectorAll('.dataTables_wrapper, .table-responsive');
+      dataTables.forEach(function(wrapper) {
+        // Look for a refresh button or trigger datatable reload
+        var refreshBtn = wrapper.querySelector('[data-refresh], .refresh-btn, .btn-refresh');
+        if (refreshBtn) {
+          refreshBtn.click();
+        }
+      });
+      
+      // Dispatch a more specific event for pages to handle
+      var pageUpdateEvent = new CustomEvent('pageDataRefresh', { 
+        detail: { syncedCount: e.detail.hadUnsynced },
+        bubbles: true 
+      });
+      document.dispatchEvent(pageUpdateEvent);
+    });
+
+    // Also listen on window for broader compatibility
+    window.addEventListener('offlineDataSynced', function(e) {
+      console.log('[App] Window received sync event', e.detail);
+    });
+  })();
+  </script>
+
+  <!-- Offline form handling: data-sync-model = IndexedDB sync path; data-offline-queue = generic request queue -->
+  <script>
+  (function() {
+    function showOfflineToast(msg) {
+      msg = msg || 'Queued. Will sync when you\'re back online.';
+      var el = document.createElement('div');
+      el.className = 'alert alert-info position-fixed shadow-sm';
+      el.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 280px;';
+      el.setAttribute('role', 'alert');
+      el.innerHTML = '<strong>' + msg + '</strong>';
+      document.body.appendChild(el);
+      setTimeout(function() { if (el.parentNode) el.remove(); }, 5000);
+    }
+    function initOfflineFormQueue() {
+      var syncForms = document.querySelectorAll('form[data-sync-model]');
+      syncForms.forEach(function(form) {
+        if (form.dataset.offlineSyncWired === 'true') return;
+        form.dataset.offlineSyncWired = 'true';
+        form.addEventListener('submit', function(ev) {
+          if (navigator.onLine) return;
+          if (!window.OfflineSync || !window.OfflineSync.storeInIndexedDB) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+          if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+          var model = form.getAttribute('data-sync-model');
+          var recordUuid = form.getAttribute('data-record-uuid') || '';
+          var payload = window.OfflineSync.buildFormPayload ? window.OfflineSync.buildFormPayload(form) : {};
+          payload.updated_at = new Date().toISOString();
+          payload.is_deleted = false;
+          if (recordUuid) payload.uuid = recordUuid;
+          var invoiceMapJson = form.getAttribute('data-invoice-uuid-map');
+          if (invoiceMapJson) {
+            try {
+              var invoiceMap = JSON.parse(invoiceMapJson);
+              var invId = (form.querySelector('[name="invoice"]') || {}).value;
+              if (invId && invoiceMap[invId]) payload.invoice_uuid = invoiceMap[invId];
+              delete payload.invoice;
+            } catch (e) {}
+          }
+          var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+          var p = recordUuid
+            ? window.OfflineSync.wrapSubmit(model, payload, tenantId, function() { return Promise.reject(new Error('online')); })
+            : window.OfflineSync.storeInIndexedDB(model, payload, tenantId);
+          p.then(function() {
+            showOfflineToast('Saved offline. Will sync when you\'re back online.');
+            var redirect = form.getAttribute('data-sync-redirect');
+            if (redirect) window.location.href = redirect;
+            else if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+          }).catch(function(err) {
+            if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+            if (err && err.message !== 'online') alert('Could not save offline. Try again when back online.');
+          });
+          return false;
+        });
+      });
+      if (!window.OfflineSync || typeof window.OfflineSync.queueFormSubmit !== 'function') return;
+      var queueForms = document.querySelectorAll('form[data-offline-queue="true"]:not([data-sync-model])');
+      queueForms.forEach(function(form) {
+        if (form.dataset.offlineQueueWired === 'true') return;
+        form.dataset.offlineQueueWired = 'true';
+        form.addEventListener('submit', function(ev) {
+          if (navigator.onLine) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+          if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+          window.OfflineSync.queueFormSubmit(form).then(function() {
+            showOfflineToast();
+            if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+          }).catch(function() {
+            if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+            alert('Failed to queue. Try again when back online.');
+          });
+          return false;
+        });
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initOfflineFormQueue);
+    else initOfflineFormQueue();
+    window.initOfflineFormQueue = initOfflineFormQueue;
+  })();
+  </script>
+  <!-- Notification Sound Permission Toast -->
+  <style>
+  .sound-permission-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100000;
+    max-width: 380px;
+    width: calc(100vw - 40px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+  .sound-permission-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .sound-permission-toast .toast-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .sound-permission-toast .toast-icon i {
+    color: #fff;
+    font-size: 20px;
+  }
+  .sound-permission-toast .toast-content {
+    flex: 1;
+  }
+  .sound-permission-toast .toast-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+  .sound-permission-toast .toast-message {
+    color: #666;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .sound-permission-toast .toast-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .sound-permission-toast .btn-enable-sound {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .sound-permission-toast .btn-enable-sound:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+  .sound-permission-toast .btn-dismiss-sound {
+    background: transparent;
+    color: #666;
+    border: 1px solid #ddd;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .sound-permission-toast .btn-dismiss-sound:hover {
+    background: #f5f5f5;
+  }
+  .sound-permission-toast .toast-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .sound-permission-toast .toast-close:hover {
+    color: #666;
+  }
+
+  /* Sound enabled indicator */
+  .sound-enabled-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #28a745;
+    margin-left: 8px;
+  }
+  .sound-enabled-indicator i {
+    font-size: 12px;
+  }
+  </style>
+
+  <!-- Sound Permission Toast HTML -->
+  <div class="sound-permission-toast" id="soundPermissionToast">
+    <button type="button" class="toast-close" onclick="dismissSoundPrompt()">&times;</button>
+    <div style="padding: 16px; display: flex; align-items: flex-start;">
+      <div class="toast-icon">
+        <i class="fas fa-bell"></i>
+      </div>
+      <div class="toast-content">
+        <div class="toast-title">Enable Notification Sounds</div>
+        <div class="toast-message">Get audible alerts when new notifications arrive. Click below to enable sounds for real-time updates.</div>
+        <div class="toast-actions">
+          <button type="button" class="btn-enable-sound" onclick="enableNotificationSound()">Enable Sounds</button>
+          <button type="button" class="btn-dismiss-sound" onclick="dismissSoundPrompt()">Later</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    var SOUND_ENABLED_KEY = 'notification_sound_enabled';
+    var SOUND_PROMPT_SHOWN_KEY = 'sound_prompt_shown';
+    var audioBuffer = null;
+    var audioContext = null;
+    var NOTIF_SOUND_URL = "{% static 'sounds/notification.mp3' %}";
+
+    function initAudioContext() {
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        return audioContext;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function loadAndPlaySound(callback) {
+      try {
+        var ctx = initAudioContext();
+        if (!ctx) return;
+
+        var request = new XMLHttpRequest();
+        request.open('GET', NOTIF_SOUND_URL, true);
+        request.responseType = 'arraybuffer';
+        request.onload = function() {
+          if (request.status === 200) {
+            ctx.decodeAudioData(request.response, function(buffer) {
+              audioBuffer = buffer;
+              if (callback) callback();
+            }, function() {});
+          }
+        };
+        request.send();
+      } catch (e) {}
+    }
+
+    window.enableNotificationSound = function() {
+      try {
+        localStorage.setItem(SOUND_ENABLED_KEY, 'true');
+        localStorage.setItem(SOUND_PROMPT_SHOWN_KEY, 'true');
+
+        var ctx = initAudioContext();
+        if (!ctx) return;
+
+        var request = new XMLHttpRequest();
+        request.open('GET', NOTIF_SOUND_URL, true);
+        request.responseType = 'arraybuffer';
+        request.onload = function() {
+          if (request.status === 200) {
+            ctx.decodeAudioData(request.response, function(buffer) {
+              audioBuffer = buffer;
+              var source = ctx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(ctx.destination);
+              source.start(0);
+            }, function() {});
+          }
+        };
+        request.send();
+
+        updateSoundToggleUI(true);
+        dismissSoundPrompt();
+      } catch (e) {}
+    };
+
+    window.toggleNotificationSound = function() {
+      try {
+        var isEnabled = localStorage.getItem(SOUND_ENABLED_KEY) === 'true';
+        
+        if (isEnabled) {
+          localStorage.setItem(SOUND_ENABLED_KEY, 'false');
+          updateSoundToggleUI(false);
+        } else {
+          var ctx = initAudioContext();
+          if (!ctx) return;
+
+          var request = new XMLHttpRequest();
+          request.open('GET', NOTIF_SOUND_URL, true);
+          request.responseType = 'arraybuffer';
+          request.onload = function() {
+            if (request.status === 200) {
+              ctx.decodeAudioData(request.response, function(buffer) {
+                audioBuffer = buffer;
+                localStorage.setItem(SOUND_ENABLED_KEY, 'true');
+                updateSoundToggleUI(true);
+              }, function() {});
+            }
+          };
+          request.send();
+        }
+      } catch (e) {}
+    };
+
+    function updateSoundToggleUI(isEnabled) {
+      var btn = document.getElementById('soundToggleBtn');
+      var icon = document.getElementById('soundToggleIcon');
+      if (!btn || !icon) return;
+
+      if (isEnabled) {
+        btn.classList.add('enabled');
+        icon.className = 'fas fa-volume-up';
+        btn.title = 'Notification sounds enabled - Click to disable';
+      } else {
+        btn.classList.remove('enabled');
+        icon.className = 'fas fa-volume-mute';
+        btn.title = 'Notification sounds disabled - Click to enable';
+      }
+    }
+
+    window.dismissSoundPrompt = function() {
+      try {
+        localStorage.setItem(SOUND_PROMPT_SHOWN_KEY, 'true');
+      } catch (e) {}
+      var toast = document.getElementById('soundPermissionToast');
+      if (toast) {
+        toast.classList.remove('show');
+        setTimeout(function() {
+          toast.style.display = 'none';
+        }, 300);
+      }
+    };
+
+    function showSoundPrompt() {
+      try {
+        var alreadyShown = localStorage.getItem(SOUND_PROMPT_SHOWN_KEY);
+        if (alreadyShown === 'true') return;
+
+        var toast = document.getElementById('soundPermissionToast');
+        if (!toast) return;
+
+        setTimeout(function() {
+          toast.style.display = 'block';
+          setTimeout(function() {
+            toast.classList.add('show');
+          }, 50);
+        }, 2000);
+      } catch (e) {}
+    }
+
+    function initSoundToggleUI() {
+      var isEnabled = localStorage.getItem(SOUND_ENABLED_KEY) === 'true';
+      updateSoundToggleUI(isEnabled);
+    }
+
+    window.playStoredSound = function() {
+      if (!audioBuffer || !audioContext) {
+        var ctx = initAudioContext();
+        if (!ctx) return;
+        var request = new XMLHttpRequest();
+        request.open('GET', NOTIF_SOUND_URL, true);
+        request.responseType = 'arraybuffer';
+        request.onload = function() {
+          if (request.status === 200) {
+            ctx.decodeAudioData(request.response, function(buffer) {
+              audioBuffer = buffer;
+              doPlayFromBuffer();
+            }, function() {});
+          }
+        };
+        request.send();
+        return;
+      }
+      doPlayFromBuffer();
+    };
+
+    function doPlayFromBuffer() {
+      if (!audioBuffer || !audioContext) return;
+      try {
+        var source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.start(0);
+      } catch (e) {}
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        initSoundToggleUI();
+        showSoundPrompt();
+      });
+    } else {
+      initSoundToggleUI();
+      showSoundPrompt();
+    }
+  })();
+  </script>
+
+  <!-- Modal z-index fix - placed at end to ensure highest priority, cannot be overridden by child templates -->
+  <style>
+  .modal { z-index: 9999 !important; }
+  .modal-backdrop { z-index: 9998 !important; }
+  .modal-dialog { z-index: 10000 !important; }
+  .modal-content { z-index: 10001 !important; }
+  .modal.show { z-index: 9999 !important; }
+  .modal.show .modal-dialog { z-index: 10000 !important; }
+  body.modal-open { overflow: auto !important; }
+  body.modal-open > *:not(.modal):not(.modal-backdrop) { z-index: auto !important; }
+  </style>
+</body>
+</html>

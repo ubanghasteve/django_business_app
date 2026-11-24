@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ object.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; border-color: #007bff !important; }
+    .btn-secondary { background-color: #6c757d !important; border-color: #6c757d !important; }
+    .color-strip { height: 8px; border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h5 class="mb-0">{{ object.name }}</h5>
+            <p class="text-muted text-sm mb-0">Custom form details</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'store:custom_form_update' object.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit</a>
+            <a href="{% url 'store:custom_form_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-3">
+                <div class="color-strip" style="background: linear-gradient(90deg, {{ object.primary_color }} 0%, {{ object.secondary_color }} 100%);"></div>
+                <div class="card-body">
+                    {% if object.description %}<p class="mb-3">{{ object.description }}</p>{% endif %}
+                    <table class="table table-sm">
+                        <tr><th width="40%">Primary Color</th><td><span class="color-strip d-inline-block" style="width:30px; height:20px; background:{{ object.primary_color }}; vertical-align:middle;"></span> {{ object.primary_color }}</td></tr>
+                        <tr><th>Secondary Color</th><td><span class="color-strip d-inline-block" style="width:30px; height:20px; background:{{ object.secondary_color }}; vertical-align:middle;"></span> {{ object.secondary_color }}</td></tr>
+                        <tr><th>Accent Color</th><td><span class="color-strip d-inline-block" style="width:30px; height:20px; background:{{ object.accent_color }}; vertical-align:middle;"></span> {{ object.accent_color }}</td></tr>
+                        <tr><th>Text Color</th><td><span class="color-strip d-inline-block" style="width:30px; height:20px; background:{{ object.text_color }}; vertical-align:middle;"></span> {{ object.text_color }}</td></tr>
+                        <tr><th>Show Logo</th><td>{% if object.show_logo %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td></tr>
+                        <tr><th>Show Company Name</th><td>{% if object.show_company_name %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td></tr>
+                        <tr><th>Show Currency</th><td>{% if object.show_currency %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td></tr>
+                        {% if object.footer_text %}<tr><th>Footer Text</th><td>{{ object.footer_text }}</td></tr>{% endif %}
+                        <tr><th>Created</th><td>{{ object.created_at|date:"d M Y" }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h6 class="mb-0">Form Preview</h6></div>
+                <div class="card-body p-2">
+                    <div style="border-radius:6px; overflow:hidden; border:1px solid #dee2e6;">
+                        <div style="background: linear-gradient(135deg, {{ object.primary_color }} 0%, {{ object.secondary_color }} 100%); padding:12px; color:white;">
+                            <div style="font-weight:600;">{{ object.name }}</div>
+                        </div>
+                        <div style="padding:12px; background:#f8f9fa; font-size:0.8rem;">
+                            <p class="mb-1"><strong>Product:</strong> Sample Item</p>
+                            <p class="mb-1"><strong>Qty:</strong> 100</p>
+                            <p class="mb-0"><strong>Price:</strong> {{ currency_symbol }}500.00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

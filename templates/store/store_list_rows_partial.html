@@ -1,0 +1,54 @@
+{% load humanize store_extras %}
+{% for obj in object_list %}
+<tr data-pk="{{ obj.pk }}" data-store-uuid="{{ obj.uuid|default:'' }}">
+    <td class="text-center"><span class="store-sn">{{ obj.sn }}</span></td>
+    <td>
+        <span class="editable-cell" contenteditable="true" data-field="product_name" data-placeholder="Product name">{{ obj.product_name }}</span>
+        <div class="small text-muted">{{ obj.category|default:"" }} &middot; {{ obj.stock_location|default:"" }}</div>
+    </td>
+    <td class="text-end opening-stock-cell">
+        <span class="editable-cell" contenteditable="true" data-field="opening_stock">{% firstof obj.opening_stock_input obj.opening_stock %}</span>
+    </td>
+    <td class="text-end qty-in">
+        <span class="editable-cell" contenteditable="true" data-field="quantity_in">
+            {% if obj.quantity_in_input %}{{ obj.quantity_in_input }}{% else %}{{ obj.quantity_in|format_number }}{% endif %}
+        </span>
+    </td>
+    <td class="text-end qty-out">
+        <span class="editable-cell" contenteditable="true" data-field="quantity_out">
+            {% if obj.quantity_out_input %}{{ obj.quantity_out_input }}{% else %}{{ obj.quantity_out|format_number }}{% endif %}
+        </span>
+    </td>
+    <td class="text-end qty-waste">
+        <span class="editable-cell" contenteditable="true" data-field="waste">
+            {% if obj.waste_input %}{{ obj.waste_input }}{% elif obj.waste > 0 %}{{ obj.waste|format_number }}{% else %}—{% endif %}
+        </span>
+    </td>
+    <td class="text-end balance-qty-cell {% if obj.balance_quantity < 0 %}negative{% endif %}">
+        {% firstof obj.opening_stock_input obj.balance_quantity %}
+    </td>
+    <td>
+        <input type="date" class="form-control form-control-sm editable-date" value="{{ obj.date|date:'Y-m-d' }}" data-field="date" data-pk="{{ obj.pk }}" style="width:140px;">
+    </td>
+    <td>{{ obj.created_by.get_full_name|default:obj.created_by.email|default:"—" }}</td>
+    <td data-remark-cell>
+        <span class="editable-cell" contenteditable="true" data-field="remark" data-placeholder="Add note…">{{ obj.remark|truncatewords:5 }}</span>
+    </td>
+    <td class="actions-cell">
+        {% if perms.store.view_store %}
+        <a href="{% url 'store:detail' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
+        {% endif %}
+        {% if perms.store.view_store %}
+        <a href="{% url 'store:product_report' obj.pk %}" class="btn btn-sm btn-outline-info" title="Report"><i class="fas fa-chart-line"></i></a>
+        {% endif %}
+        {% if perms.store.delete_store %}
+        <form method="post" action="{% url 'store:delete' obj.pk %}" class="d-inline store-delete-form" data-store-uuid="{{ obj.uuid|default:'' }}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger store-delete-btn" title="Delete"><i class="fas fa-trash"></i></button></form>
+        {% endif %}
+        {% if perms.store.print_store %}
+        <a href="{% url 'store:print' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="Print"><i class="fas fa-print"></i></a>
+        {% endif %}
+    </td>
+</tr>
+{% empty %}
+<tr data-empty-row><td colspan="11" class="text-center text-muted py-5">No store records yet. Use the &quot;Add row&quot; button below the table to add your first record.</td></tr>
+{% endfor %}

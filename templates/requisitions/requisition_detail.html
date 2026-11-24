@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Requisition {{ requisition.reference_number }} - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Requisition {{ requisition.reference_number }}{% endblock %}
+{% block breadcrumb %}Requisition Details{% endblock %}
+
+{% block content %}
+<style>
+:root {
+    --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+    --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+    --text-color: {{ theme_text_color|default:"#333333" }};
+    --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+.preview-scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.preview-scroll-wrapper::-webkit-scrollbar { height: 8px; }
+.preview-scroll-wrapper::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+@media (max-width: 850px) {
+    .requisition-preview { min-width: 600px; }
+}
+.requisition-preview {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid var(--accent-color);
+    border-radius: 10px;
+}
+.requisition-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--accent-color);
+    gap: 30px;
+}
+.company-logo { flex-shrink: 0; }
+.company-logo img { max-height: 80px; max-width: 200px; }
+.company-details { flex: 1; text-align: left; padding-left: 20px; }
+.company-details h2 {
+    color: var(--primary-color) !important;
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+.company-details p { margin: 5px 0; color: #666; }
+.requisition-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--primary-color) !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0;
+}
+.requisition-info {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f8f9fa !important;
+    border-radius: 6px;
+}
+.requisition-info > div {
+    text-align: center;
+}
+.requisition-info-right { text-align: right; }
+.org-section { margin-bottom: 20px; }
+.org-section h3 {
+    color: var(--primary-color) !important;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: white;
+}
+.data-table th, .data-table td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+.data-table th {
+    background: var(--primary-color) !important;
+    color: white !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+.data-table tr:nth-child(even) { background: #f8f9fa !important; }
+.signature-section {
+    text-align: center;
+    margin: 40px 0 20px 0;
+    padding-top: 20px;
+    border-top: 1px solid var(--accent-color);
+}
+.signature-section img { max-height: 100px; margin-bottom: 10px; }
+</style>
+
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card my-4">
+        <div class="card-header pb-0">
+          <div class="d-flex align-items-center flex-wrap">
+            <h6 class="mb-0">Requisition {{ requisition.reference_number }}</h6>
+            <span class="badge bg-{% if requisition.status == 'approved' or requisition.status == 'completed' %}success{% elif requisition.status == 'rejected' %}danger{% elif requisition.status == 'pending' %}warning{% else %}secondary{% endif %} ms-2">{{ requisition.get_status_display }}</span>
+            <div class="ms-auto d-flex gap-2 flex-wrap">
+              {% if perms.requisitions.add_requisition %}
+              <a href="{% url 'requisitions:create' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Create Requisition</a>
+              {% endif %}
+              {% if perms.requisitions.change_requisition %}
+              <a href="{% url 'requisitions:edit' requisition.pk %}" class="btn btn-sm btn-outline-warning">Edit</a>
+              {% endif %}
+              {% if perms.requisitions.print_requisition %}
+              <a href="{% url 'requisitions:print' requisition.pk %}" target="_blank" class="btn btn-sm btn-outline-info"><i class="fas fa-print me-1"></i>Print</a>
+              <a href="{% url 'requisitions:print' requisition.pk %}" target="_blank" class="btn btn-sm btn-outline-info"><i class="fas fa-download me-1"></i>Download</a>
+              {% endif %}
+              {% if perms.requisitions.delete_requisition %}
+              <a href="{% url 'requisitions:delete' requisition.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="preview-scroll-wrapper">
+            <div class="requisition-preview">
+              <div class="requisition-header">
+                <div class="company-logo">
+                  {% if company_logo %}
+                  <img src="{{ company_logo }}" alt="Company Logo">
+                  {% else %}
+                  <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo">
+                  {% endif %}
+                </div>
+                <div class="company-details">
+                  <h2>{% if company_profile %}{{ company_profile.company_name|default:"Company Name" }}{% else %}Company Name{% endif %}</h2>
+                  {% if company_profile %}
+                  {% if company_profile.address %}<p>{{ company_profile.address }}</p>{% endif %}
+                  {% if company_profile.phone %}<p>{{ company_profile.phone }}</p>{% endif %}
+                  {% if company_profile.email %}<p>{{ company_profile.email }}</p>{% endif %}
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="requisition-info">
+                <div>
+                  <div class="requisition-title">REQUISITION</div>
+                  <div><strong>Reference:</strong> {{ requisition.reference_number }}</div>
+                  {% if requisition.date %}<div><strong>Date:</strong> {{ requisition.date|date:"M d, Y" }}</div>{% endif %}
+                </div>
+              </div>
+
+              <div class="org-section">
+                <h3>Organization</h3>
+                <p><strong>{{ requisition.organization_name }}</strong></p>
+                {% if requisition.address %}<p>{{ requisition.address }}</p>{% endif %}
+                {% if requisition.contact_number %}<p>{{ requisition.contact_number }}</p>{% endif %}
+              </div>
+
+              {% if requisition.job_type or requisition.print_product or requisition.quantity or requisition.colors or requisition.size or requisition.micron or requisition.status %}
+              <table class="data-table">
+                {% if requisition.job_type %}
+                <tr><th>Job Type</th><td>{{ requisition.job_type }}</td></tr>
+                {% endif %}
+                {% if requisition.print_product %}
+                <tr><th>Print Product</th><td>{{ requisition.print_product }}</td></tr>
+                {% endif %}
+                {% if requisition.quantity %}
+                <tr><th>Quantity</th><td>{{ requisition.quantity }}</td></tr>
+                {% endif %}
+                {% if requisition.colors %}
+                <tr><th>Colors</th><td>{{ requisition.colors }}</td></tr>
+                {% endif %}
+                {% if requisition.size %}
+                <tr><th>Size</th><td>{{ requisition.size }}</td></tr>
+                {% endif %}
+                {% if requisition.micron %}
+                <tr><th>Micron</th><td>{{ requisition.micron }}</td></tr>
+                {% endif %}
+                {% if requisition.status %}
+                <tr><th>Status</th><td>{{ requisition.get_status_display }}</td></tr>
+                {% endif %}
+              </table>
+              {% endif %}
+
+              {% if requisition.other_info %}
+              <div class="org-section mt-3">
+                <h3>Other Information</h3>
+                <p>{{ requisition.other_info }}</p>
+              </div>
+              {% endif %}
+
+              {% if requisition_signature_url %}
+              <div class="signature-section">
+                <img src="{{ requisition_signature_url }}" alt="Signature" class="img-fluid">
+                <p><strong>Signature</strong></p>
+              </div>
+              {% endif %}
+
+              <div class="org-section mt-3" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--accent-color);">
+                {% if requisition.created_by %}
+                <p class="mb-1"><strong>Created by:</strong> {{ requisition.created_by.get_full_name|default:requisition.created_by.email|default:"—" }}</p>
+                {% endif %}
+                {% if requisition.status == 'approved' or requisition.status == 'completed' %}
+                <p class="mb-0"><strong>Approved by:</strong> {% if requisition.approved_by %}{{ requisition.approved_by.get_full_name|default:requisition.approved_by.email|default:"—" }}{% if requisition.approved_at %} on {{ requisition.approved_at|date:"M d, Y g:i A" }}{% endif %}{% elif requisition.created_by %}{{ requisition.created_by.get_full_name|default:requisition.created_by.email|default:"—" }}{% else %}—{% endif %}</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="text-muted text-xs mt-3">Created {{ requisition.created_at|date:"M d, Y H:i" }}{% if requisition.updated_at %} · Updated {{ requisition.updated_at|date:"M d, Y H:i" }}{% endif %}</div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <a href="{% url 'requisitions:list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left text-sm me-1"></i> Back to list</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

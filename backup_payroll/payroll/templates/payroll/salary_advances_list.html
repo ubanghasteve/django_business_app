@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Salary Advances{% endblock %}
+{% block extra_css %}
+<style>
+.payroll-advances-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid #dee2e6; }
+.payroll-advances-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; border-radius: 11px 11px 0 0; }
+.payroll-advance-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #7b1fa2 0%, #ba68c8 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 0.9rem; }
+.payroll-status-pill { padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+.payroll-status-pill.pending { background: #fff3cd; color: #856404; border: 1px solid #ffecb5; }
+.payroll-status-pill.approved { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; }
+.payroll-status-pill.rejected { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
+.payroll-status-pill.deducted { background: #cff4fc; color: #055160; border: 1px solid #b6effb; }
+.payroll-amount { font-size: 1.1rem; font-weight: 700; color: #1565c0; }
+.payroll-empty-state { padding: 3rem; text-align: center; background: #f8f9fa; border-radius: 12px; border: 2px dashed #dee2e6; }
+.payroll-empty-state i { font-size: 4rem; color: #dee2e6; }
+.payroll-table th { font-weight: 600; color: #495057; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; background: #f8f9fa; }
+.payroll-table td { vertical-align: middle; padding: 1rem 0.75rem; }
+.payroll-table .form-check-input { width: 1.25rem; height: 1.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-advances-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Salary Advances</li>
+        </ol>
+    </nav>
+    
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>Salary Advances</h5>
+            <a href="{% url 'payroll:salary_advance_create' %}" class="btn btn-light btn-sm">
+                <i class="fas fa-plus me-1"></i>New Advance
+            </a>
+        </div>
+        <div class="card-body">
+            {% if advances %}
+            <div class="table-responsive">
+                <table class="table table-hover payroll-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Date Created</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="advancesTableBody">
+                        {% for advance in advances %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="payroll-advance-avatar me-2">
+                                        {{ advance.employee.first_name.0|upper }}{{ advance.employee.last_name.0|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ advance.employee.first_name }} {{ advance.employee.last_name }}</div>
+                                        <small class="text-muted">{{ advance.employee.employee_id|default:"No ID" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="payroll-amount">{{ user_currency_symbol|default:"₦" }}{{ advance.amount|floatformat:2|intcomma }}</td>
+                            <td>
+                                <span class="payroll-status-pill {{ advance.status }}">
+                                    {{ advance.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ advance.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                {% if advance.status == 'pending' %}
+                                <a href="{% url 'payroll:salary_advance_approve' advance.id %}" class="btn btn-sm btn-success" title="Approve">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="payroll-empty-state">
+                <i class="fas fa-wallet mb-3"></i>
+                <h5>No Salary Advances</h5>
+                <p class="text-muted mb-3">Create salary advances for employees.</p>
+                <a href="{% url 'payroll:salary_advance_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Create Advance
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var currencySymbol = '{{ user_currency_symbol|default:"₦"|escapejs }}';
+    var POLL_MS = 30000;
+    
+    function formatCurrency(value) {
+        if (!value) return currencySymbol + '0.00';
+        var num = parseFloat(String(value).replace(/,/g, ''));
+        if (isNaN(num)) return currencySymbol + '0.00';
+        return currencySymbol + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    function getStatusBadge(status) {
+        var classes = { 'pending': 'pending', 'approved': 'approved', 'rejected': 'rejected', 'deducted': 'deducted' };
+        var labels = { 'pending': 'Pending', 'approved': 'Approved', 'rejected': 'Rejected', 'deducted': 'Deducted' };
+        return '<span class="payroll-status-pill ' + (classes[status] || 'pending') + '">' + (labels[status] || status) + '</span>';
+    }
+    
+    function renderAdvances(data) {
+        var tbody = document.getElementById('advancesTableBody');
+        if (!tbody || !data || data.length === 0) return;
+        
+        var html = '';
+        data.forEach(function(adv) {
+            var dateStr = adv.created_at ? new Date(adv.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            var initials = adv.employee.split(' ').map(function(n) { return n[0]; }).join('').substring(0,2).toUpperCase();
+            html += '<tr>';
+            html += '<td><div class="d-flex align-items-center"><div class="payroll-advance-avatar me-2">' + initials + '</div><div><div class="fw-semibold">' + adv.employee + '</div></div></div></td>';
+            html += '<td class="payroll-amount">' + formatCurrency(adv.amount) + '</td>';
+            html += '<td>' + getStatusBadge(adv.status) + '</td>';
+            html += '<td>' + dateStr + '</td>';
+            if (adv.status === 'pending') {
+                html += '<td><a href="/payroll/advances/' + adv.id + '/approve/" class="btn btn-sm btn-success" title="Approve"><i class="fas fa-check"></i></a></td>';
+            } else {
+                html += '<td></td>';
+            }
+            html += '</tr>';
+        });
+        tbody.innerHTML = html;
+    }
+    
+    function fetchAdvances() {
+        fetch('/api/payroll/advances-list/', { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) { if (data && data.results) renderAdvances(data.results); })
+            .catch(function() {});
+    }
+    
+    setTimeout(function() {
+        fetchAdvances();
+        setInterval(fetchAdvances, POLL_MS);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') fetchAdvances();
+        });
+    }, 5000);
+})();
+</script>
+{% endblock %}

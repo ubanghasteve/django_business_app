@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #2563eb;
+        --primary-dark: #1d4ed8;
+        --bg-dark: #0f0f0f;
+        --bg-card: #1a1a1a;
+        --text-light: #fff;
+        --text-muted: #aaa;
+    }
+    
+    .brand-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        border-radius: 12px;
+    }
+    
+    .brand-logo {
+        width: 40px;
+        height: 40px;
+        background: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: var(--primary-color);
+        font-size: 18px;
+    }
+    
+    .brand-name { color: white; font-size: 24px; font-weight: 700; }
+    .brand-tagline { color: rgba(255,255,255,0.8); font-size: 14px; margin-left: auto; }
+    
+    .meeting-container { max-width: 1400px; margin: 0 auto; }
+    
+    .join-form { background: linear-gradient(145deg, #1a1a1a, #252525); padding: 40px; border-radius: 15px; max-width: 600px; margin: 20px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .form-title { color: var(--text-light); font-size: 20px; margin-bottom: 25px; text-align: center; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; color: var(--text-muted); margin-bottom: 8px; font-size: 14px; font-weight: 500; }
+    .form-group input { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #333; border-radius: 8px; background: #1a1a1a; color: var(--text-light); }
+    .form-group input:focus { outline: none; border-color: var(--primary-color); }
+    
+    .form-row { display: flex; gap: 15px; flex-wrap: wrap; }
+    .form-row .form-group { flex: 1; min-width: 200px; }
+    
+    .options { display: flex; gap: 15px; flex-wrap: wrap; margin: 20px 0; }
+    .option-checkbox { display: flex; align-items: center; gap: 8px; color: var(--text-light); cursor: pointer; padding: 10px 15px; background: #252525; border-radius: 8px; font-size: 14px; }
+    .option-checkbox input { width: auto; }
+    
+    .btn { padding: 14px 25px; font-size: 15px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; width: 100%; justify-content: center; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(37,99,235,0.4); }
+    .btn-secondary { background: #444; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-sm { padding: 8px 15px; font-size: 13px; }
+    
+    .meeting-info { background: #1a1a1a; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: none; }
+    .meeting-info.active { display: block; }
+    .meeting-id { color: var(--primary-color); font-weight: bold; font-size: 18px; }
+    
+    .share-section { background: #252525; padding: 15px; border-radius: 10px; margin-top: 15px; }
+    .share-section h4 { color: var(--text-light); margin-bottom: 10px; font-size: 14px; }
+    .share-link-box { display: flex; gap: 10px; flex-wrap: wrap; }
+    .share-link-box input { flex: 1; min-width: 200px; padding: 12px; border: 1px solid #333; border-radius: 6px; background: #1a1a1a; color: var(--text-light); }
+    
+    .controls { background: linear-gradient(145deg, #1a1a1a, #252525); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: none; }
+    .controls.active { display: block; }
+    .controls h3 { color: var(--text-light); margin-bottom: 15px; font-size: 16px; }
+    
+    .control-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    .control-btn { padding: 12px 20px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+    .control-btn:hover { background: #444; }
+    .control-btn.danger { background: #dc3545; }
+    
+    .main-content { display: none; flex-direction: column; gap: 20px; }
+    .main-content.active { display: flex; }
+    
+    .video-section { position: relative; border-radius: 15px; overflow: hidden; background: #000; }
+    .video-section iframe { width: 100%; height: 600px; border: none; }
+    
+    .branding-overlay { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; color: white; font-size: 14px; z-index: 100; display: flex; align-items: center; gap: 8px; }
+    
+    .side-panel { display: flex; gap: 20px; flex-wrap: wrap; }
+    .panel { background: linear-gradient(145deg, #1a1a1a, #252525); border-radius: 12px; flex: 1; min-width: 300px; overflow: hidden; }
+    .panel-header { padding: 15px; background: #252525; color: white; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .panel-body { padding: 15px; max-height: 300px; overflow-y: auto; }
+    
+    .participant-list { list-style: none; }
+    .participant-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #333; color: white; }
+    .participant-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; }
+    .participant-name { flex: 1; }
+    .participant-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--primary-color); color: white; }
+    .participant-badge.host { background: #ffc107; color: #000; }
+    
+    .chat-messages { display: flex; flex-direction: column; gap: 10px; }
+    .message { padding: 10px 15px; border-radius: 10px; max-width: 85%; }
+    .message.sent { background: var(--primary-color); color: white; align-self: flex-end; margin-left: auto; }
+    .message.received { background: #333; color: white; }
+    .message-sender { font-size: 12px; color: #aaa; margin-bottom: 4px; }
+    
+    .chat-input { display: flex; gap: 10px; padding: 15px; background: #252525; }
+    .chat-input input { flex: 1; padding: 10px; border: 1px solid #333; border-radius: 6px; background: #1a1a1a; color: white; }
+    
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #28a745; color: white; padding: 15px 25px; border-radius: 8px; display: none; z-index: 1000; }
+    .toast.show { display: block; }
+    
+    .recording-indicator { display: none; align-items: center; gap: 10px; padding: 10px 20px; background: #dc3545; color: white; border-radius: 8px; }
+    .recording-indicator.active { display: flex; }
+    .recording-dot { width: 12px; height: 12px; border-radius: 50%; background: white; animation: pulse 1s infinite; }
+    
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+</style>
+
+<div class="meeting-container">
+    <script src="https://meet.jit.si/external_api.js"></script>
+    
+    <div class="brand-header">
+        <div class="brand-logo">SBA</div>
+        <span class="brand-name">Steve Business App</span>
+        <span class="brand-tagline">Secure Video Conferencing</span>
+    </div>
+    
+    <h4 style="color: white; text-align: center; margin-bottom: 20px;">Video Meeting Room</h4>
+    
+    <div class="join-form" id="joinForm">
+        <div class="form-title">Join or Start a Meeting</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="userName" placeholder="Enter your name">
+            </div>
+            <div class="form-group">
+                <label>Room Name</label>
+                <input type="text" id="roomName" placeholder="e.g., team-meeting">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Room Password (optional)</label>
+            <input type="password" id="roomPassword" placeholder="Enter password if required">
+        </div>
+        <div class="options">
+            <label class="option-checkbox"><input type="checkbox" id="isHost"><span>I am the host</span></label>
+            <label class="option-checkbox"><input type="checkbox" id="startMuted"><span>Mic muted</span></label>
+            <label class="option-checkbox"><input type="checkbox" id="startVideoOff"><span>Video off</span></label>
+        </div>
+        <button class="btn btn-primary" onclick="joinMeeting()">Join Meeting</button>
+    </div>
+    
+    <div class="meeting-info" id="meetingInfo">
+        <div><span style="color: #aaa;">Room: </span><span class="meeting-id" id="infoRoom"></span></div>
+        <div class="share-section">
+            <h4>Share this link with participants:</h4>
+            <div class="share-link-box">
+                <input type="text" id="shareLinkInput" readonly>
+                <button class="btn btn-primary" onclick="copyMeetingLink()">Copy Link</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls" id="hostControls">
+        <h3>Host Controls</h3>
+        <div class="control-btns">
+            <button class="control-btn" onclick="toggleLobby()">Lobby</button>
+            <button class="control-btn" onclick="setPassword()">Set Password</button>
+            <button class="control-btn" onclick="removePassword()">Remove Password</button>
+            <button class="control-btn" onclick="muteAll()">Mute All</button>
+            <button class="control-btn danger" onclick="endMeeting()">End Meeting</button>
+        </div>
+    </div>
+    
+    <div class="main-content" id="mainContent">
+        <div class="video-section">
+            <div class="branding-overlay"><span>Steve Business App</span></div>
+            <div id="meetFrame"></div>
+        </div>
+        
+        <div class="side-panel">
+            <div class="panel">
+                <div class="panel-header"><span>Participants</span><span id="participantCount2">0</span></div>
+                <div class="panel-body"><ul class="participant-list" id="participantList"></ul></div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><span>Chat</span><span id="unreadChat" style="display:none; background:var(--primary-color); padding:2px 8px; border-radius:10px; font-size:12px;">0</span></div>
+                <div class="panel-body" style="height: 250px; overflow-y: auto;">
+                    <div class="chat-messages" id="chatMessages"></div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="chatInput" placeholder="Type a message..." onkeypress="handleChatKey(event)">
+                    <button class="btn btn-primary btn-sm" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const BRAND_NAME = 'Steve Business App';
+    const BRAND_INITIALS = 'SBA';
+    const BRAND_COLOR = '#2563eb';
+    
+    let api = null;
+    let currentRoom = '';
+    let isHost = false;
+    let currentUserName = '';
+
+    async function joinMeeting() {
+        const userName = document.getElementById('userName').value.trim();
+        const roomName = document.getElementById('roomName').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const password = document.getElementById('roomPassword').value.trim();
+        isHost = document.getElementById('isHost').checked;
+        const startMuted = document.getElementById('startMuted').checked;
+        const startVideoOff = document.getElementById('startVideoOff').checked;
+        
+        if (!userName || !roomName) { alert('Please enter your name and room name'); return; }
+        
+        currentUserName = userName;
+        currentRoom = roomName;
+        
+        const meetingUrl = window.location.origin + '/' + roomName;
+        
+        document.getElementById('joinForm').style.display = 'none';
+        document.getElementById('mainContent').classList.add('active');
+        document.getElementById('meetingInfo').classList.add('active');
+        document.getElementById('infoRoom').textContent = roomName;
+        document.getElementById('shareLinkInput').value = meetingUrl;
+        
+        if (isHost) document.getElementById('hostControls').classList.add('active');
+
+        initJitsi(roomName, userName, password, startMuted, startVideoOff);
+    }
+
+    function initJitsi(room, name, password, startMuted, startVideoOff) {
+        const domain = 'meet.jit.si';
+        
+        const options = {
+            roomName: room,
+            width: '100%',
+            height: 600,
+            parentNode: document.getElementById('meetFrame'),
+            configOverwrite: {
+                startWithAudioMuted: startMuted,
+                startWithVideoMuted: startVideoOff,
+                prejoinPageEnabled: false,
+                disableDeepLinking: true,
+                resolution: 720
+            },
+            interfaceConfigOverwrite: {
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                DEFAULT_BACKGROUND: '#1a1a1a',
+                SHOW_BRAND_WATERMARK: false,
+                TOOLBAR_BUTTONS: ['microphone', 'camera', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'profile', 'chat', 'recording', 'settings', 'feedback', 'tileview']
+            },
+            userInfo: { displayName: name }
+        };
+
+        if (password) options.password = password;
+
+        try {
+            api = new JitsiMeetExternalAPI(domain, options);
+            
+            api.addEventListener('videoConferenceJoined', () => {
+                showToast('Welcome to the meeting!');
+                updateParticipants();
+            });
+
+            api.addEventListener('participantJoined', () => { updateParticipants(); });
+            api.addEventListener('participantLeft', () => { updateParticipants(); });
+            api.addEventListener('chatMessageReceived', (event) => { addChatMessage(event.data); });
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error connecting to meeting.');
+        }
+    }
+
+    function updateParticipants() {
+        if (!api) return;
+        api.getParticipantsList().then(participants => {
+            const list = document.getElementById('participantList');
+            list.innerHTML = '';
+            participants.forEach(p => {
+                const initials = p.getDisplayName().substring(0, 2).toUpperCase();
+                const isMe = p.getDisplayName() === currentUserName;
+                const isHost = p.isModerator();
+                list.innerHTML += '<li class="participant-item"><div class="participant-avatar" style="background:' + BRAND_COLOR + '">' + initials + '</div><span class="participant-name">' + p.getDisplayName() + (isMe ? ' (You)' : '') + '</span>' + (isHost ? '<span class="participant-badge host">Host</span>' : '') + '</li>';
+            });
+            document.getElementById('participantCount2').textContent = participants.length;
+        });
+    }
+
+    function addChatMessage(data) {
+        const container = document.getElementById('chatMessages');
+        const isSelf = data.from === api.getMyUserId();
+        const senderName = data.fromName || 'Someone';
+        container.innerHTML += '<div class="message ' + (isSelf ? 'sent' : 'received') + '"><div class="message-sender">' + senderName + '</div><div>' + data.message + '</div></div>';
+        container.parentElement.scrollTop = container.parentElement.scrollHeight;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        if (message && api) {
+            api.sendMessage(message);
+            addChatMessage({ from: api.getMyUserId(), fromName: currentUserName, message: message });
+            input.value = '';
+        }
+    }
+
+    function handleChatKey(e) { if (e.key === 'Enter') sendMessage(); }
+
+    function copyMeetingLink() {
+        navigator.clipboard.writeText(document.getElementById('shareLinkInput').value);
+        showToast('Meeting link copied!');
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function toggleLobby() { if (api) { api.executeCommand('toggleLobby'); showToast('Lobby toggled'); } }
+    function setPassword() { const p = prompt('Enter password:'); if (p && api) { api.executeCommand('password', p); showToast('Password set'); } }
+    function removePassword() { if (api) { api.executeCommand('password', ''); showToast('Password removed'); } }
+    function muteAll() { if (api) { api.executeCommand('muteEveryBody'); showToast('All participants muted'); } }
+    function endMeeting() { if (confirm('End meeting for everyone?')) { if (api) { api.executeCommand('hangup'); setTimeout(() => location.reload(), 1000); } } }
+</script>
+{% endblock %}

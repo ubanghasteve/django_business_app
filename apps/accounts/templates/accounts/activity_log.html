@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load pagination_tags %}
+
+{% block title %}Activity Log | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}Activity Log{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Page Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-list-alt me-2"></i>Activity Log</h2>
+                <p class="text-muted mb-0">
+                    Activity log for <strong>this account</strong> (owner and team members). Tenant-safe: only this account’s data is shown.
+                    {% if date_filter %}
+                    <span class="badge bg-primary ms-1">Showing {{ date_filter_display|default:date_filter }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'accounts:security_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Security
+                </a>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-2 g-md-3 align-items-end">
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label">Activity Type</label>
+                        <select name="type" class="form-select">
+                            <option value="">All Types</option>
+                            {% for type_code in all_types %}
+                            <option value="{{ type_code }}" {% if activity_type == type_code %}selected{% endif %}>
+                                {{ type_code }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label">Application</label>
+                        <select name="app" class="form-select">
+                            <option value="">All Apps</option>
+                            {% for app in all_apps %}
+                            <option value="{{ app }}" {% if app_filter == app %}selected{% endif %}>
+                                {{ app|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label">Time Period</label>
+                        <select name="days" class="form-select">
+                            <option value="">All Time</option>
+                            <option value="1" {% if days == '1' %}selected{% endif %}>Last 24 Hours</option>
+                            <option value="7" {% if days == '7' %}selected{% endif %}>Last 7 Days</option>
+                            <option value="30" {% if days == '30' %}selected{% endif %}>Last 30 Days</option>
+                            <option value="90" {% if days == '90' %}selected{% endif %}>Last 90 Days</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="form-check mt-2 mt-md-0">
+                            <input class="form-check-input" type="checkbox" name="significant_only" value="1" id="significant_only" {% if significant_only %}checked{% endif %}>
+                            <label class="form-check-label" for="significant_only" title="Exclude page views; show only logins, creates, updates, deletes, etc.">Significant only</label>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4 d-flex flex-wrap gap-2 justify-content-start justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-filter me-1"></i>Filter
+                        </button>
+                        <a href="{% url 'accounts:activity_log' %}" class="btn btn-outline-secondary btn-sm">
+                            Clear
+                        </a>
+                    </div>
+                </form>
+                <p class="text-muted small mb-0 mt-2">“Significant only” hides page views so you see only logins, creates, updates, deletes, and similar actions.</p>
+            </div>
+        </div>
+
+        <!-- Activity List -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S/N</th>
+                                <th style="width: 150px;">Type</th>
+                                <th>Description</th>
+                                <th style="width: 140px;">Performed by</th>
+                                <th>Application</th>
+                                <th>IP Address</th>
+                                <th>Timestamp</th>
+                                <th>Risk</th>
+                                <th style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in activities %}
+                            <tr class="{% if activity.is_suspicious %}table-warning{% endif %} activity-row">
+                                <td>{% serial_number forloop.counter page per_page %}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if activity.activity_type == 'LOGIN' %}bg-success
+                                        {% elif activity.activity_type == 'LOGOUT' %}bg-secondary
+                                        {% elif activity.activity_type == 'LOGIN_FAILED' %}bg-danger
+                                        {% elif activity.activity_type == 'CREATE' %}bg-primary
+                                        {% elif activity.activity_type == 'UPDATE' %}bg-info
+                                        {% elif activity.activity_type == 'DELETE' %}bg-danger
+                                        {% elif activity.activity_type == 'PAGE_VIEW' %}bg-light text-dark
+                                        {% elif activity.activity_type == 'EXPORT' %}bg-warning text-dark
+                                        {% elif activity.activity_type == 'FILE_DOWNLOAD' %}bg-info
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {% if activity.activity_type == 'LOGIN' %}<i class="fas fa-sign-in-alt me-1"></i>
+                                        {% elif activity.activity_type == 'LOGOUT' %}<i class="fas fa-sign-out-alt me-1"></i>
+                                        {% elif activity.activity_type == 'LOGIN_FAILED' %}<i class="fas fa-times-circle me-1"></i>
+                                        {% elif activity.activity_type == 'CREATE' %}<i class="fas fa-plus me-1"></i>
+                                        {% elif activity.activity_type == 'UPDATE' %}<i class="fas fa-edit me-1"></i>
+                                        {% elif activity.activity_type == 'DELETE' %}<i class="fas fa-trash me-1"></i>
+                                        {% elif activity.activity_type == 'PAGE_VIEW' %}<i class="fas fa-eye me-1"></i>
+                                        {% elif activity.activity_type == 'EXPORT' %}<i class="fas fa-file-export me-1"></i>
+                                        {% elif activity.activity_type == 'FILE_DOWNLOAD' %}<i class="fas fa-download me-1"></i>
+                                        {% else %}<i class="fas fa-circle me-1"></i>
+                                        {% endif %}
+                                        {{ activity.get_activity_type_display }}
+                                    </span>
+                                    {% if activity.changes %}
+                                    <br><small class="badge bg-info mt-1">Has Changes</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ activity.description }}</div>
+                                    {% if activity.url_path %}
+                                    <small class="text-muted">
+                                        <code>{{ activity.http_method }} {{ activity.url_path|truncatechars:50 }}</code>
+                                    </small>
+                                    {% endif %}
+                                    {% if activity.object_id %}
+                                    <br><small class="text-muted">Object: {{ activity.object_repr|default:activity.object_id }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ activity.actor_display }}</strong>
+                                    {% if activity.sub_user_id %}
+                                    <br><span class="badge bg-info text-white">Team member</span>
+                                    {% elif activity.user_id %}
+                                    <br><span class="badge bg-secondary">Account owner</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if activity.app_name %}
+                                    <span class="badge bg-light text-dark">{{ activity.app_name|title }}</span>
+                                    {% if activity.model_name %}
+                                    <br><small class="text-muted">{{ activity.model_name }}</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if activity.ip_address %}
+                                    <code class="fw-bold">{{ activity.ip_address }}</code>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ activity.timestamp|date:"M d, Y" }}</div>
+                                    <small class="text-muted">{{ activity.timestamp|time:"g:i:s A" }}</small>
+                                    <br><small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </td>
+                                <td>
+                                    {% if activity.is_suspicious %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>{{ activity.risk_level }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted">{{ activity.risk_level }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'accounts:activity_detail' activity.id %}" 
+                                           class="btn btn-sm btn-primary" title="View Activity Details">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                        {% if activity.object_url and activity.activity_type != 'DELETE' %}
+                                        <a href="{{ activity.object_url }}" 
+                                           class="btn btn-sm btn-success" title="Go to Actual Record">
+                                            <i class="fas fa-external-link-alt me-1"></i>Record
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                                    No activities found
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            {% if has_prev or has_next %}
+            <div class="card-footer bg-light">
+                <nav aria-label="Activity navigation">
+                    <ul class="pagination justify-content-center mb-0">
+                        <!-- Previous Page -->
+                        <li class="page-item page-item-icon {% if not has_prev %}disabled{% endif %}">
+                            {% if has_prev %}
+                            <a class="page-link" href="?page={{ page|add:'-1' }}{% if activity_type %}&type={{ activity_type }}{% endif %}{% if significant_only %}&significant_only=1{% endif %}{% if app_filter %}&app={{ app_filter }}{% endif %}{% if days %}&days={{ days }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}" title="Previous Page">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            {% else %}
+                            <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                            {% endif %}
+                        </li>
+                        <!-- Current Page Indicator -->
+                        <li class="page-item active pagination-current">
+                            <span class="page-link">
+                                Page {{ page }}
+                            </span>
+                        </li>
+                        <!-- Next Page -->
+                        <li class="page-item page-item-icon {% if not has_next %}disabled{% endif %}">
+                            {% if has_next %}
+                            <a class="page-link" href="?page={{ page|add:'1' }}{% if activity_type %}&type={{ activity_type }}{% endif %}{% if significant_only %}&significant_only=1{% endif %}{% if app_filter %}&app={{ app_filter }}{% endif %}{% if days %}&days={{ days }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}" title="Next Page">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            {% else %}
+                            <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </nav>
+                <p class="text-center text-muted mb-0 mt-2">
+                    Showing {{ activities|length }} activities on this page
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 0.5rem;
+    }
+    
+    code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.85em;
+    }
+    
+    .table th {
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge {
+        font-weight: 500;
+    }
+    
+    .activity-row:hover {
+        background-color: #f8f9fa;
+        transition: background-color 0.2s ease;
+    }
+    
+    .activity-row[onclick]:hover {
+        background-color: #e3f2fd;
+    }
+    
+    .activity-row[onclick] td {
+        position: relative;
+    }
+    
+    /* Pagination Styling */
+    .pagination {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .pagination .page-link {
+        border-radius: 999px;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        padding: 0.4rem 0.9rem;
+        transition: all 0.2s ease;
+        min-width: 40px;
+        text-align: center;
+        background-color: #ffffff;
+    }
+    
+    .pagination .page-link:hover {
+        background-color: #e9f2ff;
+        border-color: #0d6efd;
+        color: #0d6efd;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(13,110,253,0.2);
+    }
+    
+    /* Round icon buttons for prev/next */
+    .pagination .page-item-icon .page-link {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Highlight current page as primary pill */
+    .pagination .pagination-current .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: #ffffff;
+        font-weight: 600;
+        min-width: 90px;
+    }
+    
+    .pagination .page-item.disabled .page-link {
+        background-color: #e9ecef;
+        border-color: #dee2e6;
+        color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .pagination .page-link i {
+        font-size: 0.875rem;
+    }
+</style>
+
+{% endblock %}

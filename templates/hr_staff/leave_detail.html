@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}HR & Staff - Leave Request{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Leave Request{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 mb-md-4">
+                <div class="min-w-0">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1">
+                            <li class="breadcrumb-item"><a href="{% url 'hr_staff:leave_list' %}">{% if is_employee_portal %}My Leave{% else %}Leave Requests{% endif %}</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Request #{{ leave.pk }}</li>
+                        </ol>
+                    </nav>
+                    <h4 class="fw-bold text-dark mb-1">{{ leave.employee.full_name }} – {{ leave.get_leave_type_display }}</h4>
+                    <p class="text-muted mb-0 small">{{ leave.start_date|date:"M d, Y" }} – {{ leave.end_date|date:"M d, Y" }}</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if perms.hr_staff.add_leaverequest %}
+                    <a href="{% url 'hr_staff:leave_create' %}" class="btn btn-primary rounded-2">New Request</a>
+                    {% endif %}
+                    {% if leave.status == 'pending' %}
+                    {% if perms.hr_staff.change_leaverequest or perms.hr_staff.view_hr_dashboard %}
+                    <form method="post"
+                          action="{% url 'hr_staff:leave_update_status' leave.pk %}"
+                          class="d-inline hr-leave-status-form"
+                          data-leave-uuid="{{ leave.uuid }}"
+                          data-status-value="approved">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="approved">
+                        <input type="hidden" name="next" value="{% url 'hr_staff:leave_detail' leave.pk %}">
+                        <button type="submit" class="btn btn-success rounded-2">Approve</button>
+                    </form>
+                    <form method="post"
+                          action="{% url 'hr_staff:leave_update_status' leave.pk %}"
+                          class="d-inline hr-leave-status-form"
+                          data-leave-uuid="{{ leave.uuid }}"
+                          data-status-value="rejected">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="rejected">
+                        <input type="hidden" name="next" value="{% url 'hr_staff:leave_detail' leave.pk %}">
+                        <button type="submit" class="btn btn-danger rounded-2">Reject</button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                    {% if perms.hr_staff.change_leaverequest %}
+                    <a href="{% url 'hr_staff:leave_edit' leave.pk %}" class="btn btn-outline-primary rounded-2">Edit</a>
+                    {% endif %}
+                    {% if perms.hr_staff.delete_leaverequest %}
+                    <a href="{% url 'hr_staff:leave_delete' leave.pk %}" class="btn btn-outline-danger rounded-2">Delete</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12 col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-body">
+                            <h6 class="fw-bold text-dark mb-3">Details</h6>
+                            <p class="mb-2"><span class="text-muted">Employee:</span> <a href="{% url 'hr_staff:employee_detail' leave.employee.pk %}">{{ leave.employee.full_name }}</a></p>
+                            <p class="mb-2"><span class="text-muted">Leave type:</span> {{ leave.get_leave_type_display }}</p>
+                            <p class="mb-2"><span class="text-muted">Start date:</span> {{ leave.start_date|date:"M d, Y" }}</p>
+                            <p class="mb-2"><span class="text-muted">End date:</span> {{ leave.end_date|date:"M d, Y" }}</p>
+                            <p class="mb-2"><span class="text-muted">Duration:</span> {{ leave.duration_days }} day{{ leave.duration_days|pluralize }}</p>
+                            <p class="mb-1">
+                                <span class="text-muted">Status:</span>
+                                <span class="badge rounded-pill {% if leave.status == 'approved' %}bg-success bg-opacity-10 text-success{% elif leave.status == 'rejected' %}bg-danger bg-opacity-10 text-danger{% else %}bg-warning bg-opacity-10 text-warning{% endif %}">
+                                    {{ leave.get_status_display }}
+                                </span>
+                            </p>
+                            {% if leave.status != 'pending' and leave.status_changed_by %}
+                            <p class="mb-0 text-muted small">
+                                {{ leave.get_status_display }} by {{ leave.status_changed_by.get_full_name|default:leave.status_changed_by.email|default:"Someone" }}
+                                {% if leave.status_changed_at %}on {{ leave.status_changed_at|date:"M d, Y" }} at {{ leave.status_changed_at|time:"H:i" }}{% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.hr-page-wrap { max-width: 100%; background-color: #f0f2f5; }
+@media (max-width: 575.98px) { .hr-page-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; } }
+/* Ensure status badge text is readable on all themes */
+.hr-page-wrap .badge.bg-warning,
+.hr-page-wrap .badge.bg-warning.bg-opacity-10,
+.hr-page-wrap .badge.text-warning {
+  background-color: rgba(255, 193, 7, 0.18) !important;
+  color: #856404 !important;
+  font-weight: 600;
+}
+.hr-page-wrap .badge.bg-success,
+.hr-page-wrap .badge.bg-success.bg-opacity-10,
+.hr-page-wrap .badge.text-success {
+  background-color: rgba(25, 135, 84, 0.18) !important;
+  color: #198754 !important;
+  font-weight: 600;
+}
+</style>
+<script>
+(function() {
+    document.addEventListener('submit', function(ev) {
+        var target = ev.target;
+        if (!target || !target.classList || !target.classList.contains('hr-leave-status-form')) return;
+        if (navigator.onLine || !window.OfflineSync) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        var uuid = target.getAttribute('data-leave-uuid') || '';
+        var statusVal = target.getAttribute('data-status-value') || '';
+        if (!uuid || !statusVal) return;
+        var payload = {
+            uuid: uuid,
+            status: statusVal,
+            updated_at: new Date().toISOString(),
+            is_deleted: false
+        };
+        var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+        OfflineSync.wrapSubmit('hr_leaves', payload, tenantId, function() {
+            return Promise.reject(new Error('offline'));
+        }).then(function() {
+            if (typeof window.OfflineSync !== 'undefined') {
+                window.OfflineSync.syncAllModels && window.OfflineSync.syncAllModels();
+            }
+        }).catch(function(err) {
+            if (!err || err.message !== 'offline') {
+                alert('Could not queue status update offline. Please try again when back online.');
+            }
+        });
+    }, true);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static humanize crispy_forms_tags %}
+{% block title %}Edit Payroll Profile{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.payroll-form-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: none; }
+.payroll-form-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; padding: 1rem 1.25rem; border: none; }
+.payroll-form-page .card-header h5 { font-weight: 600; letter-spacing: 0.02em; margin: 0; }
+.payroll-form-page .form-label { font-weight: 500; font-size: 0.9rem; color: #495057; }
+.payroll-form-page .form-control, .payroll-form-page .form-select { border-radius: 8px; border: 1px solid #dee2e6; padding: 0.6rem 0.9rem; }
+.payroll-form-page .form-control:focus, .payroll-form-page .form-select:focus { border-color: #1e88e5; box-shadow: 0 0 0 0.15rem rgba(30,136,229,.15); }
+.payroll-form-page .help-text { font-size: 0.8rem; color: #6c757d; }
+.payroll-employee-badge { padding: 8px 16px; border-radius: 8px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); font-weight: 600; color: #1565c0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-form-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:employee_profiles_list' %}" class="text-decoration-none">Employee Profiles</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit Profile</li>
+        </ol>
+    </nav>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Edit Payroll Profile</h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="payroll-employee-badge">
+                        <i class="fas fa-user me-2"></i>{{ profile.employee.first_name }} {{ profile.employee.last_name }}
+                        <span class="ms-2 text-muted">({{ profile.employee.employee_id|default:"No ID" }})</span>
+                    </div>
+                </div>
+            </div>
+            
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                
+                <div class="col-md-6">
+                    <label class="form-label">Employee</label>
+                    <input type="text" class="form-control" value="{{ profile.employee }}" readonly>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Payroll Structure</label>
+                    {{ form.payroll_structure }}
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Basic Salary</label>
+                    <div class="input-group">
+                        <span class="input-group-text">{{ user_currency_symbol|default:"₦" }}</span>
+                        {{ form.basic_salary }}
+                    </div>
+                    {% if form.basic_salary.help_text %}<small class="help-text">{{ form.basic_salary.help_text }}</small>{% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Allowance</label>
+                    <div class="input-group">
+                        <span class="input-group-text">{{ user_currency_symbol|default:"₦" }}</span>
+                        {{ form.allowance }}
+                    </div>
+                    {% if form.allowance.help_text %}<small class="help-text">{{ form.allowance.help_text }}</small>{% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check mt-4">
+                        {{ form.pension_enabled }}
+                        <label class="form-check-label" for="id_pension_enabled">Enable Pension Deduction</label>
+                    </div>
+                    <small class="help-text">Pension contribution (8% employee + 10% employer)</small>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check mt-4">
+                        {{ form.nhf_enabled }}
+                        <label class="form-check-label" for="id_nhf_enabled">Enable NHF Deduction</label>
+                    </div>
+                    <small class="help-text">National Housing Fund contribution</small>
+                </div>
+                
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                    <a href="{% url 'payroll:employee_profiles_list' %}" class="btn btn-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

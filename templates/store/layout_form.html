@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit{% else %}New{% endif %} Store Layout{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; border-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; border-color: #28a745 !important; }
+    .btn-secondary { background-color: #6c757d !important; border-color: #6c757d !important; }
+    .form-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">{% if is_edit %}Edit{% else %}New{% endif %} Layout</h5><p class="text-muted text-sm mb-0">Configure table columns and appearance</p></div>
+        <div class="col-auto"><a href="{% url 'store:layout_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a></div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card form-card mb-3">
+                    <div class="card-header"><h6 class="mb-0">Basic Info</h6></div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">{{ form.name.label }}</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">{{ form.is_default.label }}</label>
+                                <div class="form-check mt-2">{{ form.is_default }}</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card form-card mb-3">
+                    <div class="card-header"><h6 class="mb-0">Appearance</h6></div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.primary_color.label }}</label>
+                                {{ form.primary_color }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.secondary_color.label }}</label>
+                                {{ form.secondary_color }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.accent_color.label }}</label>
+                                {{ form.accent_color }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ form.text_color.label }}</label>
+                                {{ form.text_color }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card form-card mb-3">
+                    <div class="card-header"><h6 class="mb-0">Options</h6></div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-4 mb-2"><div class="form-check">{{ form.supports_calculations }} <label class="form-check-label">{{ form.supports_calculations.label }}</label></div></div>
+                            <div class="col-md-4 mb-2"><div class="form-check">{{ form.show_totals }} <label class="form-check-label">{{ form.show_totals.label }}</label></div></div>
+                            <div class="col-md-4 mb-2"><div class="form-check">{{ form.show_grand_total }} <label class="form-check-label">{{ form.show_grand_total.label }}</label></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card form-card mb-3">
+                    <div class="card-header"><h6 class="mb-0">Columns JSON</h6></div>
+                    <div class="card-body p-4">
+                        <p class="text-muted small mb-2">Define which columns appear in the table. Each column: <code>{"key","label","width","visible","order"}</code></p>
+                        {{ form.columns_json }}
+                        {% if form.columns_json.errors %}<div class="text-danger small">{{ form.columns_json.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> {% if is_edit %}Update{% else %}Create{% endif %}</button>
+                    <a href="{% url 'store:layout_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card form-card">
+                    <div class="card-header"><h6 class="mb-0">Preview</h6></div>
+                    <div class="card-body">
+                        <div id="layoutPreview" style="border-radius:6px; overflow:hidden; border:1px solid #dee2e6;">
+                            <div id="previewHeader" style="background: linear-gradient(135deg, #007bff 0%, #6c757d 100%); padding:12px; color:white;">
+                                <strong id="previewName">Layout Name</strong>
+                            </div>
+                            <div style="padding:10px; background:#f8f9fa; font-size:0.8rem;">
+                                <p class="mb-1"><strong>Columns:</strong> configurable</p>
+                                <p class="mb-0"><strong>Totals:</strong> <span id="previewCalc">Yes</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelector('input[name="name"]').addEventListener('input', function(e) {
+    document.getElementById('previewName').textContent = e.target.value || 'Layout Name';
+});
+document.querySelector('input[name="primary_color"]').addEventListener('input', function(e) {
+    updateHeader();
+});
+document.querySelector('input[name="secondary_color"]').addEventListener('input', function(e) {
+    updateHeader();
+});
+function updateHeader() {
+    const primary = document.querySelector('input[name="primary_color"]').value || '#007bff';
+    const secondary = document.querySelector('input[name="secondary_color"]').value || '#6c757d';
+    document.getElementById('previewHeader').style.background = 'linear-gradient(135deg, ' + primary + ' 0%, ' + secondary + ' 100%)';
+}
+document.querySelector('input[name="supports_calculations"]').addEventListener('change', function(e) {
+    document.getElementById('previewCalc').textContent = e.target.checked ? 'Yes' : 'No';
+});
+</script>
+{% endblock %}

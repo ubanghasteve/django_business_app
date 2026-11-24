@@ -1,0 +1,1380 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Staff Offence Management{% endblock %}
+{% block page_title %}Staff Offences{% endblock %}
+{% block breadcrumb %}Staff Offences{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --so-primary: {{ theme_primary_color|default:"#f97316" }};
+  --so-soft: {{ theme_accent_color|default:"#ffedd5" }};
+  --so-card: {{ theme_secondary_color|default:"#fff7ed" }};
+  --so-text: {{ theme_text_color|default:"#111827" }};
+  --so-muted: #6b7280;
+  --so-line: #e5e7eb;
+  --so-accent-text: color-mix(in srgb, {{ theme_primary_color|default:"#f97316" }} 72%, #7c2d12);
+}
+.so-list-page {
+  width: 100%; max-width: 100%;
+  overflow-x: hidden; box-sizing: border-box;
+}
+.so-list-wrap {
+  max-width: 1180px; margin: 0 auto; width: 100%;
+  min-width: 0; box-sizing: border-box;
+}
+.so-list-hero {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap; margin-bottom: 1.35rem;
+  animation: soFadeUp 0.45s ease both;
+  min-width: 0; width: 100%;
+}
+.so-list-hero-left {
+  display: flex; align-items: flex-start; gap: 0.95rem;
+  min-width: 0; flex: 1 1 200px;
+}
+.so-list-hero-left > div:last-child { min-width: 0; flex: 1; }
+.so-list-hero-icon {
+  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+  background: var(--so-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--so-primary) 30%, transparent);
+}
+.so-list-hero h1 {
+  margin: 0; font-size: clamp(1.15rem, 4.2vw, 1.55rem); font-weight: 700;
+  color: var(--so-text); line-height: 1.25;
+  overflow-wrap: anywhere; word-break: normal; hyphens: auto;
+}
+.so-list-hero p {
+  margin: 0.35rem 0 0; color: var(--so-muted);
+  font-size: clamp(0.84rem, 2.8vw, 0.92rem); max-width: 36rem; line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.so-btn-record {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  background: var(--so-primary); color: #fff; border: none; text-decoration: none;
+  font-weight: 600; border-radius: 12px; padding: 0.75rem 1.2rem; font-size: 0.95rem;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--so-primary) 32%, transparent);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  flex: 0 0 auto; box-sizing: border-box; max-width: 100%;
+}
+.so-btn-record:hover { color: #fff; filter: brightness(0.96); transform: translateY(-1px); }
+
+.so-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(0, 0.65fr)) auto;
+  gap: 0.65rem; align-items: stretch;
+  background: #fff; border: 1px solid var(--so-line); border-radius: 16px;
+  padding: 0.85rem; margin-bottom: 1.15rem;
+  animation: soFadeUp 0.5s ease 0.04s both;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0.04);
+  width: 100%; box-sizing: border-box;
+}
+.so-filter-bar > * { min-width: 0; }
+.so-filter-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.so-filter-actions .so-btn-search,
+.so-filter-actions .so-btn-clear { flex: 1 1 auto; }
+.so-search-wrap { position: relative; }
+.so-search-wrap i {
+  position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%);
+  color: #9ca3af; pointer-events: none; transition: color 0.15s ease;
+}
+.so-search-wrap.is-typing i,
+.so-search-wrap.is-filtering i { color: var(--so-primary); }
+.so-search-hint {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #9ca3af; pointer-events: none; opacity: 0; transition: opacity 0.15s ease;
+}
+.so-search-wrap.is-typing .so-search-hint,
+.so-search-wrap.has-value .so-search-hint { opacity: 1; color: var(--so-primary); }
+.so-search-wrap.is-filtering .so-search-hint::after { content: "…"; }
+.so-filter-input,
+.so-filter-bar .form-control,
+.so-filter-bar .form-select {
+  border: 1.5px solid #d1d5db !important; border-radius: 11px !important;
+  min-height: 44px !important; font-size: 0.92rem !important;
+  background: #fff !important; color: var(--so-text) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100% !important; max-width: 100% !important;
+  box-sizing: border-box !important;
+  text-overflow: ellipsis;
+}
+.so-search-wrap .form-control { padding-left: 2.35rem !important; padding-right: 5.2rem !important; width: 100%; }
+.so-filter-input:focus,
+.so-filter-bar .form-control:focus,
+.so-filter-bar .form-select:focus {
+  border-color: var(--so-primary) !important; outline: none !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 16%, transparent) !important;
+}
+.so-btn-search {
+  background: var(--so-primary); color: #fff; border: none; border-radius: 11px;
+  font-weight: 600; min-height: 44px; padding: 0 1.15rem;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.so-btn-search:hover { filter: brightness(0.96); color: #fff; transform: translateY(-1px); }
+.so-btn-clear {
+  background: #fff; color: #6b7280; border: 1.5px solid #d1d5db; border-radius: 11px;
+  font-weight: 600; min-height: 44px; padding: 0 0.9rem; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.so-btn-clear:hover { background: #f9fafb; color: #111827; }
+
+.so-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem;
+  margin-bottom: 1.2rem;
+}
+.so-stat {
+  background: #fff; border: 1px solid var(--so-line); border-radius: 16px;
+  padding: 1.1rem 1.2rem; display: flex; align-items: center; gap: 0.95rem;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0.04);
+  animation: soFadeUp 0.5s ease both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 0;
+}
+.so-stat > div:last-child { min-width: 0; }
+.so-stat:nth-child(1) { animation-delay: 0.06s; }
+.so-stat:nth-child(2) { animation-delay: 0.1s; }
+.so-stat:nth-child(3) { animation-delay: 0.14s; }
+.so-stat:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(17, 24, 39, 0.07); }
+.so-stat-icon {
+  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+  background: var(--so-soft); color: var(--so-primary);
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+}
+.so-stat-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: #9ca3af; margin-bottom: 0.2rem;
+}
+.so-stat-value {
+  margin: 0; font-size: clamp(1.2rem, 4vw, 1.55rem); font-weight: 700;
+  color: var(--so-accent-text); line-height: 1.1; word-break: break-word;
+}
+.so-stat-value.so-bump { animation: soBump 0.4s ease; }
+.so-stat-note { font-size: 0.75rem; color: #9ca3af; margin-top: 0.15rem; }
+
+.so-panel {
+  background: #fff; border: 1px solid var(--so-line); border-radius: 18px;
+  overflow: hidden; box-shadow: 0 4px 18px rgba(17, 24, 39, 0.045);
+  animation: soFadeUp 0.55s ease 0.12s both;
+  width: 100%;
+}
+.so-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+  padding: 1rem 1.2rem; border-bottom: 1px solid #f3f4f6;
+}
+.so-panel-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--so-text); }
+.so-live-pill {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--so-primary); background: var(--so-soft);
+  border-radius: 999px; padding: 0.3rem 0.7rem;
+}
+.so-live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--so-primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--so-primary) 55%, transparent);
+  animation: soPulseDot 1.8s ease infinite;
+}
+.so-table-scroll-hint {
+  display: none;
+  align-items: center; gap: 0.4rem;
+  font-size: 0.75rem; font-weight: 600; color: #9ca3af;
+  padding: 0 1.1rem 0.55rem; margin: 0;
+}
+.so-table-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  width: 100%; max-width: 100%;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  scrollbar-width: thin;
+  /* Prefer horizontal swipe; vertical page scroll still works after a clear vertical gesture */
+  touch-action: pan-x;
+  cursor: grab;
+  position: relative;
+}
+.so-table-wrap.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+  scroll-behavior: auto;
+}
+.so-table-wrap.is-dragging a,
+.so-table-wrap.is-dragging select,
+.so-table-wrap.is-dragging button {
+  pointer-events: none;
+}
+.so-table-wrap::-webkit-scrollbar { height: 8px; }
+.so-table-wrap::-webkit-scrollbar-thumb {
+  background: #d1d5db; border-radius: 999px;
+}
+.so-table {
+  width: 100%; border-collapse: collapse; margin: 0;
+  min-width: 920px;
+}
+.so-table thead th {
+  background: #fafafa; color: #6b7280; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 0.85rem 1rem; border-bottom: 1px solid #f3f4f6; white-space: nowrap;
+}
+.so-table tbody td {
+  padding: 0.95rem 1rem; border-bottom: 1px solid #f3f4f6;
+  color: var(--so-text); font-size: 0.9rem; vertical-align: middle; background: #fff;
+}
+.so-table tbody tr {
+  transition: background 0.15s ease;
+  animation: soRowIn 0.35s ease both;
+}
+.so-table tbody tr:hover { background: #fffbf7; }
+.so-ref {
+  font-weight: 700; color: var(--so-primary); text-decoration: none;
+  word-break: break-word;
+}
+.so-ref:hover { text-decoration: underline; color: var(--so-primary); }
+.so-staff { font-weight: 600; color: var(--so-text); word-break: break-word; }
+.so-dept {
+  display: inline-flex; align-items: center; max-width: 100%;
+  background: #f3f4f6; color: #4b5563; border-radius: 999px;
+  padding: 0.2rem 0.65rem; font-size: 0.8rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.so-month-chip {
+  display: inline-flex; background: var(--so-soft); color: var(--so-accent-text);
+  border-radius: 8px; padding: 0.25rem 0.6rem; font-size: 0.82rem; font-weight: 700;
+  white-space: nowrap;
+}
+.so-count { font-weight: 700; }
+.so-money { font-weight: 700; color: var(--so-text); white-space: nowrap; }
+.so-pay-select {
+  appearance: none; -webkit-appearance: none;
+  border: none; border-radius: 999px;
+  padding: 0.35rem 1.7rem 0.35rem 0.75rem;
+  font-size: 0.75rem; font-weight: 700; line-height: 1.2;
+  cursor: pointer; max-width: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b7280' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.55rem center;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.so-pay-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 22%, transparent);
+}
+.so-pay-select:disabled { cursor: default; opacity: 0.95; background-image: none; padding-right: 0.75rem; }
+.so-pay-select.is-saving { opacity: 0.65; cursor: wait; }
+.so-pay-select.so-pay-unpaid { background-color: #fee2e2; color: #991b1b; }
+.so-pay-select.so-pay-partially_paid { background-color: #ffedd5; color: #9a3412; }
+.so-pay-select.so-pay-paid { background-color: #dcfce7; color: #166534; }
+.so-pay-select.so-pay-waived { background-color: #374151; color: #fff; }
+.so-pay-select.so-pay-pending_approval { background-color: #e5e7eb; color: #374151; }
+.so-pay-badge {
+  display: inline-flex; align-items: center;
+  border-radius: 999px; padding: 0.35rem 0.75rem;
+  font-size: 0.75rem; font-weight: 700; white-space: nowrap;
+}
+.so-pay-badge.so-pay-unpaid { background: #fee2e2; color: #991b1b; }
+.so-pay-badge.so-pay-partially_paid { background: #ffedd5; color: #9a3412; }
+.so-pay-badge.so-pay-paid { background: #dcfce7; color: #166534; }
+.so-pay-badge.so-pay-waived { background: #374151; color: #fff; }
+.so-pay-badge.so-pay-pending_approval { background: #e5e7eb; color: #374151; }
+.so-list-toast {
+  position: fixed; left: 50%; bottom: 1.35rem; transform: translateX(-50%) translateY(12px);
+  background: #111827; color: #fff; border-radius: 10px; padding: 0.7rem 1.1rem;
+  font-size: 0.88rem; font-weight: 600; z-index: 1080; opacity: 0; pointer-events: none;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, 0.25);
+  transition: opacity 0.2s ease, transform 0.2s ease; max-width: min(92vw, 420px); text-align: center;
+}
+.so-list-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.so-actions { display: flex; align-items: center; justify-content: flex-start; min-width: 0; }
+.so-action-select {
+  appearance: none; -webkit-appearance: none;
+  width: 100%; min-width: 118px; max-width: 160px;
+  border: 1.5px solid #d1d5db; border-radius: 10px;
+  background-color: #fff;
+  color: #374151; font-size: 0.82rem; font-weight: 700;
+  padding: 0.45rem 1.85rem 0.45rem 0.75rem;
+  cursor: pointer; line-height: 1.2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b7280' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.65rem center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.so-action-select:hover { border-color: #9ca3af; }
+.so-action-select:focus {
+  outline: none; border-color: var(--so-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 18%, transparent);
+}
+.so-action-select:disabled { opacity: 0.55; cursor: wait; }
+.so-action-select option[value="delete"] { color: #b91c1c; }
+.so-sn {
+  font-weight: 700; color: #6b7280; font-size: 0.88rem;
+  width: 52px; white-space: nowrap;
+}
+.so-table tbody tr.so-row-exit {
+  animation: soListRowOut 0.28s ease forwards;
+}
+@keyframes soListRowOut {
+  to { opacity: 0; transform: translateX(10px); }
+}
+
+.so-empty {
+  text-align: center; padding: 3rem 1.25rem; color: #9ca3af;
+}
+.so-empty-icon {
+  width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 1rem;
+  background: var(--so-soft); color: var(--so-primary);
+  display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+}
+.so-empty h3 { margin: 0 0 0.35rem; color: var(--so-text); font-size: 1.1rem; }
+.so-empty p { margin: 0 0 1rem; font-size: 0.9rem; }
+
+.so-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.95rem 1.2rem; border-top: 1px solid #f3f4f6; background: #fafafa;
+}
+.so-footer-meta { font-size: 0.84rem; color: #6b7280; }
+.so-pager { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.so-page-btn {
+  min-width: 34px; height: 34px; padding: 0 0.55rem; border-radius: 9px;
+  border: 1.5px solid #e5e7eb; background: #fff; color: #374151;
+  font-weight: 600; font-size: 0.85rem; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.so-page-btn:hover { background: #f9fafb; color: #111827; border-color: #d1d5db; }
+.so-page-btn.is-active {
+  background: var(--so-primary); border-color: var(--so-primary); color: #fff;
+}
+.so-page-btn.is-disabled { opacity: 0.45; pointer-events: none; }
+.so-refreshing { opacity: 0.72; transition: opacity 0.2s ease; }
+
+@keyframes soFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes soBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes soRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes soPulseDot {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--so-primary) 45%, transparent); }
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* —— Responsive breakpoints —— */
+@media (max-width: 1100px) {
+  .so-filter-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .so-search-wrap { grid-column: 1 / -1; }
+  .so-filter-actions { grid-column: 1 / -1; }
+  .so-table-scroll-hint { display: inline-flex; }
+}
+@media (max-width: 767px) {
+  .so-list-page.container-fluid {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .so-list-wrap { padding-left: 0 !important; padding-right: 0 !important; }
+  .so-list-hero {
+    flex-direction: column; align-items: stretch;
+    gap: 0.85rem; margin-bottom: 1rem;
+  }
+  .so-list-hero-left { flex: 1 1 auto; width: 100%; }
+  .so-list-hero h1 { font-size: 1.2rem; line-height: 1.3; }
+  .so-list-hero p { max-width: none; font-size: 0.86rem; }
+  .so-btn-record { width: 100%; }
+  .so-stats {
+    grid-template-columns: 1fr; gap: 0.7rem; width: 100%;
+  }
+  .so-stat {
+    width: 100%; box-sizing: border-box;
+    padding: 0.95rem 1rem;
+  }
+  .so-stat-label { font-size: 0.68rem; }
+  .so-panel {
+    width: 100%; max-width: 100%;
+    border-radius: 16px; overflow: hidden;
+  }
+  .so-panel-head {
+    padding: 0.85rem 1rem;
+    flex-direction: column; align-items: flex-start; gap: 0.5rem;
+  }
+  .so-table-scroll-hint {
+    display: inline-flex;
+    padding: 0 1rem 0.65rem;
+  }
+  .so-table-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    border-top: 1px solid #f3f4f6;
+    /* Keep real table + swipe scroll on phones */
+  }
+  .so-table {
+    min-width: 980px;
+    width: max-content;
+    max-width: none;
+  }
+  .so-table thead th,
+  .so-table tbody td {
+    white-space: nowrap;
+  }
+  .so-table tbody td .so-staff,
+  .so-table tbody td .so-ref {
+    white-space: nowrap;
+  }
+  .so-table tbody tr {
+    animation: none;
+  }
+  .so-table tbody tr:hover { background: #fff; }
+  .so-pay-select,
+  .so-action-select {
+    touch-action: manipulation;
+  }
+  .so-footer {
+    flex-direction: column; align-items: stretch;
+    padding: 0.85rem 1rem; gap: 0.65rem;
+  }
+  .so-pager { justify-content: center; }
+  .so-search-hint { display: none; }
+  .so-search-wrap .form-control { padding-right: 0.9rem !important; }
+  .so-action-select { min-width: 120px; max-width: 140px; }
+  .so-pay-select { max-width: 150px; }
+}
+@media (max-width: 575px) {
+  .so-filter-bar {
+    grid-template-columns: 1fr;
+    padding: 0.75rem;
+    gap: 0.55rem;
+  }
+  .so-filter-actions { flex-direction: column; }
+  .so-filter-actions .so-btn-search,
+  .so-filter-actions .so-btn-clear { width: 100%; }
+  .so-list-hero-icon { width: 42px; height: 42px; font-size: 1.05rem; }
+  .so-list-hero h1 { font-size: 1.12rem; }
+  .so-empty { padding: 2rem 1rem; }
+  .so-table { min-width: 920px; }
+}
+</style>
+
+<div class="container-fluid py-3 py-md-4 so-list-page"
+     id="so-list-root"
+     data-currency="{{ currency_symbol }}"
+     data-can-change="{% if can_change %}1{% else %}0{% endif %}"
+     data-can-print="{% if can_print %}1{% else %}0{% endif %}"
+     data-can-download="{% if can_download %}1{% else %}0{% endif %}"
+     data-can-delete="{% if can_delete %}1{% else %}0{% endif %}"
+     data-show-created-by="{% if show_created_by %}1{% else %}0{% endif %}"
+     data-list-url="{% url 'staff_offences:list' %}"
+     data-csrf="{{ csrf_token }}">
+  <div class="so-list-wrap">
+    <div class="so-list-hero">
+      <div class="so-list-hero-left">
+        <div class="so-list-hero-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div>
+          <h1>Staff Offence Management</h1>
+          <p>Manage staff offences, view monthly records, and generate statements — one register per staff member per month.</p>
+        </div>
+      </div>
+      {% if can_add %}
+      <a href="{% url 'staff_offences:create' %}" class="so-btn-record">
+        <i class="fas fa-plus"></i> Record New Offence
+      </a>
+      {% endif %}
+    </div>
+
+    <form method="get" class="so-filter-bar" id="so-filter-form" role="search">
+      <div class="so-search-wrap">
+        <i class="fas fa-search" id="so-search-icon"></i>
+          {{ filter_form.search }}
+        <span class="so-search-hint" id="so-search-hint">Live filter</span>
+        </div>
+      {{ filter_form.department }}
+          {{ filter_form.month }}
+      {{ filter_form.year }}
+      {{ filter_form.payment_status }}
+      <div class="so-filter-actions">
+        <button type="submit" class="so-btn-search">Search</button>
+        <button type="button" class="so-btn-clear" id="so-clear-filters" title="Clear filters">Clear</button>
+      </div>
+    </form>
+
+    <div class="so-stats" id="so-stats">
+      <div class="so-stat">
+        <div class="so-stat-icon"><i class="fas fa-user"></i></div>
+        <div>
+          <div class="so-stat-label">Total Staff Records</div>
+          <p class="so-stat-value" id="so-stat-registers">{{ total_registers }}</p>
+        </div>
+      </div>
+      <div class="so-stat">
+        <div class="so-stat-icon"><i class="fas fa-users"></i></div>
+        <div>
+          <div class="so-stat-label">Total Offences (This Month)</div>
+          <p class="so-stat-value" id="so-stat-offences">{{ this_month_offences }}</p>
+          <div class="so-stat-note" id="so-stat-month-note">{{ this_month_label }}</div>
+        </div>
+      </div>
+      <div class="so-stat">
+        <div class="so-stat-icon"><i class="fas fa-coins"></i></div>
+        <div>
+          <div class="so-stat-label">Total Penalties (This Month)</div>
+          <p class="so-stat-value" id="so-stat-penalties">{{ currency_symbol }}{{ this_month_penalties|floatformat:0|intcomma }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="so-panel" id="so-table-panel">
+      <div class="so-panel-head">
+        <h2>Monthly registers</h2>
+        <span class="so-live-pill"><span class="so-live-dot"></span> Live sync</span>
+        </div>
+      <p class="so-table-scroll-hint" id="so-table-scroll-hint" aria-hidden="true">
+        <i class="fas fa-arrows-alt-h"></i> Swipe sideways to see all columns
+      </p>
+
+      <div class="so-table-wrap" id="so-table-wrap">
+        <table class="so-table" id="so-list-table">
+          <thead>
+            <tr>
+              <th style="width:56px;">S/N</th>
+              <th>Reference No.</th>
+              <th>Staff Name</th>
+              <th>Department</th>
+              <th>Month / Year</th>
+              <th>Total Offences</th>
+              <th>Total Penalty</th>
+              <th>Payment Status</th>
+              {% if show_created_by %}<th>Created by</th>{% endif %}
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="so-list-tbody">
+            {% for reg in page_obj %}
+            <tr data-register-id="{{ reg.pk }}" data-payment-status="{{ reg.payment_status }}" style="animation-delay: {{ forloop.counter0 }}0ms;">
+              <td class="so-sn" data-label="S/N">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+              <td data-label="Reference"><a class="so-ref" href="{% url 'staff_offences:detail' reg.pk %}">{{ reg.reference_number }}</a></td>
+              <td data-label="Staff"><span class="so-staff">{{ reg.staff_name }}</span></td>
+              <td data-label="Department">
+                {% if reg.department_name %}
+                <span class="so-dept">{{ reg.department_name }}</span>
+                {% else %}
+                <span class="text-secondary">—</span>
+                {% endif %}
+              </td>
+              <td data-label="Month"><span class="so-month-chip">{{ reg.month_label }}</span></td>
+              <td data-label="Offences"><span class="so-count">{{ reg.entry_count|default:0 }}</span></td>
+              <td data-label="Penalty"><span class="so-money">{{ currency_symbol }}{{ reg.total_amount|default:0|floatformat:0|intcomma }}</span></td>
+              <td data-label="Payment status">
+                {% if can_change %}
+                <select class="so-pay-select so-pay-{{ reg.payment_status }}"
+                        data-payment-url="{% url 'staff_offences:payment_status' reg.pk %}"
+                        data-current="{{ reg.payment_status }}"
+                        title="{{ reg.payment_status_help }}"
+                        aria-label="Payment status for {{ reg.reference_number }}">
+                  {% for value, label in payment_status_choices %}
+                  <option value="{{ value }}" {% if reg.payment_status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                {% else %}
+                <span class="so-pay-badge so-pay-{{ reg.payment_status }}" title="{{ reg.payment_status_help }}">{{ reg.payment_status_label }}</span>
+                {% endif %}
+              </td>
+              {% if show_created_by %}
+              <td data-label="Created by"><span class="text-secondary">{{ reg.created_by.get_full_name|default:reg.created_by }}</span></td>
+              {% endif %}
+              <td data-label="Actions">
+                <div class="so-actions">
+                  <select class="so-action-select"
+                          aria-label="Actions for {{ reg.reference_number }}"
+                          data-detail-url="{% url 'staff_offences:detail' reg.pk %}"
+                          data-print-url="{% if can_print %}{% url 'staff_offences:print' reg.pk %}{% endif %}"
+                          data-pdf-url="{% if can_download %}{% url 'staff_offences:pdf' reg.pk %}{% endif %}"
+                          data-delete-url="{% if can_delete %}{% url 'staff_offences:delete' reg.pk %}{% endif %}"
+                          data-ref="{{ reg.reference_number }}">
+                    <option value="" selected disabled>Actions</option>
+                    <option value="view">View</option>
+                    {% if can_change %}<option value="edit">Edit</option>{% endif %}
+                    {% if can_print %}<option value="print">Print</option>{% endif %}
+                    {% if can_download %}<option value="download">Download PDF</option>{% endif %}
+                    {% if can_delete %}<option value="delete">Delete</option>{% endif %}
+                  </select>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr class="so-empty-row">
+              <td colspan="{% if show_created_by %}10{% else %}9{% endif %}">
+                <div class="so-empty">
+                  <div class="so-empty-icon"><i class="fas fa-folder-open"></i></div>
+                  <h3>No offence registers yet</h3>
+                  <p>Create a monthly register for a staff member, then add offences on the same page.</p>
+                  {% if can_add %}
+                  <a href="{% url 'staff_offences:create' %}" class="so-btn-record">
+                    <i class="fas fa-plus"></i> Record New Offence
+                  </a>
+                {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="so-footer" id="so-list-footer">
+        <div class="so-footer-meta" id="so-footer-meta">
+          {% if page_obj.paginator.count %}
+          Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }}
+          {% else %}
+          Showing 0 records
+          {% endif %}
+        </div>
+        <div class="so-pager" id="so-pager">
+          {% if page_obj.has_other_pages %}
+            {% if page_obj.has_previous %}
+            <a class="so-page-btn" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" aria-label="Previous">&lsaquo;</a>
+            {% else %}
+            <span class="so-page-btn is-disabled">&lsaquo;</span>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+              <span class="so-page-btn is-active">{{ num }}</span>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <a class="so-page-btn" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+              {% endif %}
+            {% endfor %}
+          {% if page_obj.has_next %}
+            <a class="so-page-btn" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" aria-label="Next">&rsaquo;</a>
+            {% else %}
+            <span class="so-page-btn is-disabled">&rsaquo;</span>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var root = document.getElementById('so-list-root');
+  if (!root) return;
+
+  var currency = root.getAttribute('data-currency') || '₦';
+  var canChange = root.getAttribute('data-can-change') === '1';
+  var canPrint = root.getAttribute('data-can-print') === '1';
+  var canDownload = root.getAttribute('data-can-download') === '1';
+  var canDelete = root.getAttribute('data-can-delete') === '1';
+  var showCreatedBy = root.getAttribute('data-show-created-by') === '1';
+  var listUrl = root.getAttribute('data-list-url') || '/staff-offences/';
+  var csrf = root.getAttribute('data-csrf') || '';
+  var tbody = document.getElementById('so-list-tbody');
+  var panel = document.getElementById('so-table-panel');
+  var form = document.getElementById('so-filter-form');
+  var refreshing = false;
+  var refreshQueued = false;
+  var lastSyncToken = '';
+  var lastStartIndex = {{ page_obj.start_index|default:1 }};
+  var colCount = showCreatedBy ? 10 : 9;
+  var paymentStatusChoices = [
+    {% for value, label in payment_status_choices %}
+    { value: '{{ value }}', label: '{{ label|escapejs }}' }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  var paymentStatusHelp = {
+    {% for value, help in payment_status_help_map.items %}
+    '{{ value }}': '{{ help|escapejs }}'{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+  var syncChannel = null;
+  var toastEl = document.getElementById('so-list-toast');
+  function toast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.id = 'so-list-toast';
+      toastEl.className = 'so-list-toast';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(function() { toastEl.classList.remove('show'); }, 2200);
+  }
+
+  function bump(el) {
+    if (!el) return;
+    el.classList.remove('so-bump');
+    void el.offsetWidth;
+    el.classList.add('so-bump');
+  }
+
+  function signalStaffOffencesChanged(detail) {
+    var payload = Object.assign({ t: Date.now(), source: 'list' }, detail || {});
+    try {
+      localStorage.setItem('staff-offences-sync', JSON.stringify(payload));
+    } catch (e) {}
+    try {
+      window.dispatchEvent(new CustomEvent('staff-offences-changed', { detail: payload }));
+    } catch (e) {}
+    try {
+      if (syncChannel) syncChannel.postMessage(payload);
+    } catch (e) {}
+  }
+
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      syncChannel = new BroadcastChannel('staff-offences-sync');
+      syncChannel.onmessage = function() { refreshList(true); };
+    }
+  } catch (e) {}
+
+  function money(displayOrNumber) {
+    var raw = String(displayOrNumber == null ? 0 : displayOrNumber).replace(/,/g, '');
+    var num = Number(raw);
+    if (isNaN(num)) num = 0;
+    return currency + Math.round(num).toLocaleString();
+  }
+
+  function queryString() {
+    if (!form) return window.location.search || '';
+    var fd = new FormData(form);
+    var params = new URLSearchParams(window.location.search);
+    var page = params.get('page');
+    var next = new URLSearchParams();
+    fd.forEach(function(value, key) {
+      if (value !== '' && value != null) next.set(key, value);
+    });
+    if (page) next.set('page', page);
+    var s = next.toString();
+    return s ? ('?' + s) : '';
+  }
+
+  function updateSummary(summary) {
+    if (!summary) return;
+    var r = document.getElementById('so-stat-registers');
+    var o = document.getElementById('so-stat-offences');
+    var p = document.getElementById('so-stat-penalties');
+    var note = document.getElementById('so-stat-month-note');
+    if (r) { r.textContent = summary.total_registers; bump(r); }
+    if (o) { o.textContent = summary.this_month_offences; bump(o); }
+    if (p) {
+      p.textContent = currency + (summary.this_month_penalties_display || '0');
+      bump(p);
+    }
+    if (note && summary.this_month_label) note.textContent = summary.this_month_label;
+  }
+
+  function paymentStatusClass(status) {
+    return 'so-pay-' + String(status || 'pending_approval');
+  }
+
+  function buildPaymentCell(row) {
+    var status = row.payment_status || 'pending_approval';
+    var label = row.payment_status_label || status;
+    var help = row.payment_status_help || paymentStatusHelp[status] || '';
+    var url = row.payment_status_url || ('/staff-offences/' + row.id + '/payment-status/');
+    if (!canChange) {
+      return '<td data-label="Payment status"><span class="so-pay-badge ' + paymentStatusClass(status)
+        + '" title="' + String(help).replace(/"/g, '&quot;') + '"></span></td>';
+    }
+    var opts = paymentStatusChoices.map(function(c) {
+      return '<option value="' + c.value + '"' + (c.value === status ? ' selected' : '') + '>'
+        + c.label + '</option>';
+    }).join('');
+    return '<td data-label="Payment status"><select class="so-pay-select ' + paymentStatusClass(status)
+      + '" data-payment-url="' + url + '" data-current="' + status + '" title="'
+      + String(help).replace(/"/g, '&quot;') + '" aria-label="Payment status">'
+      + opts + '</select></td>';
+  }
+
+  function buildRow(row, index) {
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-register-id', row.id);
+    tr.setAttribute('data-payment-status', row.payment_status || 'pending_approval');
+    tr.style.animationDelay = (index * 40) + 'ms';
+    var sn = row.sn != null ? row.sn : (lastStartIndex + index);
+    var dept = row.department_name
+      ? '<span class="so-dept"></span>'
+      : '<span class="text-secondary">—</span>';
+    var deleteUrl = row.delete_url || ('/staff-offences/' + row.id + '/delete/');
+    var printUrl = row.print_url || ('/staff-offences/' + row.id + '/print/');
+    var pdfUrl = row.pdf_url || ('/staff-offences/' + row.id + '/pdf/');
+    var actionOptions = '<option value="" selected disabled>Actions</option>'
+      + '<option value="view">View</option>'
+      + (canChange ? '<option value="edit">Edit</option>' : '')
+      + (canPrint ? '<option value="print">Print</option>' : '')
+      + (canDownload ? '<option value="download">Download PDF</option>' : '')
+      + (canDelete ? '<option value="delete">Delete</option>' : '');
+    var actions = '<div class="so-actions"><select class="so-action-select" aria-label="Actions"'
+      + ' data-detail-url="' + row.detail_url + '"'
+      + ' data-print-url="' + (canPrint ? printUrl : '') + '"'
+      + ' data-pdf-url="' + (canDownload ? pdfUrl : '') + '"'
+      + ' data-delete-url="' + (canDelete ? deleteUrl : '') + '"'
+      + ' data-ref="' + String(row.reference_number).replace(/"/g, '&quot;') + '">'
+      + actionOptions
+      + '</select></div>';
+    var createdCell = showCreatedBy
+      ? '<td data-label="Created by"><span class="text-secondary"></span></td>'
+      : '';
+    tr.innerHTML =
+      '<td class="so-sn" data-label="S/N">' + sn + '</td>'
+      + '<td data-label="Reference"><a class="so-ref" href="' + row.detail_url + '"></a></td>'
+      + '<td data-label="Staff"><span class="so-staff"></span></td>'
+      + '<td data-label="Department">' + dept + '</td>'
+      + '<td data-label="Month"><span class="so-month-chip"></span></td>'
+      + '<td data-label="Offences"><span class="so-count"></span></td>'
+      + '<td data-label="Penalty"><span class="so-money"></span></td>'
+      + buildPaymentCell(row)
+      + createdCell
+      + '<td data-label="Actions">' + actions + '</td>';
+    tr.querySelector('.so-ref').textContent = row.reference_number;
+    tr.querySelector('.so-staff').textContent = row.staff_name;
+    if (row.department_name) tr.querySelector('.so-dept').textContent = row.department_name;
+    tr.querySelector('.so-month-chip').textContent = row.month_label;
+    tr.querySelector('.so-count').textContent = row.entry_count;
+    tr.querySelector('.so-money').textContent = currency + (row.total_amount_display || '0');
+    var badge = tr.querySelector('.so-pay-badge');
+    if (badge) badge.textContent = row.payment_status_label || row.payment_status || 'Pending Approval';
+    if (showCreatedBy) {
+      var createdEl = tr.querySelector('[data-label="Created by"] span');
+      if (createdEl) createdEl.textContent = row.created_by || '—';
+    }
+    return tr;
+  }
+
+  function renderEmpty() {
+    var tr = document.createElement('tr');
+    tr.className = 'so-empty-row';
+    tr.innerHTML = '<td colspan="' + colCount + '"><div class="so-empty">'
+      + '<div class="so-empty-icon"><i class="fas fa-folder-open"></i></div>'
+      + '<h3>No offence registers found</h3>'
+      + '<p>Try clearing filters or record a new offence for this month.</p>'
+      + '</div></td>';
+    return tr;
+  }
+
+  function renderPager(pagination) {
+    var pager = document.getElementById('so-pager');
+    var meta = document.getElementById('so-footer-meta');
+    if (!pager || !pagination) return;
+    if (meta) {
+      if (pagination.total) {
+        meta.textContent = 'Showing ' + pagination.start_index + ' to ' + pagination.end_index
+          + ' of ' + pagination.total + ' record' + (pagination.total === 1 ? '' : 's');
+      } else {
+        meta.textContent = 'Showing 0 records';
+      }
+    }
+    pager.innerHTML = '';
+    if (pagination.num_pages <= 1) return;
+
+    function pageHref(num) {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', String(num));
+      return '?' + params.toString();
+    }
+
+    function addBtn(label, num, opts) {
+      opts = opts || {};
+      if (opts.disabled) {
+        var span = document.createElement('span');
+        span.className = 'so-page-btn is-disabled';
+        span.innerHTML = label;
+        pager.appendChild(span);
+        return;
+      }
+      if (opts.active) {
+        var active = document.createElement('span');
+        active.className = 'so-page-btn is-active';
+        active.textContent = label;
+        pager.appendChild(active);
+        return;
+      }
+      var a = document.createElement('a');
+      a.className = 'so-page-btn';
+      a.href = pageHref(num);
+      a.innerHTML = label;
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        var params = new URLSearchParams(window.location.search);
+        params.set('page', String(num));
+        history.replaceState(null, '', '?' + params.toString());
+        refreshList(false);
+      });
+      pager.appendChild(a);
+    }
+
+    if (pagination.has_previous) addBtn('&lsaquo;', pagination.previous_page_number);
+    else addBtn('&lsaquo;', null, { disabled: true });
+
+    for (var i = 1; i <= pagination.num_pages; i++) {
+      if (i === pagination.number) addBtn(String(i), i, { active: true });
+      else if (Math.abs(i - pagination.number) < 3) addBtn(String(i), i);
+    }
+
+    if (pagination.has_next) addBtn('&rsaquo;', pagination.next_page_number);
+    else addBtn('&rsaquo;', null, { disabled: true });
+  }
+
+  function applyPayload(data, force) {
+    if (!force && data.sync_token && data.sync_token === lastSyncToken) {
+      return false;
+    }
+    if (data.sync_token) lastSyncToken = data.sync_token;
+    updateSummary(data.summary);
+    if (data.pagination && data.pagination.start_index) {
+      lastStartIndex = data.pagination.start_index;
+    } else {
+      lastStartIndex = 1;
+    }
+    if (data.permissions) {
+      if (typeof data.permissions.can_delete === 'boolean') canDelete = data.permissions.can_delete;
+      if (typeof data.permissions.can_change === 'boolean') canChange = data.permissions.can_change;
+      if (typeof data.permissions.can_print === 'boolean') canPrint = data.permissions.can_print;
+      if (typeof data.permissions.can_download === 'boolean') canDownload = data.permissions.can_download;
+    }
+    if (!tbody) return true;
+    tbody.innerHTML = '';
+    if (!data.rows || !data.rows.length) {
+      // If current page is empty after a delete, step back a page when possible.
+      if (data.pagination && data.pagination.number > 1 && data.pagination.total > 0) {
+        var params = new URLSearchParams(window.location.search);
+        params.set('page', String(data.pagination.number - 1));
+        history.replaceState(null, '', '?' + params.toString());
+        refreshList(false, true);
+        return true;
+      }
+      tbody.appendChild(renderEmpty());
+    } else {
+      data.rows.forEach(function(row, i) {
+        tbody.appendChild(buildRow(row, i));
+      });
+    }
+    renderPager(data.pagination);
+    return true;
+  }
+
+  function refreshList(silent, force) {
+    if (refreshing) {
+      refreshQueued = true;
+      return Promise.resolve();
+    }
+    refreshing = true;
+    if (panel && !silent) panel.classList.add('so-refreshing');
+    var url = listUrl + queryString();
+    return fetch(url, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      credentials: 'same-origin',
+      cache: 'no-store'
+    }).then(function(r) { return r.json(); })
+      .then(function(data) {
+        refreshing = false;
+        if (panel) panel.classList.remove('so-refreshing');
+        if (!data || !data.success) {
+          if (refreshQueued) {
+            refreshQueued = false;
+            return refreshList(true, force);
+          }
+          return;
+        }
+        applyPayload(data, !!force);
+        if (refreshQueued) {
+          refreshQueued = false;
+          return refreshList(true, force);
+        }
+      }).catch(function() {
+        refreshing = false;
+        if (panel) panel.classList.remove('so-refreshing');
+        if (refreshQueued) {
+          refreshQueued = false;
+          return refreshList(true, force);
+        }
+      });
+  }
+
+  function deleteRegister(select) {
+    var url = select.getAttribute('data-delete-url');
+    var ref = select.getAttribute('data-ref') || 'this register';
+    if (!url) return;
+    if (!confirm('Delete ' + ref + '?\n\nAll offence entries on this monthly register will be removed. This cannot be undone.')) {
+      select.value = '';
+      return;
+    }
+    select.disabled = true;
+    var row = select.closest('tr');
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrf,
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(res) {
+        if (!res.ok || !res.data.success) {
+          select.disabled = false;
+          select.value = '';
+          toast((res.data && res.data.error) || 'Could not delete register.');
+          return;
+        }
+        signalStaffOffencesChanged({ action: 'register-deleted', id: res.data.deleted_id });
+        if (row) {
+          row.classList.add('so-row-exit');
+          setTimeout(function() {
+            refreshList(false, true);
+          }, 220);
+        } else {
+          refreshList(false, true);
+        }
+        try { window.dispatchEvent(new CustomEvent('notifications-changed')); } catch (e) {}
+      }).catch(function() {
+        select.disabled = false;
+        select.value = '';
+        toast('Network error. Please try again.');
+      });
+  }
+
+  function runRowAction(select) {
+    if (!select) return;
+    var action = select.value;
+    if (!action) return;
+    var detailUrl = select.getAttribute('data-detail-url') || '';
+    var printUrl = select.getAttribute('data-print-url') || '';
+    var pdfUrl = select.getAttribute('data-pdf-url') || '';
+    if (action === 'view' || action === 'edit') {
+      if (detailUrl) window.location.href = detailUrl;
+      return;
+    }
+    if (action === 'print') {
+      if (printUrl) window.open(printUrl, '_blank', 'noopener');
+      select.value = '';
+      return;
+    }
+    if (action === 'download') {
+      if (pdfUrl) window.open(pdfUrl, '_blank', 'noopener');
+      select.value = '';
+      return;
+    }
+    if (action === 'delete') {
+      deleteRegister(select);
+      return;
+    }
+    select.value = '';
+  }
+
+  if (tbody) {
+    tbody.addEventListener('change', function(e) {
+      var actionSelect = e.target.closest('.so-action-select');
+      if (actionSelect) runRowAction(actionSelect);
+    });
+  }
+
+  var searchInput = form ? form.querySelector('[name="search"]') : null;
+  var searchWrap = form ? form.querySelector('.so-search-wrap') : null;
+  var searchHint = document.getElementById('so-search-hint');
+  var clearBtn = document.getElementById('so-clear-filters');
+  var filterTimer = null;
+
+  function syncSearchChrome() {
+    if (!searchWrap || !searchInput) return;
+    var hasValue = !!(searchInput.value || '').trim();
+    searchWrap.classList.toggle('has-value', hasValue);
+    if (searchHint && !searchWrap.classList.contains('is-filtering')) {
+      searchHint.textContent = hasValue ? 'Filtering' : 'Live filter';
+    }
+  }
+
+  function applyFiltersLive(opts) {
+    opts = opts || {};
+    var resetPage = opts.resetPage !== false;
+    var silent = !!opts.silent;
+    var next = new URLSearchParams();
+    if (form) {
+      var fd = new FormData(form);
+      fd.forEach(function(value, key) {
+        if (value !== '' && value != null) next.set(key, value);
+      });
+    }
+    if (!resetPage) {
+      var current = new URLSearchParams(window.location.search).get('page');
+      if (current) next.set('page', current);
+    }
+    var s = next.toString();
+    history.replaceState(null, '', s ? ('?' + s) : window.location.pathname);
+    if (searchWrap) {
+      searchWrap.classList.add('is-filtering');
+      if (searchHint) searchHint.textContent = 'Filtering';
+    }
+    refreshList(silent, true).then(function() {
+      if (searchWrap) searchWrap.classList.remove('is-filtering');
+      syncSearchChrome();
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (filterTimer) clearTimeout(filterTimer);
+      applyFiltersLive({ resetPage: true, silent: false });
+    });
+
+    if (searchInput) {
+      syncSearchChrome();
+      searchInput.addEventListener('input', function() {
+        if (searchWrap) searchWrap.classList.add('is-typing');
+        syncSearchChrome();
+        if (filterTimer) clearTimeout(filterTimer);
+        // Instant feel: short debounce so 1–3 letters still filter smoothly.
+        filterTimer = setTimeout(function() {
+          if (searchWrap) searchWrap.classList.remove('is-typing');
+          applyFiltersLive({ resetPage: true, silent: true });
+        }, 220);
+      });
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          syncSearchChrome();
+          if (filterTimer) clearTimeout(filterTimer);
+          applyFiltersLive({ resetPage: true, silent: true });
+        }
+      });
+    }
+
+    ['department', 'month', 'year', 'payment_status'].forEach(function(name) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (!el) return;
+      el.addEventListener('change', function() {
+        if (filterTimer) clearTimeout(filterTimer);
+        applyFiltersLive({ resetPage: true, silent: true });
+      });
+    });
+  }
+
+  function applyPaySelectStyle(select, status) {
+    if (!select) return;
+    paymentStatusChoices.forEach(function(c) {
+      select.classList.remove(paymentStatusClass(c.value));
+    });
+    select.classList.add(paymentStatusClass(status));
+    select.title = paymentStatusHelp[status] || '';
+    select.setAttribute('data-current', status);
+  }
+
+  function savePaymentStatus(select) {
+    if (!select || !canChange) return;
+    var url = select.getAttribute('data-payment-url');
+    var next = select.value;
+    var prev = select.getAttribute('data-current') || '';
+    if (!url || next === prev) return;
+    select.classList.add('is-saving');
+    select.disabled = true;
+    var fd = new FormData();
+    fd.append('payment_status', next);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd,
+      credentials: 'same-origin'
+    }).then(function(r) {
+      return r.json().then(function(data) { return { ok: r.ok, data: data }; });
+    }).then(function(res) {
+      select.disabled = false;
+      select.classList.remove('is-saving');
+      if (!res.ok || !res.data.success) {
+        select.value = prev;
+        applyPaySelectStyle(select, prev);
+        toast((res.data && res.data.error) || 'Could not update payment status.');
+        return;
+      }
+      var status = res.data.payment_status || next;
+      applyPaySelectStyle(select, status);
+      var row = select.closest('tr');
+      if (row) row.setAttribute('data-payment-status', status);
+      signalStaffOffencesChanged({
+        action: 'payment-status-updated',
+        id: row ? row.getAttribute('data-register-id') : null,
+        payment_status: status
+      });
+      toast(res.data.message || 'Payment status updated.');
+      // Force list refresh so sync_token / other tabs stay aligned.
+      lastSyncToken = '';
+      refreshList(true, true);
+    }).catch(function() {
+      select.disabled = false;
+      select.classList.remove('is-saving');
+      select.value = prev;
+      applyPaySelectStyle(select, prev);
+      toast('Could not update payment status.');
+    });
+  }
+
+  if (tbody) {
+    tbody.addEventListener('change', function(e) {
+      var select = e.target.closest('.so-pay-select');
+      if (select) savePaymentStatus(select);
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      if (!form) return;
+      if (filterTimer) clearTimeout(filterTimer);
+      form.reset();
+      if (searchInput) searchInput.value = '';
+      syncSearchChrome();
+      history.replaceState(null, '', window.location.pathname);
+      refreshList(false, true);
+    });
+  }
+
+  function onExternalChange() {
+    refreshList(true, true);
+  }
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') onExternalChange();
+  });
+  window.addEventListener('focus', onExternalChange);
+  window.addEventListener('pageshow', onExternalChange);
+  window.addEventListener('notifications-changed', onExternalChange);
+  window.addEventListener('staff-offences-changed', onExternalChange);
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'staff-offences-sync') onExternalChange();
+  });
+
+  function updateTableScrollHint() {
+    var wrap = document.getElementById('so-table-wrap');
+    var hint = document.getElementById('so-table-scroll-hint');
+    if (!wrap || !hint) return;
+    var needsScroll = wrap.scrollWidth > wrap.clientWidth + 4;
+    hint.style.display = needsScroll ? 'inline-flex' : 'none';
+  }
+
+  var tableWrapEl = document.getElementById('so-table-wrap');
+  var tableInteracting = false;
+  var tableInteractTimer = null;
+
+  function markTableInteracting() {
+    tableInteracting = true;
+    if (tableInteractTimer) clearTimeout(tableInteractTimer);
+    tableInteractTimer = setTimeout(function() {
+      tableInteracting = false;
+    }, 1200);
+  }
+
+  if (tableWrapEl) {
+    tableWrapEl.addEventListener('scroll', function() {
+      markTableInteracting();
+      var hint = document.getElementById('so-table-scroll-hint');
+      if (hint && tableWrapEl.scrollLeft > 8) hint.style.opacity = '0.45';
+    }, { passive: true });
+
+    // Touch: native horizontal pan (touch-action: pan-x) — no JS fighting the browser.
+    // Mouse: click-drag to scroll for desktop convenience.
+    (function enableMouseDragScroll(wrap) {
+      var dragging = false;
+      var startX = 0;
+      var originLeft = 0;
+      var pointerId = null;
+      var moved = false;
+
+      function isInteractiveTarget(target) {
+        return !!(target && target.closest && target.closest('a, button, select, input, textarea, label'));
+      }
+
+      function endDrag(e) {
+        if (pointerId != null && e && e.pointerId !== pointerId) return;
+        if (!dragging) return;
+        wrap.classList.remove('is-dragging');
+        try {
+          if (pointerId != null) wrap.releasePointerCapture(pointerId);
+        } catch (err) {}
+        if (moved) {
+          var suppressClick = function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            wrap.removeEventListener('click', suppressClick, true);
+          };
+          wrap.addEventListener('click', suppressClick, true);
+          setTimeout(function() {
+            wrap.removeEventListener('click', suppressClick, true);
+          }, 0);
+        }
+        dragging = false;
+        pointerId = null;
+        moved = false;
+        markTableInteracting();
+      }
+
+      wrap.addEventListener('pointerdown', function(e) {
+        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+        if (isInteractiveTarget(e.target)) return;
+        dragging = true;
+        moved = false;
+        startX = e.clientX;
+        originLeft = wrap.scrollLeft;
+        pointerId = e.pointerId;
+        wrap.classList.add('is-dragging');
+        try { wrap.setPointerCapture(e.pointerId); } catch (err) {}
+        markTableInteracting();
+      });
+
+      wrap.addEventListener('pointermove', function(e) {
+        if (!dragging || e.pointerId !== pointerId) return;
+        var dx = e.clientX - startX;
+        if (Math.abs(dx) > 3) moved = true;
+        wrap.scrollLeft = originLeft - dx;
+        markTableInteracting();
+      });
+
+      wrap.addEventListener('pointerup', endDrag);
+      wrap.addEventListener('pointercancel', endDrag);
+      wrap.addEventListener('lostpointercapture', endDrag);
+    })(tableWrapEl);
+
+    // Also track touchstart so live refresh does not rebuild mid-swipe.
+    tableWrapEl.addEventListener('touchstart', markTableInteracting, { passive: true });
+    tableWrapEl.addEventListener('touchmove', markTableInteracting, { passive: true });
+  }
+
+  window.addEventListener('resize', updateTableScrollHint);
+  var _applyPayload = applyPayload;
+  applyPayload = function(data, force) {
+    // Avoid rebuilding the table mid-swipe (causes lag / jump).
+    if (tableInteracting && !force) return false;
+    var changed = _applyPayload(data, force);
+    setTimeout(updateTableScrollHint, 30);
+    return changed;
+  };
+  setTimeout(updateTableScrollHint, 50);
+
+  // Keep cards + table in sync while this page stays open.
+  setInterval(function() {
+    if (document.visibilityState === 'visible' && !tableInteracting) {
+      refreshList(true, false);
+    }
+  }, 8000);
+
+  // Immediate sync on first paint (covers bfcache / stale HTML).
+  refreshList(true, true);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}HR & Staff - {% if is_employee_portal %}My Leave{% else %}Leave Requests{% endif %}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}{% if is_employee_portal %}My Leave{% else %}Leave Requests{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-leave-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% if is_employee_portal %}My Leave{% else %}Leave Requests{% endif %}</li>
+                </ol>
+            </nav>
+            <!-- Page header: title, subtitle, New Request button -->
+            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4">
+                <div class="min-w-0">
+                    <h4 class="fw-bold text-dark mb-1 hr-leave-page-title">{% if is_employee_portal %}My Leave{% else %}Leave Requests{% endif %}</h4>
+                    <p class="text-muted mb-0 hr-leave-subtitle">{% if is_employee_portal %}Your leave requests and time off{% else %}Manage employee leave requests and time off{% endif %}</p>
+                </div>
+                {% if perms.hr_staff.add_leaverequest %}
+                <a href="{% url 'hr_staff:leave_create' %}" class="btn btn-primary hr-leave-btn-new d-inline-flex align-items-center px-4 py-2 rounded-3 text-decoration-none flex-shrink-0">
+                    <svg class="me-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                    New Request
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Statistics cards: Total, Pending, Approved, Rejected (real-time updated) -->
+            <div class="row g-3 g-md-4 mb-4" id="hrLeaveStatsRow">
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-3 hr-leave-stat-card h-100">
+                        <div class="card-body">
+                            <div class="hr-leave-stat-icon hr-leave-stat-blue rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-leave-stat-label">Total Requests</p>
+                            <p class="fw-bold text-dark mb-0 hr-leave-stat-value" id="hrLeaveTotal">{{ total_requests }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-3 hr-leave-stat-card h-100">
+                        <div class="card-body">
+                            <div class="hr-leave-stat-icon hr-leave-stat-yellow rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-leave-stat-label">Pending</p>
+                            <p class="fw-bold text-dark mb-0 hr-leave-stat-value" id="hrLeavePending">{{ pending_count }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-3 hr-leave-stat-card h-100">
+                        <div class="card-body">
+                            <div class="hr-leave-stat-icon hr-leave-stat-green rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-leave-stat-label">Approved</p>
+                            <p class="fw-bold text-dark mb-0 hr-leave-stat-value" id="hrLeaveApproved">{{ approved_count }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-3 hr-leave-stat-card h-100">
+                        <div class="card-body">
+                            <div class="hr-leave-stat-icon hr-leave-stat-red rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-leave-stat-label">Rejected</p>
+                            <p class="fw-bold text-dark mb-0 hr-leave-stat-value" id="hrLeaveRejected">{{ rejected_count }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter: funnel icon + Filter by status: + pill buttons -->
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                <span class="text-muted me-1 hr-leave-filter-label">
+                    <svg class="me-1 align-middle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
+                    Filter by status:
+                </span>
+                <a href="{% url 'hr_staff:leave_list' %}" class="btn btn-sm rounded-pill hr-leave-pill {% if status_filter == 'all' %}hr-leave-pill-active{% else %}hr-leave-pill-inactive{% endif %}">All</a>
+                <a href="{% url 'hr_staff:leave_list' %}?status=pending" class="btn btn-sm rounded-pill hr-leave-pill {% if status_filter == 'pending' %}hr-leave-pill-active{% else %}hr-leave-pill-inactive{% endif %}">Pending</a>
+                <a href="{% url 'hr_staff:leave_list' %}?status=approved" class="btn btn-sm rounded-pill hr-leave-pill {% if status_filter == 'approved' %}hr-leave-pill-active{% else %}hr-leave-pill-inactive{% endif %}">Approved</a>
+                <a href="{% url 'hr_staff:leave_list' %}?status=rejected" class="btn btn-sm rounded-pill hr-leave-pill {% if status_filter == 'rejected' %}hr-leave-pill-active{% else %}hr-leave-pill-inactive{% endif %}">Rejected</a>
+            </div>
+
+            <!-- Leave requests table (real-time updated via API) -->
+            <div class="card border-0 shadow-sm rounded-3 hr-leave-table-card">
+                <div class="card-body p-0">
+                    <div class="table-responsive hr-leave-table-wrap" id="hrLeaveTableWrap" data-status="{{ status_filter }}" data-leave-type="{{ leave_type_filter }}">
+                        <table class="table table-hover align-middle mb-0 hr-leave-table">
+                            <thead>
+                                <tr>
+                                    <th class="hr-leave-th">Employee</th>
+                                    <th class="hr-leave-th">Leave Type</th>
+                                    <th class="hr-leave-th">Start Date</th>
+                                    <th class="hr-leave-th">End Date</th>
+                                    <th class="hr-leave-th">Duration</th>
+                                    <th class="hr-leave-th">Status</th>
+                                    <th class="hr-leave-th hr-leave-th-actions">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hrLeaveTableBody">
+                                {% for leave in leaves %}
+                                <tr class="hr-leave-tr">
+                                    <td class="hr-leave-td">
+                                        <p class="fw-bold text-dark mb-0">{{ leave.employee.full_name }}</p>
+                                        <p class="text-muted small mb-0">{{ leave.reason|default:"—" }}</p>
+                                    </td>
+                                    <td class="hr-leave-td">
+                                        <span class="badge rounded-pill hr-leave-type-pill hr-leave-type-{{ leave.leave_type }}">{{ leave.get_leave_type_display }}</span>
+                                    </td>
+                                    <td class="hr-leave-td">{{ leave.start_date|date:"d/m/Y" }}</td>
+                                    <td class="hr-leave-td">{{ leave.end_date|date:"d/m/Y" }}</td>
+                                    <td class="hr-leave-td">{{ leave.duration_days }} day{{ leave.duration_days|pluralize }}</td>
+                                    <td class="hr-leave-td">
+                                        <span class="badge rounded-pill hr-leave-status-pill hr-leave-status-{{ leave.status }}">{{ leave.get_status_display }}</span>
+                                        {% if leave.status != 'pending' and leave.status_changed_by %}
+                                        <span class="d-block text-muted small mt-1">
+                                            {{ leave.get_status_display }} by {{ leave.status_changed_by.get_full_name|default:leave.status_changed_by.email|default:"Someone" }}
+                                            {% if leave.status_changed_at %}on {{ leave.status_changed_at|date:"M d, Y" }} at {{ leave.status_changed_at|time:"H:i" }}{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="hr-leave-td hr-leave-td-actions">
+                                        {% if is_employee_portal %}
+                                            <a href="{% url 'hr_staff:leave_detail' leave.pk %}" class="btn btn-link p-0 hr-leave-action-btn">View</a>
+                                        {% else %}
+                                            {% if leave.status == 'pending' and can_manage_leave %}
+                                            <form method="post"
+                                                  action="{% url 'hr_staff:leave_update_status' leave.pk %}"
+                                                  class="d-inline hr-leave-status-form"
+                                                  data-leave-uuid="{{ leave.uuid }}"
+                                                  data-status-value="approved">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="status" value="approved">
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button type="submit" class="btn btn-link p-0 text-success me-2 hr-leave-action-btn" aria-label="Approve" title="Approve">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                                </button>
+                                            </form>
+                                            <form method="post"
+                                                  action="{% url 'hr_staff:leave_update_status' leave.pk %}"
+                                                  class="d-inline hr-leave-status-form"
+                                                  data-leave-uuid="{{ leave.uuid }}"
+                                                  data-status-value="rejected">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="status" value="rejected">
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                <button type="submit" class="btn btn-link p-0 text-danger hr-leave-action-btn" aria-label="Reject" title="Reject">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                                </button>
+                                            </form>
+                                            <a href="{% url 'hr_staff:leave_detail' leave.pk %}" class="btn btn-link p-0 ms-1 hr-leave-action-btn">View</a>
+                                            {% else %}
+                                            <a href="{% url 'hr_staff:leave_detail' leave.pk %}" class="btn btn-link p-0 hr-leave-action-btn">View</a>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr id="hrLeaveTablePlaceholder">
+                                    <td colspan="7" class="text-center text-muted py-5">
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        Loading leave requests…
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-leave-page-wrap { background-color: #f5f7fa; max-width: 100%; }
+.hr-leave-page-title { font-size: 1.5rem; color: #333; }
+.hr-leave-subtitle { font-size: 0.9375rem; color: #67748e; }
+.hr-leave-btn-new { background: #1976d2 !important; border-color: #1976d2 !important; border-radius: 0.5rem; font-weight: 500; }
+.hr-leave-btn-new:hover { background: #1565c0 !important; border-color: #1565c0 !important; color: #fff !important; }
+
+/* Stat cards */
+.hr-leave-stat-card { background: #fff; border-radius: 0.5rem; box-shadow: 0 4px 8px rgba(0,0,0,.05); }
+.hr-leave-stat-icon { width: 48px; height: 48px; }
+.hr-leave-stat-blue { background: rgba(25,118,210,.12); color: #1976d2; }
+.hr-leave-stat-yellow { background: rgba(255,193,7,.2); color: #f0ad4e; }
+.hr-leave-stat-green { background: rgba(40,167,69,.12); color: #28a745; }
+.hr-leave-stat-red { background: rgba(220,53,69,.12); color: #dc3545; }
+.hr-leave-stat-label { font-size: 0.875rem; color: #67748e; }
+.hr-leave-stat-value { font-size: 1.75rem; color: #333; }
+
+/* Filter pills */
+.hr-leave-filter-label { font-size: 0.9375rem; }
+.hr-leave-pill { font-size: 0.875rem; font-weight: 500; padding: 0.4rem 1rem; text-decoration: none; border: none; }
+.hr-leave-pill-active { background: #1976d2 !important; color: #fff !important; }
+.hr-leave-pill-active:hover { background: #1565c0 !important; color: #fff !important; }
+.hr-leave-pill-inactive { background: #5a6268 !important; color: #fff !important; }
+.hr-leave-pill-inactive:hover { background: #495057 !important; color: #fff !important; }
+
+/* Table */
+.hr-leave-table-card { background: #fff; border-radius: 0.5rem; box-shadow: 0 4px 8px rgba(0,0,0,.05); overflow: hidden; }
+.hr-leave-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+.hr-leave-table { margin-bottom: 0; }
+.hr-leave-th { font-size: 0.8125rem; font-weight: 600; color: #344767; padding: 1rem 1.25rem; border-bottom: 1px solid #eee; white-space: nowrap; }
+.hr-leave-th-actions { text-align: right; }
+.hr-leave-tr { border-bottom: 1px solid #f0f0f0; }
+.hr-leave-tr:last-child { border-bottom: none; }
+.hr-leave-td { padding: 1rem 1.25rem; font-size: 0.9375rem; vertical-align: middle !important; }
+.hr-leave-td-actions { text-align: right; white-space: nowrap; }
+.hr-leave-action-btn { text-decoration: none !important; line-height: 1; }
+.hr-leave-action-btn:hover { opacity: 0.85; }
+/* Leave type pills: Vacation = light blue, Sick/Personal/Other = grey */
+.hr-leave-type-pill { font-size: 0.75rem; font-weight: 500; padding: 0.35em 0.65em; }
+.hr-leave-type-vacation { background: rgba(25,118,210,.15); color: #1976d2; }
+.hr-leave-type-sick, .hr-leave-type-personal, .hr-leave-type-other { background: #e9ecef; color: #6c757d; }
+/* Status pills */
+.hr-leave-status-pill { font-size: 0.75rem; font-weight: 500; padding: 0.35em 0.65em; }
+.hr-leave-status-approved { background: rgba(40,167,69,.15); color: #28a745; }
+.hr-leave-status-pending { background: rgba(255,193,7,.25); color: #856404; }
+.hr-leave-status-rejected { background: rgba(220,53,69,.15); color: #dc3545; }
+
+@media (max-width: 575.98px) {
+  .hr-leave-page-wrap { padding: 0.75rem !important; }
+  .hr-leave-stat-value { font-size: 1.5rem; }
+  .hr-leave-stat-card .card-body { padding: 0.75rem !important; }
+  .hr-leave-filter-label { width: 100%; margin-bottom: 0.25rem; }
+  .hr-leave-th, .hr-leave-td { padding: 0.65rem 0.5rem !important; font-size: 0.8125rem; }
+  .hr-leave-table { min-width: 700px; }
+}
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .hr-leave-th, .hr-leave-td { padding: 0.75rem 0.5rem; }
+}
+</style>
+<script>
+(function() {
+    var wrap = document.getElementById('hrLeaveTableWrap');
+    var tbody = document.getElementById('hrLeaveTableBody');
+    var totalEl = document.getElementById('hrLeaveTotal');
+    var pendingEl = document.getElementById('hrLeavePending');
+    var approvedEl = document.getElementById('hrLeaveApproved');
+    var rejectedEl = document.getElementById('hrLeaveRejected');
+    // Use a modest polling rate so stats and table stay fresh without impacting initial load.
+    var POLL_MS = 20000;
+    var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    function fmtDate(s) {
+        if (!s) return '';
+        try { return new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch(e) { return s; }
+    }
+
+    function statusClass(s) {
+        if (s === 'approved') return 'hr-leave-status-approved';
+        if (s === 'pending') return 'hr-leave-status-pending';
+        if (s === 'rejected') return 'hr-leave-status-rejected';
+        return '';
+    }
+    function typeClass(t) {
+        if (t === 'vacation') return 'hr-leave-type-vacation';
+        return 'hr-leave-type-sick';
+    }
+
+    var IS_EMP_PORTAL = {{ is_employee_portal|yesno:'true,false' }};
+    var CAN_MANAGE_LEAVE = {{ can_manage_leave|yesno:'true,false' }};
+
+    function buildRow(leave) {
+        var actions = '';
+        if (IS_EMP_PORTAL) {
+            actions = '<a href="/hr-staff/leave/' + leave.id + '/" class="btn btn-link p-0 hr-leave-action-btn">View</a>';
+        } else if (leave.status === 'pending' && CAN_MANAGE_LEAVE && csrf) {
+            actions = ''
+              + '<form method="post" action="/hr-staff/leave/' + leave.id + '/update-status/"'
+              + ' class="d-inline hr-leave-status-form"'
+              + ' data-leave-uuid="' + (leave.uuid || '') + '"'
+              + ' data-status-value="approved">'
+              + '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrf + '">'
+              + '<input type="hidden" name="status" value="approved">'
+              + '<input type="hidden" name="next" value="' + (window.location.pathname + window.location.search) + '">'
+              + '<button type="submit" class="btn btn-link p-0 text-success me-2 hr-leave-action-btn" aria-label="Approve"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button></form>'
+              + '<form method="post" action="/hr-staff/leave/' + leave.id + '/update-status/"'
+              + ' class="d-inline hr-leave-status-form"'
+              + ' data-leave-uuid="' + (leave.uuid || '') + '"'
+              + ' data-status-value="rejected">'
+              + '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrf + '">'
+              + '<input type="hidden" name="status" value="rejected">'
+              + '<input type="hidden" name="next" value="' + (window.location.pathname + window.location.search) + '">'
+              + '<button type="submit" class="btn btn-link p-0 text-danger hr-leave-action-btn" aria-label="Reject"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></form>'
+              + '<a href="/hr-staff/leave/' + leave.id + '/" class="btn btn-link p-0 ms-1 hr-leave-action-btn">View</a>';
+        } else {
+            actions = '<a href="/hr-staff/leave/' + leave.id + '/" class="btn btn-link p-0 hr-leave-action-btn">View</a>';
+        }
+        var statusMeta = '';
+        if (leave.status && leave.status !== 'pending' && (leave.status_changed_by_name || leave.status_changed_at_display)) {
+            statusMeta = '<span class="d-block text-muted small mt-1">' +
+                (leave.status_display || leave.status) +
+                (leave.status_changed_by_name ? ' by ' + leave.status_changed_by_name : '') +
+                (leave.status_changed_at_display ? ' on ' + leave.status_changed_at_display : '') +
+                '</span>';
+        }
+        return '<tr class="hr-leave-tr"><td class="hr-leave-td"><p class="fw-bold text-dark mb-0">' + (leave.employee_name || '') + '</p><p class="text-muted small mb-0">' + (leave.reason || '—') + '</p></td><td class="hr-leave-td"><span class="badge rounded-pill hr-leave-type-pill ' + typeClass(leave.leave_type) + '">' + (leave.leave_type_display || leave.leave_type) + '</span></td><td class="hr-leave-td">' + fmtDate(leave.start_date) + '</td><td class="hr-leave-td">' + fmtDate(leave.end_date) + '</td><td class="hr-leave-td">' + (leave.duration_days !== undefined ? leave.duration_days : '') + ' day(s)</td><td class="hr-leave-td"><span class="badge rounded-pill hr-leave-status-pill ' + statusClass(leave.status) + '">' + (leave.status_display || leave.status) + '</span>' + statusMeta + '</td><td class="hr-leave-td hr-leave-td-actions">' + actions + '</td></tr>';
+    }
+
+    function pollLeaveRequests() {
+        var statusFilter = (wrap && wrap.getAttribute('data-status')) || 'all';
+        var leaveTypeFilter = (wrap && wrap.getAttribute('data-leave-type')) || 'all';
+        fetch('/api/hr-staff/leave-requests/?page_size=500', { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var all = data.results !== undefined ? data.results : (Array.isArray(data) ? data : []);
+                var pending = 0, approved = 0, rejected = 0;
+                all.forEach(function(l) {
+                    if (l.status === 'pending') pending++;
+                    else if (l.status === 'approved') approved++;
+                    else if (l.status === 'rejected') rejected++;
+                });
+                if (totalEl) totalEl.textContent = all.length;
+                if (pendingEl) pendingEl.textContent = pending;
+                if (approvedEl) approvedEl.textContent = approved;
+                if (rejectedEl) rejectedEl.textContent = rejected;
+                var results = all.filter(function(l) {
+                    if (statusFilter && statusFilter !== 'all' && l.status !== statusFilter) return false;
+                    if (leaveTypeFilter && leaveTypeFilter !== 'all' && l.leave_type !== leaveTypeFilter) return false;
+                    return true;
+                });
+                if (tbody) {
+                    if (results.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5">No leave requests found.</td></tr>';
+                    } else {
+                        tbody.innerHTML = results.map(buildRow).join('');
+                    }
+                }
+            })
+            .catch(function() {});
+    }
+
+    if (tbody) {
+        // Load data immediately for instant shell-first UX.
+        setTimeout(pollLeaveRequests, 0);
+        setInterval(pollLeaveRequests, POLL_MS);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') pollLeaveRequests();
+        });
+    }
+    // Offline approval/rejection via sync API when offline.
+    document.addEventListener('submit', function(ev) {
+        var target = ev.target;
+        if (!target || !target.classList || !target.classList.contains('hr-leave-status-form')) return;
+        if (navigator.onLine || !window.OfflineSync) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        var uuid = target.getAttribute('data-leave-uuid') || '';
+        var statusVal = target.getAttribute('data-status-value') || '';
+        if (!uuid || !statusVal) {
+            return;
+        }
+        var payload = {
+            uuid: uuid,
+            status: statusVal,
+            updated_at: new Date().toISOString(),
+            is_deleted: false
+        };
+        var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+        OfflineSync.wrapSubmit('hr_leaves', payload, tenantId, function() {
+            return Promise.reject(new Error('offline'));
+        }).then(function() {
+            if (typeof window.OfflineSync !== 'undefined') {
+                window.OfflineSync.syncAllModels && window.OfflineSync.syncAllModels();
+            }
+        }).catch(function(err) {
+            if (!err || err.message !== 'offline') {
+                alert('Could not queue status update offline. Please try again when back online.');
+            }
+        });
+    }, true);
+})();
+</script>
+{% endblock %}

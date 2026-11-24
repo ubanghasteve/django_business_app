@@ -1,0 +1,959 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency_filters %}
+
+{% block title %}Invoices{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/plugins/chartjs.min.js' %}"></script>
+<script>
+console.log('Invoice list template loaded');
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Invoice Report Card - Prominent -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg" style="background: linear-gradient(to right, #11998e, #38ef7d); min-height: 100px; cursor: pointer;" onclick="openInvoiceReport('month')">
+                <div class="card-body py-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="text-white mb-1" style="font-size: 24px; font-weight: bold;">
+                                INVOICE REPORT CENTER - CLICK HERE
+                            </h3>
+                            <p class="text-white mb-0" style="font-size: 16px;">View detailed invoice analytics, charts, and export reports</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <span class="btn btn-light btn-lg" style="font-size: 16px; padding: 12px 24px;">
+                                OPEN REPORT &rarr;
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Turnover Cards - Row 1 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3 clickable-card" onclick="openInvoiceReport('total_amount')">
+                <div class="card-body">
+                    <h5 class="card-title">Total Invoice Value</h5>
+                    <p class="card-text fs-4">{{ total_amount|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3 clickable-card" onclick="openInvoiceReport('revenue_generated')">
+                <div class="card-body">
+                    <h5 class="card-title">Revenue Generated</h5>
+                    <p class="card-text fs-4">{{ revenue_generated|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3 clickable-card" onclick="openInvoiceReport('outstanding')">
+                <div class="card-body">
+                    <h5 class="card-title">Outstanding</h5>
+                    <p class="card-text fs-4">{{ outstanding_amount|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger mb-3 clickable-card" onclick="openInvoiceReport('refund_due')">
+                <div class="card-body">
+                    <h5 class="card-title">Refund Due</h5>
+                    <p class="card-text fs-4">{{ refund_due|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Turnover Cards - Row 2 (Periods) -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-info mb-3 clickable-card" onclick="openInvoiceReport('revenue_today')">
+                <div class="card-body">
+                    <h5 class="card-title">Revenue Today</h5>
+                    <p class="card-text fs-4">{{ revenue_today|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-secondary mb-3 clickable-card" onclick="openInvoiceReport('revenue_week')">
+                <div class="card-body">
+                    <h5 class="card-title">Revenue This Week</h5>
+                    <p class="card-text fs-4">{{ revenue_week|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-dark mb-3 clickable-card" onclick="openInvoiceReport('revenue_month')">
+                <div class="card-body">
+                    <h5 class="card-title">This Month</h5>
+                    <p class="card-text fs-4">{{ revenue_month|currency_format_with_symbol:company_profile }}</p>
+                    <small class="opacity-75"><i class="fas fa-chart-bar me-1"></i>Click for report</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card my-4">
+                <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+                    <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-white text-capitalize ps-3">Invoices ({{ total_invoices }})</h6>
+                            </div>
+                            <div class="col-md-6 text-end pe-3">
+                                <button type="button" class="btn btn-warning btn-sm mt-0" onclick="openInvoiceReport('month')" style="font-weight: bold;">
+                                    VIEW REPORT
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body px-0 pb-2">
+                    <!-- Filters -->
+                    <div class="row px-3 mb-3">
+                        <div class="col-12">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-2">
+                                    {% render_field filter_form.status class="form-control" %}
+                                </div>
+                                <div class="col-md-3">
+                                    {% render_field filter_form.search class="form-control" %}
+                                </div>
+                                <div class="col-md-2">
+                                    {% render_field filter_form.date_from %}
+                                </div>
+                                <div class="col-md-2">
+                                    {% render_field filter_form.date_to %}
+                                </div>
+                                {% if show_created_by %}
+                                <div class="col-md-2">
+                                    <label class="form-label small text-muted">Created by</label>
+                                    {% render_field filter_form.created_by class="form-control form-control-sm" %}
+                                </div>
+                                {% endif %}
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                                    <a href="{% url 'invoices:list' %}" class="btn btn-secondary btn-sm">Clear</a>
+                                </div>
+                                <div class="col-md-1">
+                                    <a href="{% url 'invoices:create' %}" class="btn btn-success btn-sm">
+                                        <i class="fas fa-plus"></i> New
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-responsive p-0">
+                        <table class="table align-items-center mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Invoice</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Client</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Due Date</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Amount</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+                                    <th class="text-secondary opacity-7">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in page_obj %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex px-2 py-1">
+                                            <div class="d-flex flex-column justify-content-center">
+                                                <h6 class="mb-0 text-sm">{{ invoice.invoice_number }}</h6>
+                                                <p class="text-xs text-secondary mb-0">{{ invoice.created_at|date:"M d, Y" }}</p>
+                                                {% if show_created_by %}
+                                                <p class="text-xs text-muted mb-0">Created by {% if invoice.created_by %}{{ invoice.created_by.get_full_name|default:invoice.created_by.email }}{% else %}—{% endif %}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <p class="text-xs font-weight-bold mb-0">{{ invoice.client_name }}</p>
+                                        <p class="text-xs text-secondary mb-0">{{ invoice.client_email }}</p>
+                                    </td>
+                                    <td class="align-middle text-center text-sm">
+                                        <span class="text-secondary text-xs font-weight-bold">{{ invoice.invoice_date|date:"M d, Y" }}</span>
+                                    </td>
+                                    <td class="align-middle text-center">
+                                        <span class="text-secondary text-xs font-weight-bold">{{ invoice.due_date|date:"M d, Y" }}</span>
+                                    </td>
+                                    <td class="align-middle text-center">
+                                        <span class="text-secondary text-xs font-weight-bold">₦{{ invoice.grand_total|floatformat:2 }}</span>
+                                        {% if invoice.balance_due > 0 %}
+                                        <br><small class="text-danger">Due: ₦{{ invoice.balance_due|floatformat:2 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle text-center text-sm">
+                                        {% if invoice.status == 'paid' %}
+                                        <span class="badge badge-sm bg-gradient-success">Paid</span>
+                                        {% elif invoice.status == 'partial' %}
+                                        <span class="badge badge-sm bg-gradient-warning">Partial</span>
+                                        {% else %}
+                                        <span class="badge badge-sm bg-gradient-danger">Unpaid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="dropdown">
+                                            <button class="btn btn-link text-secondary mb-0" type="button" data-bs-toggle="dropdown">
+                                                <i class="fa fa-ellipsis-v text-xs"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{% url 'invoices:detail' invoice.pk %}">View</a></li>
+                                                <li><a class="dropdown-item" href="{% url 'invoices:edit' invoice.pk %}">Edit</a></li>
+                                                <li><a class="dropdown-item" href="{% url 'invoices:pdf' invoice.pk %}">Download PDF</a></li>
+                                                <li><a class="dropdown-item" href="{% url 'invoices:duplicate' invoice.pk %}">Duplicate</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="{% url 'invoices:delete' invoice.pk %}">Delete</a></li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <p class="text-secondary mb-0">No invoices found.</p>
+                                        <a href="{% url 'invoices:create' %}" class="btn btn-primary btn-sm mt-2">Create your first invoice</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="d-flex justify-content-center mt-4">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">Previous</a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">Next</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Report Modal -->
+<div class="modal fade" id="invoiceReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-chart-line fa-2x me-3"></i>
+                    <div>
+                        <h5 class="modal-title text-white mb-0">Invoice Report Center</h5>
+                        <small class="text-white-50" id="reportDateRange">Comprehensive invoice analytics and reporting</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <!-- Date Filter Buttons -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="btn-group w-100" role="group">
+                            <button type="button" class="btn btn-outline-dark filter-btn active" data-filter="today">
+                                <i class="fas fa-calendar-day me-1"></i>Today
+                            </button>
+                            <button type="button" class="btn btn-outline-dark filter-btn" data-filter="week">
+                                <i class="fas fa-calendar-week me-1"></i>This Week
+                            </button>
+                            <button type="button" class="btn btn-outline-dark filter-btn" data-filter="month">
+                                <i class="fas fa-calendar-alt me-1"></i>This Month
+                            </button>
+                            <button type="button" class="btn btn-outline-dark filter-btn" data-filter="quarter">
+                                <i class="fas fa-calendar me-1"></i>This Quarter
+                            </button>
+                            <button type="button" class="btn btn-outline-dark filter-btn" data-filter="year">
+                                <i class="fas fa-calendar-check me-1"></i>This Year
+                            </button>
+                            <button type="button" class="btn btn-outline-dark filter-btn" data-filter="custom">
+                                <i class="fas fa-filter me-1"></i>Custom
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Custom Date Range (hidden by default) -->
+                <div class="row mb-4 custom-date-range" style="display: none;">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">From Date</label>
+                        <input type="date" class="form-control form-control-lg" id="reportDateFrom">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">To Date</label>
+                        <input type="date" class="form-control form-control-lg" id="reportDateTo">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-lg w-100" onclick="loadInvoiceReport()">
+                            <i class="fas fa-search me-2"></i>Generate Report
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div id="reportLoading" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted fs-5">Loading report data...</p>
+                </div>
+                
+                <!-- Report Content -->
+                <div id="reportContent">
+                    <!-- Summary Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body text-center">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                        <i class="fas fa-file-invoice fa-lg text-primary"></i>
+                                    </div>
+                                    <h6 class="text-muted mb-1">Total Invoices</h6>
+                                    <h3 class="text-primary mb-0" id="reportTotalInvoices">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body text-center">
+                                    <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                        <i class="fas fa-naira-sign fa-lg text-success"></i>
+                                    </div>
+                                    <h6 class="text-muted mb-1">Total Amount</h6>
+                                    <h3 class="text-success mb-0" id="reportTotalAmount">₦0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body text-center">
+                                    <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                        <i class="fas fa-money-bill-wave fa-lg text-warning"></i>
+                                    </div>
+                                    <h6 class="text-muted mb-1">Revenue</h6>
+                                    <h3 class="text-warning mb-0" id="reportRevenue">₦0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body text-center">
+                                    <div class="rounded-circle bg-danger bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                        <i class="fas fa-exclamation-circle fa-lg text-danger"></i>
+                                    </div>
+                                    <h6 class="text-muted mb-1">Outstanding</h6>
+                                    <h3 class="text-danger mb-0" id="reportOutstanding">₦0</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Charts Row -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Revenue Trend</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="revenueChart" height="120"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Status Breakdown</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="statusChart" height="160"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Stats -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-percentage me-2"></i>Payment Rate</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="progress mb-3" style="height: 30px;">
+                                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                             id="paymentProgress" role="progressbar" style="width: 0%">0%</div>
+                                    </div>
+                                    <div class="row text-center">
+                                        <div class="col-6">
+                                            <small class="text-muted">Paid</small>
+                                            <h5 class="text-success" id="reportPaidAmount">₦0</h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Avg Invoice</small>
+                                            <h5 class="text-primary" id="reportAvgInvoice">₦0</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-users me-2"></i>Top Clients</h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0" id="topClientsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Client</th>
+                                                    <th class="text-center">Invoices</th>
+                                                    <th class="text-end">Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Invoices Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-list me-2"></i>Invoice Details</h6>
+                        </div>
+                        <div class="card-body p-0 d-flex flex-column">
+                            <div class="table-responsive invoice-report-details-scroll">
+                                <table class="table table-hover mb-0" id="reportInvoicesTable">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">S/N</th>
+                                            <th>Invoice #</th>
+                                            <th>Client</th>
+                                            <th>Date</th>
+                                            <th class="text-end">Amount</th>
+                                            <th class="text-end">Paid</th>
+                                            <th class="text-end">Due</th>
+                                            <th class="text-center">Status</th>
+                                            <th class="text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td colspan="9" class="text-center text-muted py-4">Select a date range to view invoices</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="reportInvoicesPagination" class="d-none border-top bg-white">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-3 py-2">
+                                    <small class="text-muted mb-0" id="reportInvoicesPageInfo"></small>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Invoice details pages">
+                                        <button type="button" class="btn btn-outline-secondary" id="reportInvoicesPrev">Previous</button>
+                                        <button type="button" class="btn btn-outline-secondary" id="reportInvoicesNext">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Close
+                </button>
+                <button type="button" class="btn btn-success" onclick="exportReportPDF()">
+                    <i class="fas fa-file-pdf me-1"></i>Export PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.report-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.report-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4) !important;
+}
+.report-card:hover .btn-light {
+    background: #fff;
+    transform: translateX(5px);
+}
+.report-card .btn-light {
+    transition: transform 0.3s ease, background 0.3s ease;
+}
+.clickable-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.clickable-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.clickable-card:active {
+    transform: translateY(-2px);
+}
+.filter-btn.active {
+    font-weight: 600;
+    background-color: #667eea !important;
+    color: white !important;
+    border-color: #667eea !important;
+}
+#invoiceReportModal .modal-content {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+#invoiceReportModal {
+    padding: 0 !important;
+}
+#invoiceReportModal .modal-body {
+    padding: 25px;
+}
+#invoiceReportModal .card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: box-shadow 0.3s ease;
+}
+#invoiceReportModal .card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+#reportContent .row {
+    animation: fadeInUp 0.4s ease-out;
+}
+#reportContent .col-md-3 {
+    animation: slideIn 0.3s ease-out;
+    animation-fill-mode: both;
+}
+#reportContent .col-md-3:nth-child(1) { animation-delay: 0.05s; }
+#reportContent .col-md-3:nth-child(2) { animation-delay: 0.1s; }
+#reportContent .col-md-3:nth-child(3) { animation-delay: 0.15s; }
+#reportContent .col-md-3:nth-child(4) { animation-delay: 0.2s; }
+#invoiceReportModal .btn-group .btn {
+    padding: 12px 20px;
+    font-weight: 500;
+}
+#invoiceReportModal .table {
+    font-size: 0.9rem;
+}
+#invoiceReportModal .table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+#invoiceReportModal .invoice-report-details-scroll {
+    max-height: min(45vh, 380px);
+    overflow-y: auto;
+}
+</style>
+
+<script>
+let currentFilter = 'month';
+let revenueChart = null;
+let statusChart = null;
+let reportDetailsPage = 1;
+const REPORT_DETAILS_PER_PAGE = 10;
+
+function openInvoiceReport(filter) {
+    currentFilter = filter || 'month';
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    const filterMap = {
+        'revenue_today': 'today',
+        'revenue_week': 'week',
+        'revenue_month': 'month',
+        'revenue_quarter': 'quarter',
+        'revenue_year': 'year',
+        'total_amount': 'month',
+        'revenue_generated': 'month',
+        'outstanding': 'month',
+        'refund_due': 'month'
+    };
+    const mappedFilter = filterMap[filter] || 'month';
+    document.querySelector(`.filter-btn[data-filter="${mappedFilter}"]`)?.classList.add('active');
+    
+    if (filter === 'custom') {
+        document.querySelector('.custom-date-range').style.display = 'flex';
+        currentFilter = 'custom';
+    } else {
+        document.querySelector('.custom-date-range').style.display = 'none';
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('invoiceReportModal'));
+    modal.show();
+    
+    loadInvoiceReport();
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentFilter = this.dataset.filter;
+        
+        if (currentFilter === 'custom') {
+            document.querySelector('.custom-date-range').style.display = 'flex';
+        } else {
+            document.querySelector('.custom-date-range').style.display = 'none';
+            loadInvoiceReport();
+        }
+    });
+});
+
+function loadInvoiceReport(resetDetailsPage) {
+    if (resetDetailsPage !== false) {
+        reportDetailsPage = 1;
+    }
+    const loading = document.getElementById('reportLoading');
+    const content = document.getElementById('reportContent');
+    const dateRangeEl = document.getElementById('reportDateRange');
+    const isPageOnly = (resetDetailsPage === false);
+    let detailsCard = document.getElementById('reportInvoicesTable');
+    detailsCard = detailsCard ? detailsCard.closest('.card') : null;
+    
+    const filterLabels = {
+        'today': 'Today\'s Invoice Report',
+        'week': 'This Week\'s Invoice Report',
+        'month': 'This Month\'s Invoice Report',
+        'quarter': 'This Quarter\'s Invoice Report',
+        'year': 'This Year\'s Invoice Report',
+        'custom': 'Custom Date Range Report'
+    };
+    dateRangeEl.textContent = filterLabels[currentFilter] || 'Invoice Report';
+    
+    if (isPageOnly && detailsCard) {
+        detailsCard.style.opacity = '0.55';
+        detailsCard.style.pointerEvents = 'none';
+    } else {
+        loading.style.display = 'block';
+        content.style.opacity = '0.3';
+    }
+    
+    let url = '/invoices/api/report/?filter=' + encodeURIComponent(currentFilter);
+    url += '&details_page=' + encodeURIComponent(reportDetailsPage) + '&details_per_page=' + encodeURIComponent(REPORT_DETAILS_PER_PAGE);
+    
+    if (currentFilter === 'custom') {
+        const dateFrom = document.getElementById('reportDateFrom').value;
+        const dateTo = document.getElementById('reportDateTo').value;
+        if (dateFrom) url += '&date_from=' + encodeURIComponent(dateFrom);
+        if (dateTo) url += '&date_to=' + encodeURIComponent(dateTo);
+    }
+
+    const prevNav = document.getElementById('reportInvoicesPrev');
+    const nextNav = document.getElementById('reportInvoicesNext');
+    if (isPageOnly && prevNav && nextNav) {
+        prevNav.disabled = true;
+        nextNav.disabled = true;
+    }
+
+    fetch(url, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' }
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(t => {
+                    throw new Error(response.status + (t ? ': ' + t.slice(0, 120) : ''));
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateReportUI(data);
+        })
+        .catch(error => {
+            console.error('Error loading report:', error);
+        })
+        .finally(() => {
+            loading.style.display = 'none';
+            content.style.opacity = '1';
+            if (detailsCard) {
+                detailsCard.style.opacity = '1';
+                detailsCard.style.pointerEvents = '';
+            }
+        });
+}
+
+function reportDetailsStepPage(delta) {
+    const pag = window.__invoiceReportDetailsPagination;
+    if (!pag || !pag.total_pages) return;
+    const next = pag.page + delta;
+    if (next < 1 || next > pag.total_pages) return;
+    reportDetailsPage = next;
+    loadInvoiceReport(false);
+}
+
+function updateInvoiceDetailsPaginationBar(pag) {
+    const wrap = document.getElementById('reportInvoicesPagination');
+    const info = document.getElementById('reportInvoicesPageInfo');
+    const prevBtn = document.getElementById('reportInvoicesPrev');
+    const nextBtn = document.getElementById('reportInvoicesNext');
+    if (!wrap || !info || !prevBtn || !nextBtn) return;
+    if (!pag || !pag.total_count) {
+        wrap.classList.add('d-none');
+        return;
+    }
+    wrap.classList.remove('d-none');
+    const start = (pag.page - 1) * pag.per_page + 1;
+    const end = Math.min(pag.page * pag.per_page, pag.total_count);
+    const pages = pag.total_pages || 1;
+    info.textContent = 'Showing ' + start + '–' + end + ' of ' + pag.total_count + ' invoices (page ' + pag.page + ' of ' + pages + ')';
+    prevBtn.disabled = !pag.has_previous;
+    nextBtn.disabled = !pag.has_next;
+}
+
+function bindInvoiceReportPaginationClicks() {
+    const reportModal = document.getElementById('invoiceReportModal');
+    if (!reportModal || reportModal.dataset.paginationBound === '1') return;
+    reportModal.dataset.paginationBound = '1';
+    reportModal.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest && e.target.closest('#reportInvoicesPrev, #reportInvoicesNext');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.id === 'reportInvoicesPrev') reportDetailsStepPage(-1);
+        else if (btn.id === 'reportInvoicesNext') reportDetailsStepPage(1);
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindInvoiceReportPaginationClicks);
+} else {
+    bindInvoiceReportPaginationClicks();
+}
+
+function updateReportUI(data) {
+    const currency = data.currency_symbol || '₦';
+    const fmt = (num) => currency + parseFloat(num || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    
+    document.getElementById('reportTotalInvoices').textContent = data.summary.total_invoices;
+    document.getElementById('reportTotalAmount').textContent = fmt(data.summary.total_amount);
+    document.getElementById('reportRevenue').textContent = fmt(data.summary.revenue);
+    document.getElementById('reportOutstanding').textContent = fmt(data.summary.outstanding);
+    document.getElementById('reportPaidAmount').textContent = fmt(data.summary.paid_amount);
+    document.getElementById('reportAvgInvoice').textContent = fmt(data.summary.avg_invoice_value);
+    
+    const paidPercent = data.summary.paid_percentage || 0;
+    const progressBar = document.getElementById('paymentProgress');
+    progressBar.style.width = paidPercent + '%';
+    progressBar.textContent = paidPercent.toFixed(1) + '%';
+    
+    // Update status chart
+    updateStatusChart(data.status_breakdown, currency);
+    
+    // Update revenue chart
+    updateRevenueChart(data.daily_revenue, currency);
+    
+    // Update top clients
+    const clientsBody = document.querySelector('#topClientsTable tbody');
+    if (data.client_breakdown && data.client_breakdown.length > 0) {
+        clientsBody.innerHTML = data.client_breakdown.slice(0, 5).map(c => 
+            `<tr>
+                <td>${c.client_name}</td>
+                <td class="text-center">${c.invoice_count}</td>
+                <td class="text-end">${fmt(c.total_amount)}</td>
+            </tr>`
+        ).join('');
+    } else {
+        clientsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+    }
+    
+    // Update invoices table
+    const invoicesBody = document.querySelector('#reportInvoicesTable tbody');
+    if (data.recent_invoices && data.recent_invoices.length > 0) {
+        const currentPage = (data.invoice_details_pagination && data.invoice_details_pagination.page) || reportDetailsPage || 1;
+        const perPage = (data.invoice_details_pagination && data.invoice_details_pagination.per_page) || REPORT_DETAILS_PER_PAGE;
+        const serialStart = ((currentPage - 1) * perPage) + 1;
+
+        invoicesBody.innerHTML = data.recent_invoices.map((inv, index) => {
+            let statusBadge = '';
+            if (inv.status === 'paid') statusBadge = '<span class="badge bg-success">Paid</span>';
+            else if (inv.status === 'partial') statusBadge = '<span class="badge bg-warning">Partial</span>';
+            else if (inv.status === 'delivered') statusBadge = '<span class="badge bg-info">Delivered</span>';
+            else statusBadge = '<span class="badge bg-danger">Unpaid</span>';
+            const detailUrl = inv.detail_url || '#';
+            
+            return `<tr>
+                <td class="text-center text-muted">${serialStart + index}</td>
+                <td><strong>${inv.invoice_number}</strong></td>
+                <td>${inv.client_name}</td>
+                <td>${inv.invoice_date || '—'}</td>
+                <td class="text-end">${fmt(inv.grand_total)}</td>
+                <td class="text-end">${fmt(inv.amount_paid)}</td>
+                <td class="text-end">${fmt(inv.balance_due)}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-center"><a href="${detailUrl}" class="btn btn-sm btn-outline-info mb-0" title="View Invoice Details"><i class="fas fa-eye me-1"></i>View</a></td>
+            </tr>`;
+        }).join('');
+    } else {
+        invoicesBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No invoices found for selected period</td></tr>';
+    }
+
+    let pag = data.invoice_details_pagination;
+    if (!pag && data.summary && typeof data.summary.total_invoices === 'number' && data.summary.total_invoices > 0) {
+        const total = data.summary.total_invoices;
+        const per = REPORT_DETAILS_PER_PAGE;
+        const totalPages = Math.max(1, Math.ceil(total / per));
+        pag = {
+            page: reportDetailsPage,
+            per_page: per,
+            total_count: total,
+            total_pages: totalPages,
+            has_next: reportDetailsPage < totalPages,
+            has_previous: reportDetailsPage > 1
+        };
+    }
+    if (pag && typeof pag.page === 'number') {
+        reportDetailsPage = pag.page;
+    }
+    window.__invoiceReportDetailsPagination = pag || null;
+    updateInvoiceDetailsPaginationBar(pag);
+}
+
+function updateStatusChart(statusData, currency) {
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    
+    if (statusChart) {
+        statusChart.destroy();
+    }
+    
+    const labels = statusData.map(s => {
+        if (s.status === 'paid') return 'Paid';
+        if (s.status === 'partial') return 'Partial';
+        if (s.status === 'delivered') return 'Delivered';
+        return 'Unpaid';
+    });
+    const counts = statusData.map(s => s.count);
+    const colors = ['#28a745', '#ffc107', '#17a2b8', '#dc3545'];
+    
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+function updateRevenueChart(dailyData, currency) {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    if (revenueChart) {
+        revenueChart.destroy();
+    }
+    
+    const labels = dailyData.map(d => d.date);
+    const values = dailyData.map(d => d.revenue);
+    
+    revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Revenue',
+                data: values,
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointBackgroundColor: '#4e73df'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return currency + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+function exportReportPDF() {
+    alert('PDF export will be available soon!');
+}
+</script>
+{% endblock %}

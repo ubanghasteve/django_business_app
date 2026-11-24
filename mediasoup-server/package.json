@@ -1,0 +1,24 @@
+{
+  "name": "business-app-mediasoup-server",
+  "version": "1.0.0",
+  "description": "SFU server for video calls supporting 30-40 participants",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "mediasoup": "^3.15.0",
+    "mediasoup-client": "^3.7.0",
+    "ws": "^8.17.0",
+    "uuid": "^9.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

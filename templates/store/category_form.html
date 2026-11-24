@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit{% else %}New{% endif %} Store Category{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; border-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; border-color: #28a745 !important; }
+    .btn-secondary { background-color: #6c757d !important; border-color: #6c757d !important; }
+    .form-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .color-preview-box {
+        width: 50px; height: 50px; border-radius: 8px;
+        border: 2px solid rgba(0,0,0,0.1);
+        transition: background-color 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h5 class="mb-0">{% if is_edit %}Edit{% else %}New{% endif %} Category</h5>
+            <p class="text-muted text-sm mb-0">
+                {% if is_edit %}Update category details{% else %}Add a new category for organizing store items{% endif %}
+            </p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'store:category_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card form-card">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+                        <div class="mt-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> {% if is_edit %}Update{% else %}Create{% endif %}
+                            </button>
+                            <a href="{% url 'store:category_list' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card form-card">
+                <div class="card-header">
+                    <h6 class="mb-0">Preview</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div id="colorPreview" class="color-preview-box mb-3 mx-auto" style="background-color: #007bff;"></div>
+                    <p class="mb-1"><strong id="namePreview">Category Name</strong></p>
+                    <p class="text-muted small" id="descPreview">Description will appear here...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelector('input[name="color"]').addEventListener('input', function(e) {
+    document.getElementById('colorPreview').style.backgroundColor = e.target.value;
+});
+document.querySelector('input[name="name"]').addEventListener('input', function(e) {
+    document.getElementById('namePreview').textContent = e.target.value || 'Category Name';
+});
+document.querySelector('textarea[name="description"]').addEventListener('input', function(e) {
+    document.getElementById('descPreview').textContent = e.target.value || 'Description will appear here...';
+});
+document.querySelector('input[name="color"]').addEventListener('change', function(e) {
+    document.getElementById('colorPreview').style.backgroundColor = e.target.value;
+});
+</script>
+{% endblock %}

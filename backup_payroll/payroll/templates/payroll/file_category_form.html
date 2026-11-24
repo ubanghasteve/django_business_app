@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if category %}Edit{% else %}Create{% endif %} Category{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}{% if category %}Edit{% else %}Create{% endif %} Category{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:file_categories_list' %}" class="text-decoration-none">Categories</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% if category %}Edit{% else %}Create{% endif %}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h5 class="fw-bold mb-1">{% if category %}Edit Category{% else %}Create New Category{% endif %}</h5>
+                    <p class="text-muted small mb-0">Define categories to organize your payroll files</p>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Category Name</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Category Type</label>
+                            {{ form.category_type }}
+                            {% if form.category_type.errors %}
+                            <div class="text-danger small">{{ form.category_type.errors.0 }}</div>
+                            {% endif %}
+                            <small class="text-muted">This is used for auto-categorization when uploading files</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Color</label>
+                            <div class="d-flex align-items-center gap-2">
+                                {{ form.color }}
+                                <div id="colorPreview" class="rounded-circle" style="width: 32px; height: 32px; background-color: {{ category.color|default:'#1e88e5' }};"></div>
+                            </div>
+                            {% if form.color.errors %}
+                            <div class="text-danger small">{{ form.color.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-check mb-4">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="id_is_active">
+                                Active (can be used for new uploads)
+                            </label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> {% if category %}Save Changes{% else %}Create Category{% endif %}
+                            </button>
+                            <a href="{% url 'payroll:file_categories_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h6 class="fw-bold mb-1">Category Types</h6>
+                </div>
+                <div class="card-body pt-2">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>payslip</code></td><td>Payslip documents</td></tr>
+                            <tr><td><code>report</code></td><td>Payroll reports</td></tr>
+                            <tr><td><code>contract</code></td><td>Employment contracts</td></tr>
+                            <tr><td><code>tax_document</code></td><td>Tax related documents</td></tr>
+                            <tr><td><code>bank_details</code></td><td>Bank information</td></tr>
+                            <tr><td><code>pension</code></td><td>Pension documents</td></tr>
+                            <tr><td><code>nhf</code></td><td>NHF documents</td></tr>
+                            <tr><td><code>loan_document</code></td><td>Loan documents</td></tr>
+                            <tr><td><code>bonus</code></td><td>Bonus documents</td></tr>
+                            <tr><td><code>advance</code></td><td>Advance documents</td></tr>
+                            <tr><td><code>other</code></td><td>Other documents</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('id_color').addEventListener('input', function(e) {
+    document.getElementById('colorPreview').style.backgroundColor = e.target.value;
+});
+</script>
+{% endblock %}

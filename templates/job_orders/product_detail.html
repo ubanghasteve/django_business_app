@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Product Detail{% endblock %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+{% include 'partials/topside.html' %}
+
+<div class="row my-4">
+    <div class="col-md-8">
+        <div class="card card-body">
+            <h5>Product Details</h5>
+            <hr>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Job Order:</strong> {{ product.job_order }}</p>
+                    <p><strong>Submission ID:</strong> {{ product.submission_id }}</p>
+                    {% if product.job_order_date %}<p><strong>Job Order Date:</strong> {{ product.job_order_date|date:"Y-m-d" }}</p>{% endif %}
+                    <p><strong>Organization:</strong> {{ product.organization_name }}</p>
+                    <p><strong>Address:</strong> {{ product.address }}</p>
+                    <p><strong>Contact:</strong> {{ product.contact_number }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Job Title:</strong> {{ product.job_title }}</p>
+                    <p><strong>Print Product:</strong> {{ product.print_product }}</p>
+                    <p><strong>Printing:</strong> {{ product.printing }}</p>
+                    <p><strong>Thickness:</strong> {{ product.size }}</p>
+                    <p><strong>Colors:</strong> {{ product.colors }}</p>
+                    <p><strong>Treatment:</strong> {{ product.treatment }}</p>
+                    <p><strong>Cutting Length:</strong> {{ product.cutting_length }}</p>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <p><strong>Flap:</strong> {{ product.flap }}</p>
+                    <p><strong>Micron:</strong> {{ product.micron }}</p>
+                    {% if product.width %}<p><strong>Width:</strong> {{ product.width }}</p>{% endif %}
+                    {% if product.sealing_type %}<p><strong>Sealing Type:</strong> {{ product.sealing_type }}</p>{% endif %}
+                    {% if product.cutting %}<p><strong>Cutting:</strong> {{ product.cutting }}</p>{% endif %}
+                    {% if product.gusset %}<p><strong>Gusset:</strong> {{ product.gusset }}</p>{% endif %}
+                    <p><strong>Price:</strong> {{ product.formatted_price }}</p>
+                    <p><strong>Delivery Quantity (kg):</strong> {{ product.order_quantity|default:"—" }}</p>
+                    {% if product.total is not None %}<p><strong>Total:</strong> {{ product.formatted_total }}</p>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    {% if is_company_admin %}
+                    <p><strong>Created by</strong> {% if product.created_by %}{{ product.created_by.get_full_name|default:product.created_by.email|default:"—" }}{% else %}—{% endif %}</p>
+                    <p><strong>Created on</strong> {{ product.date_created|date:"M d, Y H:i" }}</p>
+                    {% endif %}
+                    <p><strong>Approval Status:</strong> {{ product.get_approval_status_display }}</p>
+                    {% if product.approved_by %}
+                        <p><strong>Approved By:</strong> {{ product.approved_by.get_full_name }}</p>
+                    {% endif %}
+                    <p><strong>Estimated Delivery:</strong> {{ product.estimated_delivery_date|date:"Y-m-d"|default:"Not set" }}</p>
+                </div>
+            </div>
+            
+            {% if product.order_info %}
+            <div class="row mt-3">
+                <div class="col-12">
+                    <p><strong>Order Information:</strong></p>
+                    <p>{{ product.order_info }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if product.production_status %}
+            <div class="row mt-3">
+                <div class="col-12">
+                    <p><strong>Production Status:</strong></p>
+                    <p>{{ product.production_status }}</p>
+                    <small class="text-muted">
+                        Last updated: {{ product.production_status_date|date:"Y-m-d H:i:s" }}
+                        {% if product.updated_by %}
+                            by {{ product.updated_by.get_full_name }}
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if product.image %}
+            <div class="row mt-3">
+                <div class="col-12">
+                    <p><strong>Product Image:</strong></p>
+                    <img src="{{ product.image.url }}" alt="Product Image" class="img-fluid" style="max-width: 300px;">
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    {% if perms.job_orders.change_product %}
+                    <a href="{% url 'job_orders:product_edit' product.id %}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    {% endif %}
+                    {% if perms.job_orders.delete_product %}
+                    <a href="{% url 'job_orders:product_delete' product.id %}" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                    {% endif %}
+                    {% if perms.job_orders.print_product %}
+                    <a href="{% url 'job_orders:product_print' product.id %}" class="btn btn-info" target="_blank">
+                        <i class="fas fa-print"></i> Print
+                    </a>
+                    {% endif %}
+                    {% if perms.job_orders.download_product %}
+                    <a href="{% url 'job_orders:export_single_product_pdf' product.job_order %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Download PDF
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'job_orders:products' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card card-body">
+            <h5>Update Production Status</h5>
+            <hr>
+            
+            <form method="POST" action="{% url 'job_orders:update_production_status' %}">
+                {% csrf_token %}
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <div class="form-group">
+                    <label for="new_status">New Status:</label>
+                    <textarea name="new_status" id="new_status" class="form-control" rows="3" placeholder="Enter production status..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-success btn-block mt-2">
+                    <i class="fas fa-save"></i> Update Status
+                </button>
+            </form>
+            
+            <hr>
+            
+            <h6>Status History</h6>
+            {% for history in product.status_history.all %}
+            <div class="border-bottom pb-2 mb-2">
+                <p class="mb-1"><strong>{{ history.status }}</strong></p>
+                <small class="text-muted">
+                    {{ history.created_at|date:"Y-m-d H:i:s" }}
+                    {% if history.updated_by %}
+                        by {{ history.updated_by.get_full_name }}
+                    {% endif %}
+                </small>
+            </div>
+            {% empty %}
+            <p class="text-muted">No status history available.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

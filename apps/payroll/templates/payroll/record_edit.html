@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Payroll Record - Smart Payroll{% endblock %}
+
+{% block extra_head %}
+<datalist id="year-list">
+    {% for y in years %}
+    <option value="{{ y }}">{{ y }}</option>
+    {% endfor %}
+</datalist>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Edit Payroll Record</h2>
+            <p class="text-muted mb-0">Update payroll record details</p>
+        </div>
+        <div>
+            <a href="{% url 'payroll:record_detail' record.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Record
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="row g-4">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Record Type</label>
+                                {{ form.record_type }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Category</label>
+                                {{ form.category }}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Period Month</label>
+                                {{ form.period_month }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Period Year</label>
+                                {{ form.period_year }}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Period Start Date</label>
+                                {{ form.period_start_date }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Period End Date</label>
+                                {{ form.period_end_date }}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Employee</label>
+                                {{ form.employee }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Department</label>
+                                {{ form.department }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3 mt-3">
+                            <label class="form-label">Description</label>
+                            {{ form.description }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tags</label>
+                            {{ form.tags }}
+                            <div class="form-text">Enter tags separated by commas</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">File</label>
+                            {{ form.file }}
+                            <div class="form-text">Upload a new file to replace the current one</div>
+                            {% if record.file %}
+                            <div class="mt-2">
+                                <span class="badge bg-secondary">Current: {{ record.original_filename }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_public }}
+                                <label class="form-check-label" for="id_is_public">
+                                    Make this record visible to employees
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-3">Record Information</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-6 text-muted small">File Type</dt>
+                                    <dd class="col-6">{{ record.get_file_type_display }}</dd>
+                                    
+                                    <dt class="col-6 text-muted small">File Size</dt>
+                                    <dd class="col-6">{{ record.file_size_display }}</dd>
+                                    
+                                    <dt class="col-6 text-muted small">Status</dt>
+                                    <dd class="col-6">
+                                        <span class="badge bg-{% if record.status == 'approved' %}success{% elif record.status == 'verified' %}warning{% else %}secondary{% endif %}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </dd>
+                                    
+                                    <dt class="col-6 text-muted small">Views</dt>
+                                    <dd class="col-6">{{ record.view_count }}</dd>
+                                    
+                                    <dt class="col-6 text-muted small">Downloads</dt>
+                                    <dd class="col-6">{{ record.download_count }}</dd>
+                                    
+                                    <dt class="col-6 text-muted small">Created</dt>
+                                    <dd class="col-6">{{ record.created_at|date:"M d, Y" }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'payroll:record_detail' record.id %}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

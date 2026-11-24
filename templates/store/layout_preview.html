@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ layout.name }} - Preview{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/store-dynamic.css' %}">
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; border-color: #007bff !important; }
+    .btn-secondary { background-color: #6c757d !important; border-color: #6c757d !important; }
+    .preview-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    .preview-header { background: linear-gradient(135deg, {{ layout.primary_color }} 0%, {{ layout.secondary_color }} 100%); padding: 20px; color: {{ layout.text_color }}; }
+    .preview-table th { background: {{ layout.primary_color }} !important; color: {{ layout.text_color }}; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">{{ layout.name }} <span class="badge bg-secondary">Preview</span></h5><p class="text-muted text-sm mb-0">{{ layout.description }}</p></div>
+        <div class="col-auto">
+            <a href="{% url 'store:layout_update' layout.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Edit</a>
+            <a href="{% url 'store:layout_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">{{ layout.name }}</h5>
+                    <small>{{ items|length }} items shown</small>
+                </div>
+                <div>
+                    <span class="badge bg-light text-dark me-1">Columns: {{ layout.get_visible_columns|length }}</span>
+                    {% if layout.supports_calculations %}<span class="badge bg-info">Calculations</span>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="preview-table">
+                    <tr>
+                        {% for col in layout.get_visible_columns %}
+                        <th style="width:{{ col.width }};">{{ col.label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        {% for col in layout.get_visible_columns %}
+                        <td>
+                            {% if col.key == 'sn' %}{{ item.sn }}{% endif %}
+                            {% if col.key == 'product_name' %}{{ item.product_name }}{% endif %}
+                            {% if col.key == 'category' %}{{ item.category }}{% endif %}
+                            {% if col.key == 'company_name' %}{{ item.company_name }}{% endif %}
+                            {% if col.key == 'quantity_in' %}{{ item.quantity_in }}{% endif %}
+                            {% if col.key == 'quantity_out' %}{{ item.quantity_out }}{% endif %}
+                            {% if col.key == 'remaining_quantity' %}{{ item.remaining_quantity }}{% endif %}
+                            {% if col.key == 'unit_price' %}{{ currency_symbol }}{{ item.unit_price }}{% endif %}
+                            {% if col.key == 'total_amount' %}{{ currency_symbol }}{{ item.total_amount }}{% endif %}
+                            {% if col.key == 'stock_status' %}{{ item.get_stock_status_display }}{% endif %}
+                            {% if col.key == 'approval_status' %}{{ item.get_approval_status_display }}{% endif %}
+                            {% if col.key == 'created_at' %}{{ item.created_at|date:"d M Y" }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="{{ layout.get_visible_columns|length }}" class="text-center py-4 text-muted">No items match the current filters.</td></tr>
+                    {% endfor %}
+                </tbody>
+                {% if layout.show_grand_total and items %}
+                <tfoot>
+                    <tr style="background: {{ layout.accent_color }}; font-weight:bold;">
+                        <td colspan="{{ layout.get_visible_columns|length|add:'-1' }}" class="text-end">Grand Total:</td>
+                        <td>{{ currency_symbol }}{{ grand_total|stringformat:".2f" }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <form method="get" class="row g-2">
+            <div class="col-auto">
+                <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search...">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'store:layout_preview' layout.pk %}" class="btn btn-secondary"><i class="fas fa-times"></i> Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

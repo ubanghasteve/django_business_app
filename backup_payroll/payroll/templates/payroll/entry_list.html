@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static humanize payroll_tags %}
+{% block title %}Payroll Entries{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Payroll Entries{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Entries</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">
+                <i class="fas fa-list-alt text-primary me-2"></i>
+                Payroll Entries
+            </h4>
+            <p class="text-muted mb-0 small">View and manage all payroll entries created from templates</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'payroll:entries_export_all' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel me-1"></i> Export All
+            </a>
+            <a href="{% url 'payroll:template_list' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-file-alt me-1"></i> Templates
+            </a>
+            <a href="{% url 'payroll:files_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-folder-open me-1"></i> Files
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-body p-0">
+            {% if entries %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="border-0 py-3 ps-3">Title</th>
+                            <th class="border-0 py-3">Template</th>
+                            <th class="border-0 py-3">Period</th>
+                            <th class="border-0 py-3 text-center">Rows</th>
+                            <th class="border-0 py-3 text-center">Status</th>
+                            <th class="border-0 py-3">Created</th>
+                            <th class="border-0 py-3 text-center pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td class="ps-3">
+                                <a href="{% url 'payroll:entry_detail' entry.id %}" class="text-decoration-none fw-semibold">
+                                    {{ entry.title|truncatechars:40 }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ entry.template.name|truncatechars:20 }}</span>
+                            </td>
+                            <td>
+                                {% if entry.period_month and entry.period_year %}
+                                {{ entry.period_month }}/{{ entry.period_year }}
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ entry.row_count }}</td>
+                            <td class="text-center">
+                                <span class="badge {% if entry.status == 'completed' %}bg-success{% elif entry.status == 'draft' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ entry.status|title }}
+                                </span>
+                            </td>
+                            <td>{{ entry.created_at|date:"M d, Y" }}</td>
+                            <td class="text-center pe-3">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'payroll:entry_detail' entry.id %}" class="btn btn-outline-primary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'payroll:template_entry_continue' entry.template.id entry.id %}" class="btn btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No payroll entries yet</h5>
+                <p class="text-muted mb-3">Create entries by filling out a template</p>
+                <a href="{% url 'payroll:template_list' %}" class="btn btn-primary">
+                    <i class="fas fa-file-alt me-1"></i> Go to Templates
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

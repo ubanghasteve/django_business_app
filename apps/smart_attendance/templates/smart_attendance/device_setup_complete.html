@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Device Setup Complete{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="alert alert-success mb-4" role="alert">
+    <h5 class="alert-heading"><i class="fas fa-check-circle me-2"></i>Device Registered Successfully</h5>
+    <p class="mb-0">Configure your biometric device with the settings below to receive records in real-time.</p>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <strong>Step 1: Configure Push URL in Device Firmware</strong>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-2">Enter this URL in your ZKTeco device's Push/Webhook settings. Each clock in/out will be sent immediately.</p>
+      <div class="input-group">
+        <input type="text" class="form-control font-monospace" id="push-url" value="{{ push_url }}" readonly>
+        <button type="button" class="btn btn-outline-primary" onclick="navigator.clipboard.writeText(document.getElementById('push-url').value); this.textContent='Copied!'; setTimeout(function(){this.textContent='Copy';}.bind(this), 2000);">Copy</button>
+      </div>
+      {% if is_localhost %}
+      <div class="alert alert-warning mt-3 mb-0 small">
+        <strong>Note:</strong> You are viewing this from localhost. Your biometric device cannot reach 127.0.0.1. Use your server's actual IP (e.g. 192.168.1.100) in the URL. Set <code>BIOMETRIC_PUSH_BASE_URL = "http://YOUR_SERVER_IP:8000"</code> in settings.py, or access this page from your server's IP.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-secondary text-white">
+      <strong>Step 2: Set These Values in Device Firmware</strong>
+    </div>
+    <div class="card-body">
+      <table class="table table-bordered mb-0">
+        <tr>
+          <th width="40%">Device Serial</th>
+          <td><code>{{ device.device_serial }}</code></td>
+        </tr>
+        <tr>
+          <th>Device Secret</th>
+          <td><code>{{ device.device_secret }}</code> <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ device.device_secret }}'); this.textContent='Copied!'; setTimeout(function(){this.textContent='Copy';}.bind(this), 1500);">Copy</button></td>
+        </tr>
+      </table>
+      <p class="text-muted small mt-2 mb-0">The device must send these exact values. Serial identifies the device; Secret authenticates it.</p>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header">
+      <strong>Step 3: Map Employees</strong>
+    </div>
+    <div class="card-body">
+      <p class="mb-2">Each employee must have <strong>Biometric UID</strong> set to match the user ID the device sends. Records without a match are stored for audit but not shown in attendance.</p>
+      <a href="{% url 'smart_attendance:employees' %}" class="btn btn-outline-primary">Manage Employees</a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-success mb-4">
+    <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+      <strong><i class="fas fa-sync-alt me-2"></i>Real-time sync verification</strong>
+      <span class="badge bg-light text-dark" id="last-punch-time">Live</span>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-2">When someone punches on this device, the latest record appears below within a few seconds. This confirms the device is pushing to this app correctly.</p>
+      <div id="last-punch-placeholder" class="py-3">
+        <p class="mb-0 text-muted" id="last-punch-text">No punch received yet. Use the device to clock in/out; this will update automatically.</p>
+        <p class="mb-0 small text-muted mt-1" id="last-punch-detail"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'smart_attendance:device_detail' device.pk %}" class="btn btn-primary">View Device</a>
+    <a href="{% url 'smart_attendance:devices' %}" class="btn btn-outline-secondary">All Devices</a>
+    <a href="{% url 'smart_attendance:dashboard' %}" class="btn btn-outline-secondary">Dashboard</a>
+  </div>
+</div>
+<script>
+(function() {
+  var deviceId = {{ device.pk }};
+  function pollLastPunch() {
+    fetch('/api/attendance/device/' + deviceId + '/last-punch', {
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+      cache: 'no-store'
+    })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(data) {
+        var textEl = document.getElementById('last-punch-text');
+        var detailEl = document.getElementById('last-punch-detail');
+        if (!textEl) return;
+        if (data.last_punch) {
+          textEl.textContent = data.last_punch.employee_name + ' – ' + data.last_punch.punch_time;
+          textEl.classList.remove('text-muted');
+          if (detailEl) {
+            detailEl.textContent = 'Type: ' + (data.last_punch.punch_type || '—');
+          }
+        } else {
+          textEl.textContent = 'No punch received yet. Use the device to clock in/out; this will update automatically.';
+          textEl.classList.add('text-muted');
+          if (detailEl) detailEl.textContent = '';
+        }
+      })
+      .catch(function() {});
+  }
+  pollLastPunch();
+  setInterval(pollLastPunch, 2000);
+})();
+</script>
+{% endblock %}

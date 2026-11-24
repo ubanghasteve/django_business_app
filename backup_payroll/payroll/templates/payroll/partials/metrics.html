@@ -1,0 +1,81 @@
+{% load static humanize %}
+<div class="row mb-4">
+    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="payroll-metric-icon-box payroll-icon-blue rounded-3 d-flex align-items-center justify-content-center me-2">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h6 class="mb-0 text-muted small">Total Cost</h6>
+                </div>
+                <h5 class="mb-0 fw-bold" id="payroll-total-cost">{{ user_currency_symbol|default:"₦" }}{{ metrics.total_payroll_cost|default:0|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="payroll-metric-icon-box payroll-icon-purple rounded-3 d-flex align-items-center justify-content-center me-2">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <h6 class="mb-0 text-muted small">Total Tax</h6>
+                </div>
+                <h5 class="mb-0 fw-bold" id="payroll-total-tax">{{ user_currency_symbol|default:"₦" }}{{ metrics.total_tax|default:0|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="payroll-metric-icon-box payroll-icon-orange rounded-3 d-flex align-items-center justify-content-center me-2">
+                        <i class="fas fa-piggy-bank"></i>
+                    </div>
+                    <h6 class="mb-0 text-muted small">Pension</h6>
+                </div>
+                <h5 class="mb-0 fw-bold" id="payroll-total-pension">{{ user_currency_symbol|default:"₦" }}{{ metrics.total_pension|default:0|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="payroll-metric-icon-box payroll-icon-green rounded-3 d-flex align-items-center justify-content-center me-2">
+                        <i class="fas fa-home"></i>
+                    </div>
+                    <h6 class="mb-0 text-muted small">NHF</h6>
+                </div>
+                <h5 class="mb-0 fw-bold" id="payroll-total-nhf">{{ user_currency_symbol|default:"₦" }}{{ metrics.total_nhf|default:0|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="payroll-metric-icon-box payroll-icon-blue rounded-3 d-flex align-items-center justify-content-center me-2">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <h6 class="mb-0 text-muted small">Net Paid</h6>
+                </div>
+                <h5 class="mb-0 fw-bold" id="payroll-total-net">{{ user_currency_symbol|default:"₦" }}{{ metrics.total_net|default:0|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="payroll-metric-icon-box payroll-icon-purple rounded-3 d-flex align-items-center justify-content-center me-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h6 class="mb-0 text-muted small">Employees</h6>
+                </div>
+                <h5 class="mb-0 fw-bold" id="payroll-total-employees">{{ metrics.total_employees_paid|default:0 }}</h5>
+            </div>
+        </div>
+    </div>
+</div>

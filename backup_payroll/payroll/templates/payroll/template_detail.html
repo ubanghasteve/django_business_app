@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}{{ template.name }}{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Template Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:template_list' %}" class="text-decoration-none">Templates</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ template.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">{{ template.name }}</h4>
+            <p class="text-muted mb-0 small">{{ template.description }}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'payroll:template_fill_form' template.id %}" class="btn btn-primary">
+                <i class="fas fa-edit me-1"></i> Fill Form
+            </a>
+            <a href="{% url 'payroll:template_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="fw-bold mb-0">Detected Columns</h5>
+                        <span class="badge bg-primary">{{ template.column_count }} columns</span>
+                    </div>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Column Name</th>
+                                    <th>Type</th>
+                                    <th>Category</th>
+                                    <th>Required</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for col in template.columns %}
+                                <tr>
+                                    <td class="fw-semibold">{{ col.label }}</td>
+                                    <td><code>{{ col.type }}</code></td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ col.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if col.required %}
+                                        <span class="badge bg-danger">Required</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-muted">Optional</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h5 class="fw-bold mb-0">Template Info</h5>
+                </div>
+                <div class="card-body pt-2">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="border-0 text-muted">Created</td>
+                            <td class="border-0">{{ template.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="border-0 text-muted">Used</td>
+                            <td class="border-0">{{ template.usage_count }} times</td>
+                        </tr>
+                        <tr>
+                            <td class="border-0 text-muted">Status</td>
+                            <td class="border-0">
+                                {% if template.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if template.detected_from_file %}
+                        <tr>
+                            <td class="border-0 text-muted">Source File</td>
+                            <td class="border-0">
+                                <a href="{% url 'payroll:file_detail' template.detected_from_file.id %}">
+                                    {{ template.detected_from_file.title|truncatechars:30 }}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h5 class="fw-bold mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'payroll:template_fill_form' template.id %}" class="btn btn-primary">
+                            <i class="fas fa-edit me-1"></i> Fill Payroll Form
+                        </a>
+                        <a href="{% url 'payroll:excel_records_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-1"></i> View Extracted Records
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cash Flow Statement{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Cash Flow Statement</h1>
+            <p class="text-muted">Operating, investing, and financing cash flows.</p>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="cfRefreshBtn" title="Refresh data">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form class="row g-3" id="cfFilterForm" onsubmit="event.preventDefault(); loadCashFlow();">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{% now 'Y-01-01' %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{% now 'Y-m-d' %}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary" id="cfSubmitBtn">Generate Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="cfMessage" class="alert d-none" role="alert"></div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> Cash Flows from Operating Activities</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <tbody id="cfOperating">
+                            <tr><td colspan="2" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Net Cash from Operating:</strong>
+                        <strong id="cfNetOperating">-</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Cash Flows from Investing Activities</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <tbody id="cfInvesting">
+                            <tr><td colspan="2" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Net Cash from Investing:</strong>
+                        <strong id="cfNetInvesting">-</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-university"></i> Cash Flows from Financing Activities</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <tbody id="cfFinancing">
+                            <tr><td colspan="2" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between">
+                        <strong>Net Cash from Financing:</strong>
+                        <strong id="cfNetFinancing">-</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-coins"></i> Summary</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <td>Beginning Cash Balance</td>
+                            <td class="text-end fw-bold" id="cfBeginning">-</td>
+                        </tr>
+                        <tr>
+                            <td>Net Cash from Operations</td>
+                            <td class="text-end" id="cfSummaryOperating">-</td>
+                        </tr>
+                        <tr>
+                            <td>Net Cash from Investing</td>
+                            <td class="text-end" id="cfSummaryInvesting">-</td>
+                        </tr>
+                        <tr>
+                            <td>Net Cash from Financing</td>
+                            <td class="text-end" id="cfSummaryFinancing">-</td>
+                        </tr>
+                        <tr class="table-dark">
+                            <td><strong>Net Change in Cash</strong></td>
+                            <td class="text-end"><strong id="cfNetChange">-</strong></td>
+                        </tr>
+                        <tr class="table-success">
+                            <td><strong>Ending Cash Balance</strong></td>
+                            <td class="text-end"><strong id="cfEnding">-</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const currencySymbol = '{{ company.currency_symbol|default:"₦" }}';
+
+    function formatAmount(value) {
+        if (value === null || value === undefined) return currencySymbol + ' 0.00';
+        const num = Number(value);
+        const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const colorClass = num >= 0 ? 'text-success' : 'text-danger';
+        return `<span class="${colorClass}">${currencySymbol} ${formatted}</span>`;
+    }
+
+    function showMessage(text, type) {
+        var el = document.getElementById('cfMessage');
+        if (!el) return;
+        el.textContent = text || '';
+        el.className = 'alert d-none';
+        if (text) {
+            el.classList.remove('d-none');
+            el.classList.add(type === 'error' ? 'alert-danger' : type === 'info' ? 'alert-info' : 'alert-success');
+        }
+    }
+
+    function loadCashFlow() {
+        var form = document.getElementById('cfFilterForm');
+        if (!form) return;
+        showMessage('');
+        var params = new URLSearchParams(new FormData(form));
+        
+        fetch('{% url "accounting_api:api_cash_flow" %}?' + params.toString(), { 
+            headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Request failed');
+            return r.json();
+        })
+        .then(function(data) {
+            const operating = data.operating || {};
+            const investing = data.investing || {};
+            const financing = data.financing || {};
+
+            document.getElementById('cfOperating').innerHTML = `
+                <tr>
+                    <td>Cash Inflows</td>
+                    <td class="text-end">${formatAmount(operating.inflow)}</td>
+                </tr>
+                <tr>
+                    <td>Cash Outflows</td>
+                    <td class="text-end">${formatAmount(operating.outflow)}</td>
+                </tr>
+            `;
+            document.getElementById('cfNetOperating').innerHTML = formatAmount(operating.net);
+
+            document.getElementById('cfInvesting').innerHTML = `
+                <tr>
+                    <td>Cash Inflows</td>
+                    <td class="text-end">${formatAmount(investing.inflow)}</td>
+                </tr>
+                <tr>
+                    <td>Cash Outflows</td>
+                    <td class="text-end">${formatAmount(investing.outflow)}</td>
+                </tr>
+            `;
+            document.getElementById('cfNetInvesting').innerHTML = formatAmount(investing.net);
+
+            document.getElementById('cfFinancing').innerHTML = `
+                <tr>
+                    <td>Cash Inflows</td>
+                    <td class="text-end">${formatAmount(financing.inflow)}</td>
+                </tr>
+                <tr>
+                    <td>Cash Outflows</td>
+                    <td class="text-end">${formatAmount(financing.outflow)}</td>
+                </tr>
+            `;
+            document.getElementById('cfNetFinancing').innerHTML = formatAmount(financing.net);
+
+            document.getElementById('cfBeginning').innerHTML = formatAmount(data.beginning_balance);
+            document.getElementById('cfSummaryOperating').innerHTML = formatAmount(operating.net);
+            document.getElementById('cfSummaryInvesting').innerHTML = formatAmount(investing.net);
+            document.getElementById('cfSummaryFinancing').innerHTML = formatAmount(financing.net);
+            document.getElementById('cfNetChange').innerHTML = formatAmount(data.net_cash_flow);
+            document.getElementById('cfEnding').innerHTML = formatAmount(data.ending_balance);
+
+            showMessage(`Cash flow statement for ${data.period || 'selected period'}`, 'info');
+        })
+        .catch(function(err) {
+            showMessage('Could not load cash flow statement. Please try again.');
+            console.error('Cash flow:', err);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCashFlow();
+        var btn = document.getElementById('cfRefreshBtn');
+        if (btn) btn.addEventListener('click', loadCashFlow);
+        setInterval(loadCashFlow, 60000);
+    });
+})();
+</script>
+{% endblock %}

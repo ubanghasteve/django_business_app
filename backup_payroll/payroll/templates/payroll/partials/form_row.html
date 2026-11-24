@@ -1,0 +1,23 @@
+{% load add %}
+<tr class="data-row">
+    <td class="text-center row-number">{{ row_num|add:1 }}</td>
+    {% for col in template.columns %}
+    <td>
+        {% if col.type == 'decimal' or col.type == 'number' %}
+        <input type="number" step="0.01" name="row_{{ row_num }}_{{ col.key }}" 
+               class="form-control form-control-sm" placeholder="0.00">
+        {% elif col.type == 'integer' %}
+        <input type="number" name="row_{{ row_num }}_{{ col.key }}" 
+               class="form-control form-control-sm">
+        {% else %}
+        <input type="text" name="row_{{ row_num }}_{{ col.key }}" 
+               class="form-control form-control-sm">
+        {% endif %}
+    </td>
+    {% endfor %}
+    <td class="text-center">
+        <button type="button" class="btn btn-outline-danger btn-sm remove-row">
+            <i class="fas fa-trash"></i>
+        </button>
+    </td>
+</tr>

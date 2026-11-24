@@ -1,0 +1,27 @@
+{% extends 'base.html' %}{% load static %}{% block title %}Enroll Employee - HR{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item"><a href="{% url 'hr_staff:training_course_list' %}">Training</a></li><li class="breadcrumb-item active">Enroll Employee</li>{% endblock %}
+{% block page_title %}Enroll Employee in Training{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+<div class="card border-0 shadow-sm rounded-3 mt-3"><div class="card-header bg-transparent border-0"><h5 class="mb-0 fw-bold">Enroll Employee</h5></div>
+<div class="card-body">
+<form method="post" class="row g-3" id="enrollmentForm" data-offline-queue="true">{% csrf_token %}
+<div class="col-12 col-md-6">{% if form.employee %}<label for="id_employee" class="form-label">Employee</label><select name="employee" id="id_employee" class="form-select{% if form.employee.errors %} is-invalid{% endif %}">{% for opt in form.employee.field.queryset %}<option value="{{ opt.pk }}" {% if form.employee.value == opt.pk %}selected{% endif %}>{{ opt.full_name }}</option>{% endfor %}</select>{% if form.employee.errors %}<div class="invalid-feedback">{{ form.employee.errors.0 }}</div>{% endif %}{% endif %}</div>
+<div class="col-12 col-md-6">{% if form.course %}<label for="id_course" class="form-label">Course</label><select name="course" id="id_course" class="form-select{% if form.course.errors %} is-invalid{% endif %}">{% for opt in form.course.field.queryset %}<option value="{{ opt.pk }}" {% if form.course.value == opt.pk %}selected{% endif %}>{{ opt.title }}</option>{% endfor %}</select>{% if form.course.errors %}<div class="invalid-feedback">{{ form.course.errors.0 }}</div>{% endif %}{% endif %}</div>
+<div class="col-12 col-md-6">{% if form.status %}<label for="id_status" class="form-label">Status</label><select name="status" id="id_status" class="form-select{% if form.status.errors %} is-invalid{% endif %}">{% for value, label in form.status.field.choices %}<option value="{{ value }}" {% if form.status.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% if form.status.errors %}<div class="invalid-feedback">{{ form.status.errors.0 }}</div>{% endif %}{% endif %}</div>
+<div class="col-12 d-flex flex-wrap gap-2 mt-3"><button type="submit" class="btn btn-primary rounded-2"><i class="fas fa-save me-1"></i> Enroll</button><a href="{% url 'hr_staff:training_course_list' %}" class="btn btn-outline-secondary rounded-2">Cancel</a></div>
+</form></div></div></div>
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script>
+(function() {
+var empSelect = document.getElementById('id_employee');
+if (empSelect && empSelect.options.length <= 1) {
+fetch('/api/hr-staff/employees/?status=active&page_size=500',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){return r.json();}).then(function(d){var firstOpt=empSelect.options[0];empSelect.innerHTML='';if(firstOpt){var o=document.createElement('option');o.value=firstOpt.value||'';o.textContent=firstOpt.textContent||'Select employee';empSelect.appendChild(o);}(d.results||[]).forEach(function(e){var o=document.createElement('option');o.value=e.id;o.textContent=e.full_name||(e.first_name+' '+e.last_name);empSelect.appendChild(o);});}).catch(function(){});}
+var courseSelect = document.getElementById('id_course');
+if (courseSelect && courseSelect.options.length <= 1) {
+fetch('/api/hr-staff/training-courses/?status=active&page_size=500',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){return r.json();}).then(function(d){var firstOpt=courseSelect.options[0];courseSelect.innerHTML='';if(firstOpt){var o=document.createElement('option');o.value=firstOpt.value||'';o.textContent=firstOpt.textContent||'Select course';courseSelect.appendChild(o);}(d.results||[]).forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=c.title;courseSelect.appendChild(o);});}).catch(function(){});}
+})();
+</script>
+{% endblock %}

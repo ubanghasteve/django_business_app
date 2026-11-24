@@ -1,0 +1,42 @@
+{% load static %}
+<div id="hrRecentEmployeesContainer">
+{% if load_async %}
+<p class="text-muted small mb-0"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading…</p>
+{% elif recent_employees %}
+<ul class="list-group list-group-flush border-0">
+    {% for emp in recent_employees %}
+    <li class="list-group-item border-0 border-bottom px-0 py-2 d-flex align-items-center">
+        <a href="{% url 'hr_staff:employee_detail' emp.pk %}" class="d-flex align-items-center text-decoration-none text-body flex-grow-1 min-w-0">
+        <div class="hr-avatar-circle rounded-circle overflow-hidden bg-light me-3 flex-shrink-0">
+            {% if emp.display_photo_url %}
+            <img src="{{ emp.display_photo_url }}" alt="" class="w-100 h-100 object-fit-cover">
+            {% else %}
+            <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted small fw-bold">{{ emp.first_name|slice:":1" }}{{ emp.last_name|slice:":1" }}</div>
+            {% endif %}
+        </div>
+        <div class="flex-grow-1 min-w-0">
+            <span class="fw-bold text-dark d-block">{{ emp.full_name }}</span>
+            <small class="text-muted">{{ emp.position|default:"—" }}</small>
+        </div>
+        </a>
+        <span class="hr-recent-employee-actions d-flex align-items-center gap-2 flex-shrink-0">
+        {% if emp.status == 'active' %}
+        <span class="badge bg-success bg-opacity-10 text-success">Active</span>
+        {% elif emp.status == 'on_leave' %}
+        <span class="badge bg-warning bg-opacity-10 text-warning">On Leave</span>
+        {% elif emp.status == 'suspended' %}
+        <span class="badge bg-secondary bg-opacity-10 text-secondary">Suspended</span>
+        {% elif emp.status == 'resigned' %}
+        <span class="badge bg-dark bg-opacity-10 text-dark">Resigned</span>
+        {% else %}
+        <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ emp.get_status_display }}</span>
+        {% endif %}
+        <a href="{% url 'hr_staff:employee_detail' emp.pk %}" class="d-inline-flex align-items-center justify-content-center text-muted text-decoration-none" aria-label="View {{ emp.full_name }}"><svg class="hr-recent-view-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></a>
+        </span>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-0">No recent employees.</p>
+{% endif %}
+</div>

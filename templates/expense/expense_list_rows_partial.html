@@ -1,0 +1,63 @@
+{% load humanize expense_extras %}
+{% for obj in object_list %}
+<tr data-pk="{{ obj.pk }}" data-uuid="{{ obj.uuid|default:'' }}">
+    <td class="text-center"><span class="expense-sn">{{ obj.transaction_id|default:obj.sn }}</span></td>
+    <td>{{ obj.expense_date|date:"Y-m-d"|default:"—" }}</td>
+    <td><span class="editable-cell" contenteditable="true" data-field="expense_category" data-placeholder="Category">{{ obj.expense_category|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="department" data-placeholder="Dept">{{ obj.department|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="vendor" data-placeholder="Vendor">{{ obj.vendor|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="po_number" data-placeholder="PO">{{ obj.po_number|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="description" data-placeholder="Description">{{ obj.description|truncatewords:6|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="product_id" data-placeholder="ID">{{ obj.product_id|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="product_name" data-placeholder="Product">{{ obj.product_name|default:"" }}</span></td>
+    <td><span class="editable-cell" contenteditable="true" data-field="unit_of_measurement" data-placeholder="UoM">{{ obj.unit_of_measurement|default:"" }}</span></td>
+    <td class="qty-in"><span class="editable-cell" contenteditable="true" data-field="quantity_purchased">{% if obj.quantity_purchased_input %}{{ obj.quantity_purchased_input }}{% else %}{{ obj.quantity_purchased|format_number }}{% endif %}</span></td>
+    <td class="qty-out"><span class="editable-cell" contenteditable="true" data-field="quantity_out">{% if obj.quantity_out_input %}{{ obj.quantity_out_input }}{% else %}{{ obj.quantity_out|format_number }}{% endif %}</span></td>
+    <td class="rem-qty {% if obj.remaining_quantity < 0 %}negative{% endif %}">{{ obj.remaining_quantity|format_number }}{% if obj.unit_label %} {{ obj.unit_label }}{% endif %}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}<span class="editable-cell" contenteditable="true" data-field="unit_price">{% if obj.unit_price_input %}{{ obj.unit_price_input }}{% else %}{{ obj.unit_price|format_number }}{% endif %}</span></td>
+    <td class="text-end total-purchase-cell">{{ user_currency_symbol|default:"₦" }}{{ obj.total_purchase_value|format_number }}</td>
+    <td class="text-end stock-value-cell">{{ user_currency_symbol|default:"₦" }}{{ obj.stock_value_remaining|format_number }}</td>
+    <td class="text-end"><span class="editable-cell" contenteditable="true" data-field="quantity_threshold">{% if obj.quantity_threshold_input %}{{ obj.quantity_threshold_input }}{% else %}{{ obj.quantity_threshold|format_number }}{% endif %}</span></td>
+    <td class="text-center low-stock-cell">{% if obj.remaining_quantity <= 0 %}<span class="badge stock-out_of_stock">Out of stock</span>{% elif obj.remaining_quantity <= obj.quantity_threshold %}<span class="badge stock-low_stock">Low stock</span>{% else %}<span class="badge stock-in_stock">In stock</span>{% endif %}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}<span class="editable-cell" contenteditable="true" data-field="subtotal">{{ obj.subtotal|format_number }}</span></td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}<span class="editable-cell" contenteditable="true" data-field="tax">{{ obj.tax|format_number }}</span></td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}<span class="editable-cell" contenteditable="true" data-field="discount">{{ obj.discount|format_number }}</span></td>
+    <td>{{ obj.get_payment_method_display|default:obj.payment_method|default:"—" }}</td>
+    <td>{{ obj.payment_date|date:"Y-m-d"|default:"—" }}</td>
+    <td>{% if obj.receipt_upload %}<a href="{{ obj.receipt_upload.url }}" target="_blank" rel="noopener">Receipt</a>{% else %}—{% endif %}</td>
+    <td class="status-cell">
+        <div class="status-cell-inner">
+            {% if can_approve_expense %}
+            <select class="form-select form-select-sm status-select" data-pk="{{ obj.pk }}" data-uuid="{{ obj.uuid|default:'' }}" title="Status – saves immediately">
+                {% for v, l in status_choices %}<option value="{{ v }}" {% if obj.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select>
+            <span class="status-saved-feedback ms-1 small text-success" style="display:none;" aria-live="polite"></span>
+            {% else %}
+            <span class="badge badge-status {% if obj.status == 'approved' %}approval-approved{% elif obj.status == 'pending' %}approval-pending{% elif obj.status == 'rejected' %}approval-rejected{% else %}approval-draft{% endif %}">
+                {{ obj.get_status_display }}
+            </span>
+            {% endif %}
+        </div>
+    </td>
+    <td>{% if obj.approved_by %}{{ obj.approved_by.get_full_name|default:obj.approved_by.email|default:"—" }}{% else %}—{% endif %}</td>
+    <td>{% if obj.created_by %}{{ obj.created_by.get_full_name|default:obj.created_by.email|default:"—" }}{% else %}—{% endif %}</td>
+    <td>{{ obj.created_at|date:"Y-m-d g:i A" }}</td>
+    <td>{{ obj.updated_at|date:"Y-m-d g:i A"|default:"—" }}</td>
+    <td class="actions-cell">
+        {% if perms.expense.view_expense %}
+        <a href="{% url 'expense:detail' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
+        {% endif %}
+        {% if perms.expense.delete_expense %}
+        <form method="post" action="{% url 'expense:delete' obj.pk %}" class="d-inline expense-delete-form">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button></form>
+        {% endif %}
+        {% if perms.expense.print_expense %}
+        <a href="{% url 'expense:print' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="Print"><i class="fas fa-print"></i></a>
+        {% endif %}
+        {% if perms.expense.view_expense %}
+        <a href="{% url 'expense:product_report' obj.pk %}" class="btn btn-sm btn-info" title="Ledger / Report"><i class="fas fa-chart-line me-1"></i>Report</a>
+        {% endif %}
+    </td>
+</tr>
+{% empty %}
+<tr data-empty-row><td colspan="30" class="text-center text-muted py-5">No expense records yet. Use &quot;Add row&quot; or the form to add a record.</td></tr>
+{% endfor %}

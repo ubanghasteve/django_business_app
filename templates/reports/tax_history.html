@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Tax Report History{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Tax Report History</h2>
+    <div>
+      <a href="{% url 'reports:tax_dashboard' %}" class="btn btn-outline-primary btn-sm">Dashboard</a>
+      <a href="{% url 'reports:monthly_report' %}" class="btn btn-outline-secondary btn-sm">Monthly</a>
+      <a href="{% url 'reports:quarterly_report' %}" class="btn btn-outline-secondary btn-sm">Quarterly</a>
+      <a href="{% url 'reports:annual_report' %}" class="btn btn-outline-secondary btn-sm">Annual</a>
+    </div>
+  </div>
+  {% if error %}
+  <div class="alert alert-warning">{{ error }}</div>
+  {% endif %}
+  {% if records %}
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Period Type</th>
+              <th>Start</th>
+              <th>End</th>
+              <th class="text-end">Total Revenue</th>
+              <th class="text-end">Total Expenses</th>
+              <th class="text-end">Taxable Profit</th>
+              <th class="text-end">Corporate Tax</th>
+              <th class="text-end">VAT Payable</th>
+              <th>Computed At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records %}
+            <tr>
+              <td>{{ r.get_period_type_display }}</td>
+              <td>{{ r.period_start }}</td>
+              <td>{{ r.period_end }}</td>
+              <td class="text-end">{{ r.total_revenue|floatformat:2|intcomma }}</td>
+              <td class="text-end">{{ r.total_expenses|floatformat:2|intcomma }}</td>
+              <td class="text-end">{{ r.taxable_profit|floatformat:2|intcomma }}</td>
+              <td class="text-end">{{ r.corporate_tax|floatformat:2|intcomma }}</td>
+              <td class="text-end">{{ r.vat_payable|floatformat:2|intcomma }}</td>
+              <td>{{ r.updated_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">No tax records have been computed yet. Upload or re-process documents, then visit the dashboard to generate tax records.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

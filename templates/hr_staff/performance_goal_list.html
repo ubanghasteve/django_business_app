@@ -1,0 +1,57 @@
+{% extends 'base.html' %}{% load static %}{% block title %}Goals - HR & Staff{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item active">Goals</li>{% endblock %}
+{% block page_title %}Performance Goals{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0 d-flex justify-content-between pt-3 pb-0"><h5 class="mb-0 fw-bold">Goals</h5><a href="{% url 'hr_staff:performance_goal_create' %}" class="btn btn-primary btn-sm rounded-2"><i class="fas fa-plus me-1"></i> Add Goal</a></div>
+<div class="card-body pt-2"><div class="table-responsive"><table class="table table-hover mb-0" id="goalsTable"><thead><tr><th>Employee</th><th>Title</th><th>Due Date</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="goalsTableBody">{% for goal in goals %}<tr><td>{{ goal.employee.full_name }}</td><td>{{ goal.title }}</td><td>{{ goal.due_date|default:"—" }}</td><td><div class="progress" style="height:20px"><div class="progress-bar" role="progressbar" style="width:{{ goal.progress }}%">{{ goal.progress }}%</div></div></td><td><span class="badge bg-{% if goal.status == 'completed' %}success{% elif goal.status == 'in_progress' %}info{% elif goal.status == 'cancelled' %}secondary{% else %}warning{% endif %}">{{ goal.get_status_display }}</span></td><td><a href="{% url 'hr_staff:performance_goal_edit' goal.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a></td></tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No goals yet.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+  var POLL_MS = 20000;
+  function getStatusBadge(status) {
+    if (status === 'completed') return 'success';
+    if (status === 'in_progress') return 'info';
+    if (status === 'cancelled') return 'secondary';
+    return 'warning';
+  }
+  function getStatusDisplay(status) {
+    var map = {'pending': 'Pending', 'in_progress': 'In Progress', 'completed': 'Completed', 'cancelled': 'Cancelled'};
+    return map[status] || status;
+  }
+  function renderGoals(data) {
+    var tbody = document.getElementById('goalsTableBody');
+    if (!tbody || !data.results || data.results.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No goals yet.</td></tr>';
+      return;
+    }
+    var html = '';
+    data.results.forEach(function(goal) {
+      var editUrl = '/hr-staff/goals/' + goal.id + '/edit/';
+      html += '<tr>';
+      html += '<td>' + (goal.employee_name || '—') + '</td>';
+      html += '<td>' + (goal.title || '') + '</td>';
+      html += '<td>' + (goal.due_date || '—') + '</td>';
+      html += '<td><div class="progress" style="height:20px"><div class="progress-bar" role="progressbar" style="width:' + (goal.progress || 0) + '%">' + (goal.progress || 0) + '%</div></div></td>';
+      html += '<td><span class="badge bg-' + getStatusBadge(goal.status) + '">' + getStatusDisplay(goal.status) + '</span></td>';
+      html += '<td><a href="' + editUrl + '" class="btn btn-sm btn-outline-secondary">Edit</a></td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+  function loadGoals() {
+    fetch('/api/hr-staff/performance-goals/?page_size=500', { 
+      method: 'GET', credentials: 'same-origin', cache: 'no-store', 
+      headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+    }).then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) { if (data) renderGoals(data); }).catch(function() {});
+  }
+  loadGoals();
+  setInterval(loadGoals, POLL_MS);
+})();
+</script>
+{% endblock %}

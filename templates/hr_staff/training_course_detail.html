@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% load static %}{% block title %}{{ course.title }} - Training - HR{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item"><a href="{% url 'hr_staff:training_course_list' %}">Training</a></li><li class="breadcrumb-item active">{{ course.title }}</li>{% endblock %}
+{% block page_title %}{{ course.title }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0 d-flex justify-content-between pt-3 pb-0"><h5 class="mb-0 fw-bold">{{ course.title }}</h5>
+<div class="d-flex gap-2"><a href="{% url 'hr_staff:training_course_edit' course.pk %}" class="btn btn-outline-secondary btn-sm rounded-2"><i class="fas fa-edit me-1"></i> Edit</a><a href="{% url 'hr_staff:training_enrollment_create' %}" class="btn btn-primary btn-sm rounded-2">Enroll Employee</a></div></div>
+<div class="card-body"><div class="row"><div class="col-md-6 mb-3"><label class="text-muted small">Category</label><p class="mb-0 fw-bold">{{ course.category|default:"—" }}</p></div>
+<div class="col-md-6 mb-3"><label class="text-muted small">Duration</label><p class="mb-0">{{ course.duration_hours }} hours</p></div>
+<div class="col-md-6 mb-3"><label class="text-muted small">Status</label><p class="mb-0"><span class="badge bg-{% if course.status == 'active' %}success{% else %}secondary{% endif %}">{{ course.get_status_display }}</span></p></div>
+<div class="col-md-6 mb-3"><label class="text-muted small">Required</label><p class="mb-0">{% if course.is_required %}<span class="badge bg-warning">Required</span>{% else %}Optional{% endif %}</p></div>
+<div class="col-12 mb-3"><label class="text-muted small">Description</label><p class="mb-0">{{ course.description|default:"No description" }}</p></div></div></div></div>
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0"><h5 class="mb-0 fw-bold">Enrollments ({{ course.enrollments.count }})</h5></div>
+<div class="card-body pt-2"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Employee</th><th>Status</th><th>Enrolled Date</th><th>Completed Date</th></tr></thead><tbody>{% for enrollment in course.enrollments.all %}<tr><td>{{ enrollment.employee.full_name }}</td><td><span class="badge bg-{% if enrollment.status == 'completed' %}success{% elif enrollment.status == 'in_progress' %}info{% elif enrollment.status == 'cancelled' %}secondary{% else %}warning{% endif %}">{{ enrollment.get_status_display }}</span></td><td>{{ enrollment.enrolled_date|date:"M d, Y" }}</td><td>{{ enrollment.completed_date|date:"M d, Y"|default:"—" }}</td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-4">No enrollments yet.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+{% endblock %}

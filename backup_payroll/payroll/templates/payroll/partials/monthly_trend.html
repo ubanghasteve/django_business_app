@@ -1,0 +1,21 @@
+{% load humanize %}
+<div id="payrollMonthlyTrendContainer">
+    {% if metrics.monthly_trend %}
+    <div class="row">
+        {% for row in metrics.monthly_trend %}
+        <div class="col-6 col-md-4 col-lg-2 mb-3">
+            <div class="card border shadow-sm h-100 rounded-3">
+                <div class="card-body p-2 text-center">
+                    <div class="text-muted small">
+                        {% if row.period__month == 1 %}Jan{% elif row.period__month == 2 %}Feb{% elif row.period__month == 3 %}Mar{% elif row.period__month == 4 %}Apr{% elif row.period__month == 5 %}May{% elif row.period__month == 6 %}Jun{% elif row.period__month == 7 %}Jul{% elif row.period__month == 8 %}Aug{% elif row.period__month == 9 %}Sep{% elif row.period__month == 10 %}Oct{% elif row.period__month == 11 %}Nov{% elif row.period__month == 12 %}Dec{% endif %}
+                    </div>
+                    <div class="fw-bold text-primary">{{ user_currency_symbol|default:"₦" }}{{ row.total|floatformat:0|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted small mb-0">No trend data yet.</p>
+    {% endif %}
+</div>

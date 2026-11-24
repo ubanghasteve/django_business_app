@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% load static humanize %}
+{% block title %}Run Payroll{% endblock %}
+{% block extra_css %}
+<style>
+.payroll-run-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid #dee2e6; }
+.payroll-run-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; border-radius: 11px 11px 0 0; }
+.payroll-run-field { 
+    background: #f8f9fa; 
+    border-radius: 8px; 
+    padding: 1rem; 
+    border: 2px solid #dee2e6;
+    transition: border-color 0.2s;
+}
+.payroll-run-field:focus-within { border-color: #1e88e5; }
+.payroll-run-field label { 
+    font-weight: 600; 
+    color: #495057; 
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+.payroll-run-field .form-control, 
+.payroll-run-field .form-select { 
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+}
+.payroll-run-field .form-control:focus, 
+.payroll-run-field .form-select:focus { 
+    border-color: #1e88e5; 
+    box-shadow: 0 0 0 0.15rem rgba(30,136,229,.15);
+}
+.payroll-employee-card { 
+    border: 1px solid #e9ecef; 
+    border-radius: 10px; 
+    transition: all 0.2s;
+    background: #fff;
+}
+.payroll-employee-card:hover { 
+    border-color: #1e88e5; 
+    box-shadow: 0 4px 12px rgba(30,136,229,.15); 
+}
+.payroll-employee-avatar { 
+    width: 40px; height: 40px; 
+    border-radius: 50%; 
+    background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
+    display: flex; align-items: center; justify-content: center; 
+    color: #fff; font-weight: 600;
+}
+.payroll-empty-state { 
+    padding: 3rem; 
+    text-align: center; 
+    background: #f8f9fa; 
+    border-radius: 12px; 
+    border: 2px dashed #dee2e6;
+}
+.payroll-refresh-indicator {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+.payroll-last-updated {
+    font-size: 0.7rem;
+    color: #adb5bd;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-run-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Run Payroll</li>
+        </ol>
+    </nav>
+    
+    <h4 class="fw-bold text-dark mb-3">Run Payroll</h4>
+    <p class="text-muted mb-4">Generate payroll for the selected month and year</p>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Payroll Configuration</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-3">
+                    <div class="payroll-run-field">
+                        <label for="id_month">Month <span class="text-danger">*</span></label>
+                        <select name="month" id="id_month" class="form-select" required>
+                            <option value="">Select Month</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="payroll-run-field">
+                        <label for="id_year">Year <span class="text-danger">*</span></label>
+                        <select name="year" id="id_year" class="form-select" required>
+                            <option value="">Select Year</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="payroll-run-field">
+                        <label for="id_structure">Payroll Structure <span class="text-muted">(auto-updates)</span></label>
+                        <select name="structure" id="id_structure" class="form-select">
+                            <option value="">Default Structure</option>
+                            {% for s in structures %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-play me-2"></i>Run Payroll
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Employees to Include (<span id="employeeCount">{{ employees|length }}</span>)</h5>
+            <div class="d-flex align-items-center gap-2">
+                <span class="payroll-refresh-indicator" id="refreshIndicator">
+                    <i class="fas fa-sync-alt me-1"></i>Auto-refreshing
+                </span>
+                <span class="payroll-last-updated" id="lastUpdated"></span>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnRefreshEmployees" title="Refresh employee list">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if employees %}
+            <div class="table-responsive" id="employeesContainer">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>ID</th>
+                            <th>Position</th>
+                            <th>Department</th>
+                            <th class="text-end">Monthly Salary</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeesBody">
+                        {% for emp in employees %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="payroll-employee-avatar me-2">
+                                        {% firstof emp.first_name '' as fn %}{% firstof emp.last_name '' as ln %}{{ fn|slice:":1"|upper }}{{ ln|slice:":1"|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ emp.full_name }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{% firstof emp.employee_id "—" %}</td>
+                            <td>{% firstof emp.position "—" %}</td>
+                            <td>
+                                {% if emp.department %}
+                                    {{ emp.department }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold text-primary">
+                                {{ user_currency_symbol|default:"₦" }}{{ emp.monthly_salary|default:"0"|floatformat:2|intcomma }}
+                            </td>
+                            <td>{% firstof emp.email "—" %}</td>
+                            <td>{% firstof emp.phone "—" %}</td>
+                            <td>
+                                <a href="{% url 'hr_staff:employee_detail' emp.id %}" class="btn btn-sm btn-outline-primary" title="View HR Profile">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="payroll-empty-state" id="employeesEmptyState">
+                <i class="fas fa-user-clock fa-3x mb-3 text-muted"></i>
+                <h5>No Active Employees</h5>
+                <p class="text-muted mb-3">
+                    No active employees found in HR &amp; Staff. 
+                    <br>Add employees there first; they will automatically appear here.
+                </p>
+                <a href="{% url 'hr_staff:dashboard' %}" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>Go to HR & Staff
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{{ employees|json_script:"initial-employees" }}
+{{ structures_json|json_script:"initial-structures" }}
+
+<script>
+(function() {
+    var POLL_MS = 30000;
+    var currencySymbol = '{{ user_currency_symbol|default:"₦"|escapejs }}';
+    var initialEmpDataEl = document.getElementById('initial-employees');
+    var initialEmployees = [];
+    if (initialEmpDataEl && initialEmpDataEl.textContent) {
+        try {
+            initialEmployees = JSON.parse(initialEmpDataEl.textContent);
+        } catch (e) {
+            initialEmployees = [];
+        }
+    }
+    var hasInitialData = initialEmployees && initialEmployees.length > 0;
+    
+    var initialStructDataEl = document.getElementById('initial-structures');
+    var initialStructures = [];
+    if (initialStructDataEl && initialStructDataEl.textContent) {
+        try {
+            initialStructures = JSON.parse(initialStructDataEl.textContent);
+        } catch (e) {
+            initialStructures = [];
+        }
+    }
+    if (initialStructures.length > 0) {
+        renderStructures(initialStructures);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatCurrency(value) {
+        if (!value) return currencySymbol + '0.00';
+        var num = parseFloat(String(value).replace(/,/g, ''));
+        if (isNaN(num)) return currencySymbol + '0.00';
+        return currencySymbol + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getInitials(firstName, lastName) {
+        var first = (firstName || '').charAt(0).toUpperCase();
+        var last = (lastName || '').charAt(0).toUpperCase();
+        return (first + last) || '??';
+    }
+
+    function renderEmployees(employees) {
+        var tbody = document.getElementById('employeesBody');
+        var container = document.getElementById('employeesContainer');
+        var emptyState = document.getElementById('employeesEmptyState');
+        var countEl = document.getElementById('employeeCount');
+        
+        if (!tbody) return;
+        
+        if (!employees || employees.length === 0) {
+            tbody.innerHTML = '';
+            if (container) container.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'block';
+            if (countEl) countEl.textContent = '0';
+            return;
+        }
+        
+        if (container) container.style.display = 'block';
+        if (emptyState) emptyState.style.display = 'none';
+        if (countEl) countEl.textContent = employees.length;
+        
+        var html = '';
+        employees.forEach(function(emp, index) {
+            var initials = getInitials(emp.first_name, emp.last_name);
+            var viewUrl = '/hr-staff/employees/' + emp.id + '/';
+            
+            html += '<tr>';
+            html += '<td>';
+            html += '<div class="d-flex align-items-center">';
+            html += '<div class="payroll-employee-avatar me-2">' + initials + '</div>';
+            html += '<div>';
+            html += '<div class="fw-semibold">' + escapeHtml(emp.full_name) + '</div>';
+            html += '</div>';
+            html += '</div>';
+            html += '</td>';
+            html += '<td>' + (emp.employee_id ? escapeHtml(emp.employee_id) : '—') + '</td>';
+            html += '<td>' + (emp.position ? escapeHtml(emp.position) : '—') + '</td>';
+            html += '<td>' + (emp.department ? escapeHtml(emp.department) : '—') + '</td>';
+            html += '<td class="text-end fw-bold text-primary">' + formatCurrency(emp.monthly_salary) + '</td>';
+            html += '<td>' + (emp.email ? escapeHtml(emp.email) : '—') + '</td>';
+            html += '<td>' + (emp.phone ? escapeHtml(emp.phone) : '—') + '</td>';
+            html += '<td>';
+            html += '<a href="' + viewUrl + '" class="btn btn-sm btn-outline-primary" title="View HR Profile">';
+            html += '<i class="fas fa-eye"></i>';
+            html += '</a>';
+            html += '</td>';
+            html += '</tr>';
+        });
+        
+        tbody.innerHTML = html;
+    }
+
+    function updateLastUpdated() {
+        var el = document.getElementById('lastUpdated');
+        if (el) {
+            var now = new Date();
+            var timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            el.textContent = 'Updated: ' + timeStr;
+        }
+    }
+
+    function fetchEmployees() {
+        var url = '/api/payroll/run-employees/';
+        
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && data.results) {
+                renderEmployees(data.results);
+                updateLastUpdated();
+            }
+        })
+        .catch(function() {
+            console.log('Failed to fetch employees for payroll run');
+        });
+    }
+
+    function fetchStructures() {
+        var url = '/api/payroll/structures/';
+        
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && data.results) {
+                renderStructures(data.results);
+            }
+        })
+        .catch(function() {
+            console.log('Failed to fetch structures');
+        });
+    }
+
+    function renderStructures(structures) {
+        var select = document.getElementById('id_structure');
+        if (!select) return;
+        
+        var currentValue = select.value;
+        
+        var html = '<option value="">Default Structure</option>';
+        structures.forEach(function(s) {
+            html += '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>';
+        });
+        
+        select.innerHTML = html;
+        
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    }
+
+    function init() {
+        if (hasInitialData) {
+            renderEmployees(initialEmployees);
+            updateLastUpdated();
+        }
+        
+        var refreshBtn = document.getElementById('btnRefreshEmployees');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                this.disabled = true;
+                var icon = this.querySelector('i');
+                if (icon) {
+                    icon.classList.add('fa-spin');
+                }
+                fetchEmployees();
+                fetchStructures();
+                setTimeout(function() {
+                    refreshBtn.disabled = false;
+                    if (icon) {
+                        icon.classList.remove('fa-spin');
+                    }
+                }, 1000);
+            });
+        }
+        
+        setTimeout(function() {
+            fetchEmployees();
+            fetchStructures();
+        }, 5000);
+        
+        setInterval(function() {
+            fetchEmployees();
+            fetchStructures();
+        }, POLL_MS);
+        
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                fetchEmployees();
+                fetchStructures();
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+{% endblock %}

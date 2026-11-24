@@ -1,0 +1,62 @@
+{% load static %}
+<div class="payroll-top-nav d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <div class="payroll-portal-logo rounded-3 d-flex align-items-center justify-content-center text-white fw-bold">
+            <i class="fas fa-file-invoice-dollar"></i>
+        </div>
+        <div>
+            <h5 class="mb-0 fw-bold">Smart Payroll Records</h5>
+            <small class="text-muted">Document management system</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'payroll:dashboard' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none {% if payroll_current_page == 'dashboard' %}active{% endif %}" style="width: 120px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-primary rounded-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-home text-white"></i>
+                </div>
+                <span class="small fw-semibold">Dashboard</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:record_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none {% if payroll_current_page == 'records' %}active{% endif %}" style="width: 120px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-success rounded-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-file-alt text-white"></i>
+                </div>
+                <span class="small fw-semibold">Records</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:record_upload' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none {% if payroll_current_page == 'upload' %}active{% endif %}" style="width: 120px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-info rounded-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-upload text-white"></i>
+                </div>
+                <span class="small fw-semibold">Upload</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:category_list' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none {% if payroll_current_page == 'categories' %}active{% endif %}" style="width: 120px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-warning rounded-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-folder text-white"></i>
+                </div>
+                <span class="small fw-semibold">Categories</span>
+            </div>
+        </a>
+        <a href="{% url 'payroll:access_logs' %}" class="payroll-nav-card card border-2 rounded-3 text-decoration-none {% if payroll_current_page == 'access_logs' %}active{% endif %}" style="width: 120px;">
+            <div class="card-body p-2 d-flex align-items-center gap-2">
+                <div class="payroll-nav-card-icon bg-secondary rounded-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-history text-white"></i>
+                </div>
+                <span class="small fw-semibold">Logs</span>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+.payroll-portal-logo { width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.payroll-nav-card { cursor: pointer; transition: all 0.2s; }
+.payroll-nav-card:hover { border-color: #667eea !important; box-shadow: 0 4px 12px rgba(102,126,234,.15); }
+.payroll-nav-card.active { border-color: #667eea !important; background: rgba(102,126,234,.08); }
+.payroll-nav-card-icon { width: 32px; height: 32px; }
+</style>

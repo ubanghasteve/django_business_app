@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% load static %}{% block title %}{{ review.title }} - Review - HR & Staff{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item"><a href="{% url 'hr_staff:performance_review_list' %}">Performance</a></li><li class="breadcrumb-item active">{{ review.title }}</li>{% endblock %}
+{% block page_title %}{{ review.title }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0 d-flex justify-content-between pt-3"><h5 class="mb-0 fw-bold">{{ review.title }}</h5><div><a href="{% url 'hr_staff:performance_review_edit' review.pk %}" class="btn btn-outline-secondary btn-sm rounded-2"><i class="fas fa-edit me-1"></i> Edit</a></div></div>
+<div class="card-body"><div class="row"><div class="col-md-6 mb-3"><label class="text-muted small">Type</label><p class="mb-0">{{ review.get_review_type_display }}</p></div><div class="col-md-6 mb-3"><label class="text-muted small">Period</label><p class="mb-0">{{ review.start_date }} - {{ review.end_date }}</p></div><div class="col-md-6 mb-3"><label class="text-muted small">Status</label><p class="mb-0"><span class="badge bg-{% if review.status == 'active' %}success{% elif review.status == 'completed' %}info{% else %}secondary{% endif %}">{{ review.get_status_display }}</span></p></div><div class="col-12 mb-3"><label class="text-muted small">Description</label><p class="mb-0">{{ review.description|default:"—" }}</p></div></div></div></div></div>
+{% endblock %}

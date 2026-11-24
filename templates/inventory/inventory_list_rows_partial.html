@@ -1,0 +1,65 @@
+{% load humanize inventory_extras %}
+{% for obj in object_list %}
+<tr data-pk="{{ obj.pk }}" data-inventory-uuid="{{ obj.uuid|default:'' }}"{% if obj.issue_count %} data-has-issues="1"{% endif %}{% if obj.receipt_count %} data-has-receipts="1"{% endif %}{% if obj.waste_log_count %} data-has-waste-logs="1"{% endif %}>
+    <td class="text-center"><span class="inventory-sn">{{ obj.sn }}</span></td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="product_name" data-placeholder="Product name">{{ obj.product_name }}</span></td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="category" data-placeholder="Category">{{ obj.category }}</span></td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="company_name" data-placeholder="Company">{% if obj.company_name %}{{ obj.company_name }}{% endif %}</span></td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="vendor" data-placeholder="Vendor">{{ obj.vendor }}</span></td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="stock_location" data-placeholder="Location">{{ obj.stock_location }}</span></td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="phone_number" data-placeholder="Phone">{{ obj.phone_number }}</span></td>
+    <td class="qty-in">{% include 'inventory/inventory_qty_in_cell.html' with obj=obj %}</td>
+    <td class="qty-out">{% include 'inventory/inventory_qty_out_cell.html' with obj=obj %}</td>
+    <td class="qty-waste">{% include 'inventory/inventory_qty_waste_cell.html' with obj=obj %}</td>
+    <td class="qty-net">{% include 'inventory/inventory_qty_net_cell.html' with obj=obj %}</td>
+    <td class="text-end qty-balance">{% include 'inventory/inventory_qty_balance_cell.html' with obj=obj %}</td>
+    <td class="text-end unit-price-td">
+        {% include 'inventory/inventory_unit_price_cell.html' with obj=obj %}
+    </td>
+    <td class="text-end amount-cell">{% include 'inventory/inventory_balance_cell.html' with obj=obj %}</td>
+    <td class="text-end amount-cell stock-balance-remaining-cell">{% include 'inventory/inventory_stock_remaining_cell.html' with obj=obj %}</td>
+    <td class="status-cell">
+        <div class="status-cell-inner">
+            {% if can_approve_inventory %}
+            <select class="form-select form-select-sm approval-select" data-pk="{{ obj.pk }}" data-inventory-uuid="{{ obj.uuid|default:'' }}" title="Approval status – saves immediately">
+                {% for v, l in approval_choices %}<option value="{{ v }}" {% if obj.approval_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select>
+            <span class="approval-saved-feedback ms-1 small text-success" style="display:none;" aria-live="polite"></span>
+            {% else %}
+            <span class="badge badge-status {% if obj.approval_status == 'approved' %}approval-approved{% elif obj.approval_status == 'pending' %}approval-pending{% elif obj.approval_status == 'rejected' %}approval-rejected{% else %}approval-draft{% endif %}">
+                {{ obj.get_approval_status_display }}
+            </span>
+            {% endif %}
+            <span class="stock-status-wrap" title="Stock status (updates in real time)">
+                <span class="stock-label">Stock</span>
+                <span class="badge badge-status stock-badge-lg stock-{{ obj.stock_status }}" data-role="stock-badge">{{ obj.get_stock_status_display }}</span>
+            </span>
+        </div>
+    </td>
+    <td class="text-end">
+        <span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="low_stock_threshold" title="Low stock when balance qty ≤ this. E.g. threshold 10 with 5 in, 0 out → Low stock.">
+            {% if obj.low_stock_threshold_input %}{{ obj.low_stock_threshold_input }}{% else %}{{ obj.low_stock_threshold|format_number }}{% endif %}
+        </span>
+    </td>
+    <td><span class="editable-cell"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="remark" data-placeholder="Remark">{{ obj.remark|truncatewords:8 }}</span></td>
+    <td>{{ obj.created_by.get_full_name|default:obj.created_by.email|default:"—" }}</td>
+    <td>{{ obj.created_at|date:"Y-m-d g:i:s A" }}</td>
+    <td class="actions-cell">
+        {% if perms.inventory.view_inventory %}
+        <a href="{% url 'inventory:detail' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
+        {% endif %}
+        {% if can_change_inventory %}
+        <a href="{% url 'inventory:update' obj.pk %}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
+        {% endif %}
+        {% if perms.inventory.delete_inventory %}
+        <form method="post" action="{% url 'inventory:delete' obj.pk %}" class="d-inline inventory-delete-form" data-inventory-uuid="{{ obj.uuid|default:'' }}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger inventory-delete-btn" title="Delete"><i class="fas fa-trash"></i></button></form>
+        {% endif %}
+        {% if perms.inventory.print_inventory %}
+        <a href="{% url 'inventory:print' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="Print"><i class="fas fa-print"></i></a>
+        {% endif %}
+        <a href="{% url 'inventory:product_report' obj.pk %}" class="btn btn-sm btn-info" title="Product ledger / report"><i class="fas fa-chart-line me-1"></i>Report</a>
+    </td>
+</tr>
+{% empty %}
+<tr data-empty-row><td colspan="20" class="text-center text-muted py-5">No inventory records yet. Use the &quot;Add row&quot; button below the table to add your first record.</td></tr>
+{% endfor %}

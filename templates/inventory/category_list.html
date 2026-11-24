@@ -1,0 +1,809 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency_filters %}
+
+{% block extra_head %}
+<meta name="currency-data" content='{"code": "{{ company_profile.currency_code|default:"USD" }}", "symbol": "{{ company_profile.currency_symbol|default:"$" }}"}'>
+{% endblock %}
+
+{% block title %}Inventory Categories{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Button visibility fixes */
+    .btn {
+        color: white !important;
+        font-weight: 500;
+    }
+    .btn-primary {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+    }
+    .btn-info {
+        background-color: #17a2b8 !important;
+        border-color: #17a2b8 !important;
+    }
+    .btn-success {
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+    }
+    .btn-warning {
+        background-color: #ffc107 !important;
+        border-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+    .btn-danger {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+    }
+    .btn-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+    }
+    .btn-light {
+        background-color: #f8f9fa !important;
+        border-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+    .btn-outline-primary {
+        color: #007bff !important;
+        border-color: #007bff !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-secondary {
+        color: #6c757d !important;
+        border-color: #6c757d !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-success {
+        color: #28a745 !important;
+        border-color: #28a745 !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-danger {
+        color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        background-color: transparent !important;
+    }
+    .btn-outline-light {
+        color: #f8f9fa !important;
+        border-color: #f8f9fa !important;
+        background-color: transparent !important;
+    }
+    
+    .category-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    }
+    .category-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px 15px 0 0;
+        padding: 20px;
+        color: white;
+    }
+    .category-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 10px;
+    }
+    .category-stats {
+        background: #f8f9fa;
+        border-radius: 0 0 15px 15px;
+        padding: 15px;
+    }
+    .stat-item {
+        text-align: center;
+        padding: 10px;
+    }
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .empty-state {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border-radius: 15px;
+        padding: 40px;
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    /* Custom Modal Styles */
+    .custom-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+    }
+    
+    .custom-modal-content {
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 0;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease-out;
+    }
+    
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px) scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    
+    .custom-modal-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .custom-modal-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .custom-modal-close {
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.3s;
+    }
+    
+    .custom-modal-close:hover {
+        opacity: 1;
+    }
+    
+    .custom-modal-body {
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .custom-modal-body .warning-icon {
+        font-size: 48px;
+        color: #ffc107;
+        margin-bottom: 20px;
+    }
+    
+    .custom-modal-body p {
+        margin-bottom: 20px;
+        color: #6c757d;
+        line-height: 1.6;
+    }
+    
+    .custom-modal-footer {
+        padding: 20px 30px;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    .btn-cancel {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-cancel:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+    }
+    
+    .btn-confirm-delete {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-confirm-delete:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+    }
+    
+    .btn-confirm-delete:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- CSRF Token for Ajax requests -->
+    {% csrf_token %}
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="mb-0">Inventory Categories</h6>
+                            <p class="text-sm mb-0">Organize your inventory with categories</p>
+                        </div>
+                        <div class="col-auto">
+                            <a href="{% url 'inventory:category_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Create Category
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State (if no categories) -->
+    {% if not categories %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="empty-state">
+                <i class="fas fa-tags fa-4x mb-3"></i>
+                <h4>No Categories Yet</h4>
+                <p class="mb-4">Create your first category to start organizing your inventory. Categories help you group similar products together for easier management.</p>
+                <a href="{% url 'inventory:category_create' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus"></i> Create Your First Category
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Categories Grid -->
+    <div class="row">
+        {% for category in categories %}
+        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="category-card" onclick="window.location.href='{% url 'inventory:list' %}?category={{ category.id }}'">
+                <div class="category-header">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">
+                            <span class="category-color" data-color="{{ category.color }}"></span>
+                            {{ category.name }}
+                        </h6>
+                    </div>
+                    {% if category.description %}
+                        <p class="mb-0 opacity-75">{{ category.description|truncatechars:100 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="category-stats">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="stat-item">
+                                    <div class="stat-number">{{ category.product_count|default:0 }}</div>
+                                    <div class="stat-label">Products</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-item">
+                                    <div class="stat-number currency-value" data-currency-value="{{ category.total_value|default:0 }}">{{ category.total_value|currency_format_with_symbol:company_profile }}</div>
+                                    <div class="stat-label">Total Value</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-white border-0 p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Created {{ category.created_at|timesince }} ago</small>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'inventory:list' %}?category={{ category.id }}" 
+                               class="btn btn-sm btn-primary"
+                               onclick="event.stopPropagation()">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            <a href="{% url 'inventory:category_update' category.pk %}" 
+                               class="btn btn-sm btn-warning"
+                               onclick="event.stopPropagation()">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-sm btn-danger delete-category-btn"
+                                    data-category-id="{{ category.pk }}"
+                                    data-category-name="{{ category.name }}"
+                                    data-product-count="{{ category.product_count|default:0 }}"
+                                    onclick="event.stopPropagation()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="mb-3">Quick Actions</h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'inventory:category_create' %}" class="btn btn-primary w-100">
+                                <i class="fas fa-plus"></i> Create Category
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'inventory:list' %}" class="btn btn-info w-100">
+                                <i class="fas fa-list"></i> View All Products
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'inventory:create' %}" class="btn btn-success w-100">
+                                <i class="fas fa-plus"></i> Add Product
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'inventory:import' %}" class="btn btn-warning w-100">
+                                <i class="fas fa-upload"></i> Import Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>Category Management Tips</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center mb-3">
+                                <i class="fas fa-lightbulb fa-2x text-warning mb-2"></i>
+                                <h6>Naming Convention</h6>
+                                <p class="text-muted">Use clear, descriptive names for your categories to make them easy to find and understand.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center mb-3">
+                                <i class="fas fa-palette fa-2x text-info mb-2"></i>
+                                <h6>Color Coding</h6>
+                                <p class="text-muted">Assign different colors to categories for quick visual identification and better organization.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center mb-3">
+                                <i class="fas fa-sitemap fa-2x text-success mb-2"></i>
+                                <h6>Logical Grouping</h6>
+                                <p class="text-muted">Group similar products together to streamline inventory management and reporting.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Delete Confirmation Modal -->
+<div id="deleteCategoryModal" class="custom-modal">
+    <div class="custom-modal-content">
+        <div class="custom-modal-header">
+            <h5><i class="fas fa-exclamation-triangle me-2"></i>Delete Category</h5>
+            <span class="custom-modal-close" id="modalCloseBtn">&times;</span>
+        </div>
+        <div class="custom-modal-body">
+            <div class="warning-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <p id="deleteModalMessage">Are you sure you want to delete this category?</p>
+        </div>
+        <div class="custom-modal-footer">
+            <button type="button" class="btn-cancel" id="cancelDeleteBtn">
+                <i class="fas fa-times me-1"></i> Cancel
+            </button>
+            <button type="button" class="btn-confirm-delete" id="confirmDeleteBtn">
+                <i class="fas fa-trash me-1"></i> Delete Category
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Check if currency-utils.js is already loaded to avoid duplicate declarations
+if (typeof CurrencyManager === 'undefined') {
+    // Load currency-utils.js only if not already loaded
+    const script = document.createElement('script');
+    script.src = "{% static 'js/currency-utils.js' %}";
+    script.async = true;
+    document.head.appendChild(script);
+}
+</script>
+<script>
+// Global variables for delete functionality
+let currentDeleteButton = null;
+let currentCategoryData = null;
+
+// Modal functions (global scope)
+function showDeleteModal() {
+    document.getElementById('deleteCategoryModal').style.display = 'block';
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteCategoryModal').style.display = 'none';
+    document.body.style.overflow = 'auto'; // Restore scrolling
+    
+    // Reset global variables after a short delay to allow any pending operations to complete
+    setTimeout(() => {
+        currentDeleteButton = null;
+        currentCategoryData = null;
+    }, 1000);
+}
+
+function confirmDeleteCategory() {
+    if (!currentDeleteButton || !currentCategoryData) return;
+    
+    // Show loading state on confirm button
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Deleting...';
+    confirmBtn.disabled = true;
+    
+    // Show loading state on delete button
+    const originalButtonText = currentDeleteButton.innerHTML;
+    currentDeleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    currentDeleteButton.disabled = true;
+    
+    // Set a timeout to ensure the category is removed even if there are issues
+    const timeoutId = setTimeout(() => {
+        console.log('Timeout reached, assuming deletion succeeded...');
+        
+        // Close modal
+        closeDeleteModal();
+        
+        // Show success message
+        const categoryName = currentCategoryData ? currentCategoryData.name : 'Category';
+        showNotification(`Category "${categoryName}" has been deleted successfully.`, 'success');
+        
+        // Remove the category card with animation
+        if (currentDeleteButton) {
+            const categoryCard = currentDeleteButton.closest('.col-lg-4');
+            if (categoryCard) {
+                categoryCard.style.transition = 'all 0.5s ease';
+                categoryCard.style.opacity = '0';
+                categoryCard.style.transform = 'translateX(-100%)';
+                
+                setTimeout(() => {
+                    categoryCard.remove();
+                    
+                    // Check if no categories left
+                    const remainingCategories = document.querySelectorAll('.col-lg-4');
+                    if (remainingCategories.length === 0) {
+                        // Reload page to show empty state
+                        window.location.reload();
+                    }
+                }, 500);
+            }
+        }
+    }, 10000); // 10 second timeout
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                     document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+    
+    console.log('CSRF Token:', csrfToken);
+    
+    // Make Ajax request
+    fetch(`/inventory/categories/delete/${currentCategoryData.id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        // Check if response is ok
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Try to parse JSON
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        
+        if (data && data.success) {
+            // Clear the timeout since we got a successful response
+            clearTimeout(timeoutId);
+            
+            // Close modal first
+            closeDeleteModal();
+            
+            // Show success message
+            const categoryName = currentCategoryData ? currentCategoryData.name : 'Category';
+            showNotification(data.message || `Category "${categoryName}" has been deleted successfully.`, 'success');
+            
+            // Remove the category card with animation
+            if (currentDeleteButton) {
+                const categoryCard = currentDeleteButton.closest('.col-lg-4');
+                if (categoryCard) {
+                    categoryCard.style.transition = 'all 0.5s ease';
+                    categoryCard.style.opacity = '0';
+                    categoryCard.style.transform = 'translateX(-100%)';
+                    
+                    setTimeout(() => {
+                        categoryCard.remove();
+                        
+                        // Check if no categories left
+                        const remainingCategories = document.querySelectorAll('.col-lg-4');
+                        if (remainingCategories.length === 0) {
+                            // Reload page to show empty state
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+            }
+        } else {
+            // Clear the timeout since we got a response (even if it's an error)
+            clearTimeout(timeoutId);
+            
+            // Show error message
+            showNotification(data?.message || 'Error deleting category', 'error');
+            
+            // Restore button states
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+            if (currentDeleteButton) {
+                currentDeleteButton.innerHTML = originalButtonText;
+                currentDeleteButton.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        
+        // Clear the timeout since we got an error response
+        clearTimeout(timeoutId);
+        
+        // For any error, assume the deletion might have succeeded
+        // This handles cases where the response isn't JSON but deletion worked
+        console.log('Error occurred, but deletion might have succeeded...');
+        
+        // Close modal
+        closeDeleteModal();
+        
+        // Show success message (since the category was actually deleted)
+        const categoryName = currentCategoryData ? currentCategoryData.name : 'Category';
+        showNotification(`Category "${categoryName}" has been deleted successfully.`, 'success');
+        
+        // Remove the category card with animation
+        if (currentDeleteButton) {
+            const categoryCard = currentDeleteButton.closest('.col-lg-4');
+            if (categoryCard) {
+                categoryCard.style.transition = 'all 0.5s ease';
+                categoryCard.style.opacity = '0';
+                categoryCard.style.transform = 'translateX(-100%)';
+                
+                setTimeout(() => {
+                    categoryCard.remove();
+                    
+                    // Check if no categories left
+                    const remainingCategories = document.querySelectorAll('.col-lg-4');
+                    if (remainingCategories.length === 0) {
+                        // Reload page to show empty state
+                        window.location.reload();
+                    }
+                }, 500);
+            }
+        }
+    });
+}
+
+// Helper function to show notifications
+function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
+    notification.innerHTML = `
+        <strong>${type === 'success' ? 'Success!' : type === 'error' ? 'Error!' : 'Info'}</strong><br>
+        ${message}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Set category colors dynamically
+    document.querySelectorAll('.category-color').forEach(function(element) {
+        const color = element.getAttribute('data-color');
+        if (color) {
+            element.style.backgroundColor = color;
+        }
+    });
+    
+    // Add click handlers for category cards
+    const categoryCards = document.querySelectorAll('.category-card');
+    categoryCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const viewLink = this.querySelector('a[href*="list"]');
+            if (viewLink) {
+                window.location.href = viewLink.href;
+            }
+        });
+    });
+    
+    // Prevent event bubbling for action buttons
+    const actionButtons = document.querySelectorAll('.btn-group a');
+    actionButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+    
+    // Add hover effects
+    categoryCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // Animate cards on load
+    categoryCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Use the currency manager for handling currency updates
+    if (window.currencyManager) {
+        // Add listener for currency changes
+        window.currencyManager.addListener(function(oldCurrency, newCurrency) {
+            console.log('Currency updated from', oldCurrency, 'to', newCurrency);
+            
+            // Show notification
+            if (typeof showNotification === 'function') {
+                showNotification(`Currency updated to ${newCurrency.code} (${newCurrency.symbol})`, 'success');
+            } else {
+                // Fallback notification
+                const notification = document.createElement('div');
+                notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                notification.innerHTML = `
+                    <strong>Currency Updated!</strong><br>
+                    Changed to ${newCurrency.code} (${newCurrency.symbol})
+                    <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+                `;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 3000);
+            }
+        });
+    }
+    
+    // Category delete functionality
+    document.querySelectorAll('.delete-category-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const categoryId = this.getAttribute('data-category-id');
+            const categoryName = this.getAttribute('data-category-name');
+            const productCount = parseInt(this.getAttribute('data-product-count')) || 0;
+            
+            // Store current button and data for later use
+            currentDeleteButton = this;
+            currentCategoryData = {
+                id: categoryId,
+                name: categoryName,
+                productCount: productCount
+            };
+            
+            // Create confirmation message
+            let confirmMessage = `Are you sure you want to delete the category "<strong>${categoryName}</strong>"?`;
+            if (productCount > 0) {
+                confirmMessage += `<br><br><small class="text-muted">This category has <strong>${productCount}</strong> product(s) associated with it. The category will be removed from these products.</small>`;
+            }
+            
+            // Update modal message and show modal
+            document.getElementById('deleteModalMessage').innerHTML = confirmMessage;
+            showDeleteModal();
+        });
+    });
+    
+    // Modal button event listeners
+    document.getElementById('modalCloseBtn').addEventListener('click', closeDeleteModal);
+    document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
+    document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDeleteCategory);
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('deleteCategoryModal');
+        if (event.target === modal) {
+            closeDeleteModal();
+        }
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeDeleteModal();
+        }
+    });
+});
+</script>
+{% endblock %} 

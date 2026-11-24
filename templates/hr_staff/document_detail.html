@@ -1,0 +1,169 @@
+{% extends 'base.html' %}{% load static %}{% block title %}{{ document.title }} - Document - HR{% endblock %}
+{% block extra_css %}{{ block.super }}
+<style>
+:root { --js-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+body { background: #f8fafc; }
+.js-detail-card { background: white; border: none; border-radius: 24px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08); overflow: hidden; }
+.js-detail-header { background: var(--js-primary-gradient); padding: 2rem; position: relative; }
+.js-detail-title { font-size: 1.5rem; font-weight: 700; color: white; }
+.js-detail-subtitle { color: rgba(255,255,255,0.8); font-size: 0.875rem; }
+.js-btn { padding: 0.625rem 1.25rem; border-radius: 12px; font-size: 0.875rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+.js-btn-primary { background: white; color: #667eea; }
+.js-btn-primary:hover { background: #f8f9fa; color: #667eea; }
+.js-btn-outline { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); }
+.js-btn-outline:hover { background: rgba(255,255,255,0.3); color: white; }
+.js-info-section { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; }
+.js-info-section:last-child { border-bottom: none; }
+.js-info-label { font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+.js-info-value { font-size: 1rem; color: #1f2937; margin-top: 0.25rem; }
+.js-skills-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.js-extraction-badge { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+</style>
+{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item"><a href="{% url 'hr_staff:document_list' %}">Documents</a></li><li class="breadcrumb-item active">{{ document.title }}</li>{% endblock %}
+{% block page_title %}{{ document.title }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+
+<div class="js-detail-wrapper mt-3">
+<div class="js-detail-card">
+<div class="js-detail-header">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <h4 class="js-detail-title mb-1">{{ document.title }}</h4>
+      <p class="js-detail-subtitle mb-0">{{ document.get_document_type_display }}</p>
+    </div>
+    <div class="js-detail-actions">
+      <a href="{% url 'hr_staff:document_edit' document.pk %}" class="js-btn js-btn-outline"><i class="fas fa-edit"></i> Edit</a>
+      {% if document.file %}<a href="{{ document.file.url }}" class="js-btn js-btn-primary" target="_blank"><i class="fas fa-download"></i> Download</a>{% endif %}
+      <form method="post" action="{% url 'hr_staff:document_delete' document.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="js-btn js-btn-outline" onclick="return confirm('Delete this document?')"><i class="fas fa-trash"></i> Delete</button></form>
+    </div>
+  </div>
+</div>
+
+<div class="card-body p-0">
+<div class="js-info-section">
+  <div class="row">
+    <div class="col-md-6 mb-3 mb-md-0">
+      <div class="js-info-label">Employee</div>
+      <div class="js-info-value">{{ document.employee.full_name|default:"—" }}</div>
+    </div>
+    <div class="col-md-6">
+      <div class="js-info-label">Document Type</div>
+      <div class="js-info-value">{{ document.get_document_type_display }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="js-info-section">
+  <div class="row">
+    <div class="col-md-6 mb-3 mb-md-0">
+      <div class="js-info-label">Uploaded</div>
+      <div class="js-info-value">{{ document.created_at|date:"M d, Y" }}</div>
+    </div>
+    <div class="col-md-6">
+      <div class="js-info-label">Expiry Date</div>
+      <div class="js-info-value">{% if document.expiry_date %}{{ document.expiry_date|date:"M d, Y" }}{% else %}—{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<div class="js-info-section">
+  <div class="js-info-label">Notes</div>
+  <div class="js-info-value">{{ document.notes|default:"No notes" }}</div>
+</div>
+
+{% if extracted_data and document.document_type == 'cv' or extracted_data and extracted_data.name %}
+<div class="js-info-section bg-light">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="js-info-label"><i class="fas fa-magic me-2"></i>Extracted Information</div>
+    <span class="js-extraction-badge"><i class="fas fa-check-circle me-1"></i> AI Extracted</span>
+  </div>
+  
+  <div class="row">
+    {% if extracted_data.name %}
+    <div class="col-md-6 mb-3">
+      <div class="js-info-label">Name</div>
+      <div class="js-info-value">{{ extracted_data.name }}</div>
+    </div>
+    {% endif %}
+    
+    {% if extracted_data.email %}
+    <div class="col-md-6 mb-3">
+      <div class="js-info-label">Email</div>
+      <div class="js-info-value">{{ extracted_data.email }}</div>
+    </div>
+    {% endif %}
+    
+    {% if extracted_data.phone %}
+    <div class="col-md-6 mb-3">
+      <div class="js-info-label">Phone</div>
+      <div class="js-info-value">{% if extracted_data.phone|length > 1 %}{% for p in extracted_data.phone %}{{ p }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{{ extracted_data.phone.0 }}{% endif %}</div>
+    </div>
+    {% endif %}
+    
+    {% if extracted_data.position_applied %}
+    <div class="col-md-6 mb-3">
+      <div class="js-info-label">Position Applied</div>
+      <div class="js-info-value">{{ extracted_data.position_applied }}</div>
+    </div>
+    {% endif %}
+    
+    {% if extracted_data.years_of_experience %}
+    <div class="col-md-6 mb-3">
+      <div class="js-info-label">Years of Experience</div>
+      <div class="js-info-value">{{ extracted_data.years_of_experience }}</div>
+    </div>
+    {% endif %}
+    
+    {% if extracted_data.address %}
+    <div class="col-md-6 mb-3">
+      <div class="js-info-label">Address</div>
+      <div class="js-info-value">{{ extracted_data.address }}</div>
+    </div>
+    {% endif %}
+  </div>
+  
+  {% if extracted_data.skills %}
+  <div class="mt-3">
+    <div class="js-info-label">Skills</div>
+    <div class="js-skills-list">
+      {% for category, skills in extracted_data.skills.items %}
+        {% if skills %}
+          {% for skill in skills %}
+          <span class="badge bg-primary">{{ skill }}</span>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  
+  {% if extracted_data.education %}
+  <div class="mt-3">
+    <div class="js-info-label">Education</div>
+    {% for edu in extracted_data.education %}
+    <div class="js-info-value mb-2">
+      <strong>{{ edu.degree|default:"Degree" }}</strong>{% if edu.institution %} - {{ edu.institution }}{% endif %}{% if edu.year %} ({{ edu.year }}){% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  
+  {% if extracted_data.work_experience %}
+  <div class="mt-3">
+    <div class="js-info-label">Work Experience</div>
+    {% for exp in extracted_data.work_experience %}
+    <div class="js-info-value mb-2">
+      <strong>{{ exp.position|default:"Position" }}</strong>{% if exp.company %} at {{ exp.company }}{% endif %}{% if exp.duration %} ({{ exp.duration }}){% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+</div>
+</div>
+</div>
+{% endblock %}

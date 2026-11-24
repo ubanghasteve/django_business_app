@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Payroll Runs{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.payroll-list-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: none; }
+.payroll-list-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; padding: 1rem 1.25rem; border: none; }
+.payroll-list-page .card-header h5 { font-weight: 600; letter-spacing: 0.02em; margin: 0; }
+
+.payroll-run-card { border-radius: 10px; border: 1px solid #e9ecef; transition: all .2s ease; }
+.payroll-run-card:hover { border-color: #1e88e5; box-shadow: 0 4px 12px rgba(30,136,229,.15); transform: translateY(-2px); }
+.payroll-run-card .card-body { padding: 1rem; }
+
+.payroll-status-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.payroll-status-pill.status-draft { background: #e9ecef; color: #6c757d; }
+.payroll-status-pill.status-processing { background: #cfe2ff; color: #0d6efd; }
+.payroll-status-pill.status-pending_approval { background: #fff3cd; color: #856404; }
+.payroll-status-pill.status-approved { background: #d1e7dd; color: #0f5132; }
+.payroll-status-pill.status-paid { background: #a7f3d0; color: #059669; }
+
+.payroll-summary-card { border-radius: 10px; background: #f8fafc; }
+.payroll-summary-card .summary-label { font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.05em; }
+.payroll-summary-card .summary-value { font-size: 1.25rem; font-weight: 700; }
+.payroll-summary-card .summary-value.gross { color: #1e88e5; }
+.payroll-summary-card .summary-value.deductions { color: #dc3545; }
+.payroll-summary-card .summary-value.net { color: #00c853; }
+
+.payroll-action-btn { border-radius: 8px; padding: 6px 12px; font-size: 0.875rem; }
+.payroll-empty-state { padding: 3rem; text-align: center; }
+.payroll-empty-state i { font-size: 4rem; color: #dee2e6; }
+
+.pagination-wrap { margin-top: 1.5rem; }
+.pagination-wrap .page-link { border-radius: 8px; margin: 0 2px; }
+.pagination-wrap .page-link.active { background: #1e88e5; border-color: #1e88e5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-list-page">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>Payroll Runs</h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3">
+                    <div class="payroll-summary-card p-3">
+                        <div class="summary-label">Total Runs</div>
+                        <div class="summary-value">{{ runs.count|default:0 }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="payroll-summary-card p-3">
+                        <div class="summary-label">Total Gross</div>
+                        <div class="summary-value gross">{{ user_currency_symbol|default:"₦" }}{{ total_gross|default:0|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="payroll-summary-card p-3">
+                        <div class="summary-label">Total Deductions</div>
+                        <div class="summary-value deductions">{{ user_currency_symbol|default:"₦" }}{{ total_deductions|default:0|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="payroll-summary-card p-3">
+                        <div class="summary-label">Total Net Paid</div>
+                        <div class="summary-value net">{{ user_currency_symbol|default:"₦" }}{{ total_net|default:0|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <form method="get" class="row g-2" id="payroll-filter-form">
+                    <div class="col-auto">
+                        <select name="status" class="form-select form-select-sm" id="status-filter">
+                            <option value="">All Status</option>
+                            <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                            <option value="pending_approval" {% if status_filter == 'pending_approval' %}selected{% endif %}>Pending Approval</option>
+                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                            <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <select name="year" class="form-select form-select-sm" id="year-filter">
+                            {% for y in available_years %}
+                            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filter</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="payroll-runs-container">
+                {% if runs %}
+                <div class="row" id="payroll-runs-list">
+                    {% for run in runs %}
+                    <div class="col-md-6 col-lg-4 mb-3 payroll-run-item" data-run-id="{{ run.id }}">
+                        <div class="payroll-run-card card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">{{ run.period }}</h6>
+                                        <small class="text-muted">Run #{{ run.id }}</small>
+                                    </div>
+                                    <span class="payroll-status-pill status-{{ run.status }}">
+                                        {% if run.status == 'draft' %}Draft
+                                        {% elif run.status == 'processing' %}Processing
+                                        {% elif run.status == 'pending_approval' %}Pending
+                                        {% elif run.status == 'approved' %}Approved
+                                        {% elif run.status == 'paid' %}Paid
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <div class="summary-label">Gross</div>
+                                        <div class="fw-bold text-primary">{{ user_currency_symbol|default:"₦" }}{{ run.total_gross|floatformat:0|intcomma }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="summary-label">Dedns</div>
+                                        <div class="fw-bold text-danger">{{ user_currency_symbol|default:"₦" }}{{ run.total_deductions|floatformat:0|intcomma }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="summary-label">Net</div>
+                                        <div class="fw-bold text-success">{{ user_currency_symbol|default:"₦" }}{{ run.total_net|floatformat:0|intcomma }}</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="{% url 'payroll:payroll_summary' run.period.id %}" class="btn btn-outline-primary btn-sm payroll-action-btn flex-grow-1"><i class="fas fa-eye me-1"></i>View</a>
+                                    {% if run.status == 'pending_approval' and perms.payroll.approve_payroll %}
+                                    <form method="post" action="{% url 'payroll:approve_run' run.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm payroll-action-btn"><i class="fas fa-check me-1"></i>Approve</button>
+                                    </form>
+                                    {% endif %}
+                                    {% if run.status == 'approved' and perms.payroll.approve_payroll %}
+                                    <form method="post" action="{% url 'payroll:mark_run_paid' run.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning btn-sm payroll-action-btn"><i class="fas fa-money-bill me-1"></i>Mark Paid</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="payroll-empty-state">
+                    <i class="fas fa-inbox mb-3"></i>
+                    <h5>No Payroll Runs</h5>
+                    <p class="text-muted mb-3">Create your first payroll run to get started.</p>
+                    <a href="{% url 'payroll:payroll_run' %}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Run Payroll</a>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if runs.has_other_pages %}
+            <nav class="pagination-wrap" aria-label="Payroll pagination">
+                <ul class="pagination justify-content-center">
+                    {% if runs.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ runs.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year %}&year={{ year }}{% endif %}">Previous</a></li>
+                    {% endif %}
+                    {% for num in runs.paginator.page_range %}
+                        {% if runs.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > runs.number|add:'-3' and num < runs.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year %}&year={{ year }}{% endif %}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if runs.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ runs.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year %}&year={{ year }}{% endif %}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var POLL_MS = 30000;
+    var currencySymbol = '{{ user_currency_symbol|default:"₦"|escapejs }}';
+
+    function formatCurrency(value) {
+        if (!value) return currencySymbol + '0';
+        var num = parseFloat(String(value).replace(/,/g, ''));
+        if (isNaN(num)) return currencySymbol + '0';
+        return currencySymbol + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function getStatusLabel(status) {
+        var map = {'draft': 'Draft', 'processing': 'Processing', 'pending_approval': 'Pending', 'approved': 'Approved', 'paid': 'Paid'};
+        return map[status] || status;
+    }
+
+    function fetchRunsList() {
+        var url = '/api/payroll/runs-list/';
+        fetch(url, { 
+            method: 'GET', 
+            credentials: 'same-origin', 
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && data.results) {
+                renderRuns(data.results);
+            }
+        })
+        .catch(function() {});
+    }
+
+    function renderRuns(runs) {
+        var container = document.getElementById('payroll-runs-list');
+        if (!container) return;
+
+        if (!runs || runs.length === 0) {
+            container.innerHTML = '<div class="col-12"><div class="payroll-empty-state"><i class="fas fa-inbox mb-3"></i><h5>No Payroll Runs</h5><p class="text-muted mb-3">Create your first payroll run.</p><a href="{% url 'payroll:payroll_run' %}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Run Payroll</a></div></div>';
+            return;
+        }
+
+        var csrfToken = '{{ csrf_token }}';
+        var html = '';
+        runs.forEach(function(run) {
+            var summaryUrl = '/payroll/reports/summary/' + run.period_id + '/';
+            var approveUrl = '/payroll/runs/' + run.id + '/approve/';
+            var paidUrl = '/payroll/runs/' + run.id + '/mark-paid/';
+            
+            html += '<div class="col-md-6 col-lg-4 mb-3 payroll-run-item" data-run-id="' + run.id + '">';
+            html += '<div class="payroll-run-card card h-100">';
+            html += '<div class="card-body">';
+            html += '<div class="d-flex justify-content-between align-items-start mb-3">';
+            html += '<div><h6 class="mb-0 fw-bold">' + (run.period || '—') + '</h6><small class="text-muted">Run #' + run.id + '</small></div>';
+            html += '<span class="payroll-status-pill status-' + run.status + '">' + getStatusLabel(run.status) + '</span></div>';
+            html += '<div class="row text-center mb-3">';
+            html += '<div class="col-4"><div class="summary-label">Gross</div><div class="fw-bold text-primary">' + formatCurrency(run.total_gross) + '</div></div>';
+            html += '<div class="col-4"><div class="summary-label">Dedns</div><div class="fw-bold text-danger">' + formatCurrency(run.total_deductions) + '</div></div>';
+            html += '<div class="col-4"><div class="summary-label">Net</div><div class="fw-bold text-success">' + formatCurrency(run.total_net) + '</div></div>';
+            html += '</div>';
+            html += '<div class="d-flex gap-2 flex-wrap">';
+            html += '<a href="' + summaryUrl + '" class="btn btn-outline-primary btn-sm payroll-action-btn flex-grow-1"><i class="fas fa-eye me-1"></i>View</a>';
+            if (run.status === 'pending_approval') {
+                html += '<form method="post" action="' + approveUrl + '" class="d-inline payroll-approve-form">{% csrf_token %}';
+                html += '<button type="submit" class="btn btn-success btn-sm payroll-action-btn"><i class="fas fa-check me-1"></i>Approve</button></form>';
+            }
+            if (run.status === 'approved') {
+                html += '<form method="post" action="' + paidUrl + '" class="d-inline payroll-paid-form">{% csrf_token %}';
+                html += '<button type="submit" class="btn btn-warning btn-sm payroll-action-btn"><i class="fas fa-money-bill me-1"></i>Mark Paid</button></form>';
+            }
+            html += '</div></div></div></div>';
+        });
+        container.innerHTML = html;
+    }
+
+    function initAjaxForms() {
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (!form.classList.contains('payroll-approve-form') && !form.classList.contains('payroll-paid-form')) return;
+            e.preventDefault();
+            
+            if (!confirm('Are you sure you want to perform this action?')) return;
+            
+            var url = form.getAttribute('action');
+            var csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+            if (!csrfInput) return;
+            var csrfToken = csrfInput.value;
+            
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken },
+                credentials: 'same-origin'
+            })
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function() {
+                fetchRunsList();
+                if (typeof window.refreshPayrollDashboard === 'function') {
+                    window.refreshPayrollDashboard();
+                }
+            })
+            .catch(function() { window.location.reload(); });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(fetchRunsList, 100);
+        setInterval(fetchRunsList, POLL_MS);
+        initAjaxForms();
+    });
+})();
+</script>
+{% endblock %}

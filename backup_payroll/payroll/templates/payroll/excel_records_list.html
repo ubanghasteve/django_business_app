@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Extracted Payroll Records{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Extracted Records{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:files_list' %}" class="text-decoration-none">Files</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Extracted Records</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">Extracted Payroll Records</h4>
+            <p class="text-muted mb-0 small">View and manage extracted data from Excel files</p>
+        </div>
+        <a href="{% url 'payroll:files_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-file-excel me-1"></i> Upload Excel
+        </a>
+    </div>
+
+    <form method="get" class="card border-0 shadow-sm rounded-3 mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Search</label>
+                    <input type="text" name="q" class="form-control form-control-sm" 
+                           placeholder="Employee name or ID..." value="{{ query }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Year</label>
+                    <select name="year" class="form-select form-select-sm">
+                        <option value="">All Years</option>
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == selected_year|add:"0" %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Verified</label>
+                    <select name="verified" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="yes" {% if selected_verified == 'yes' %}selected{% endif %}>Verified</option>
+                        <option value="no" {% if selected_verified == 'no' %}selected{% endif %}>Pending</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Linked</label>
+                    <select name="linked" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="yes" {% if selected_linked == 'yes' %}selected{% endif %}>Linked</option>
+                        <option value="no" {% if selected_linked == 'no' %}selected{% endif %}>Unlinked</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-body p-0">
+            {% if records %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Period</th>
+                            <th class="text-end">Basic</th>
+                            <th class="text-end">Allowances</th>
+                            <th class="text-end">Gross</th>
+                            <th class="text-end">Deductions</th>
+                            <th class="text-end">Net</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr class="{% if not record.is_verified %}table-warning{% endif %}">
+                            <td>
+                                <div class="fw-semibold">{{ record.employee_name }}</div>
+                                <small class="text-muted">{{ record.employee_id }}</small>
+                                {% if record.employee %}
+                                <div class="small">
+                                    <i class="fas fa-link text-success"></i> Linked to {{ record.employee.full_name }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.period_display }}</td>
+                            <td class="text-end">{{ record.basic_salary|default:0|intcomma }}</td>
+                            <td class="text-end">{{ record.allowances|default:0|intcomma }}</td>
+                            <td class="text-end">{{ record.gross_salary|default:0|intcomma }}</td>
+                            <td class="text-end">
+                                {% with total_ded=record.pension|default:0 %}
+                                {% with total_ded=total_ded|add:record.nhf|default:0 %}
+                                {% with total_ded=total_ded|add:record.tax|default:0 %}
+                                {% with total_ded=total_ded|add:record.loan_deduction|default:0 %}
+                                {% with total_ded=total_ded|add:record.other_deductions|default:0 %}
+                                {{ total_ded|intcomma }}
+                                {% endwith %}
+                                {% endwith %}
+                                {% endwith %}
+                                {% endwith %}
+                                {% endwith %}
+                            </td>
+                            <td class="text-end fw-bold">{{ record.net_salary|default:0|intcomma }}</td>
+                            <td>
+                                {% if record.is_verified %}
+                                <span class="badge bg-success">Verified</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                                {% endif %}
+                                {% if record.is_linked_to_employee %}
+                                <span class="badge bg-info">Linked</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Unlinked</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'payroll:excel_records_link' record.id %}" class="btn btn-outline-secondary" title="Link Employee">
+                                        <i class="fas fa-link"></i>
+                                    </a>
+                                    <button class="btn btn-outline-success btn-verify" data-record-id="{{ record.id }}" title="Toggle Verify">
+                                        <i class="fas {% if record.is_verified %}fa-check-circle{% else %}fa-clock{% endif %}"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-file-excel fa-4x text-muted opacity-25 mb-3"></i>
+                <h6 class="text-muted">No extracted records found</h6>
+                <p class="small text-muted mb-3">Upload an Excel file and extract its data to see records here</p>
+                <a href="{% url 'payroll:files_list' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-upload me-1"></i> Upload Excel
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.btn-verify').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const recordId = this.dataset.recordId;
+        fetch('/payroll/records/' + recordId + '/verify/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            location.reload();
+        });
+    });
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

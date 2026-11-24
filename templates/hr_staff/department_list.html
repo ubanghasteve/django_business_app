@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}HR & Staff - Departments{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Departments{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-dept-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Departments</li>
+                </ol>
+            </nav>
+            <!-- Page header: title + subtitle, Add Department button -->
+            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4">
+                <div class="min-w-0">
+                    <h4 class="fw-bold text-dark mb-1 hr-dept-page-title">Departments</h4>
+                    <p class="text-muted mb-0 hr-dept-subtitle">Overview of {{ total_departments }} department{{ total_departments|pluralize }}</p>
+                </div>
+                {% if perms.hr_staff.add_department %}
+                <a href="{% url 'hr_staff:department_create' %}" class="btn btn-primary hr-btn-add-dept d-inline-flex align-items-center px-4 py-2 rounded-3 text-decoration-none flex-shrink-0">
+                    <svg class="me-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Add Department
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Summary cards: Total Departments, Total Employees, Total Budget -->
+            <div class="row g-3 g-md-4 mb-4">
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-3 hr-summary-card h-100">
+                        <div class="card-body">
+                            <div class="hr-summary-icon hr-summary-icon-blue rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-summary-label">Total Departments</p>
+                            <p class="fw-bold text-dark mb-0 hr-summary-value" id="hrSummaryTotalDepts">{{ total_departments }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-3 hr-summary-card h-100">
+                        <div class="card-body">
+                            <div class="hr-summary-icon hr-summary-icon-green rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-summary-label">Total Employees</p>
+                            <p class="fw-bold text-dark mb-0 hr-summary-value" id="hrSummaryTotalEmps">{{ total_employees }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-3 hr-summary-card h-100">
+                        <div class="card-body">
+                            <div class="hr-summary-icon hr-summary-icon-pink rounded-2 d-flex align-items-center justify-content-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                            </div>
+                            <p class="text-muted small mb-1 hr-summary-label">Total Budget</p>
+                            <p class="fw-bold text-dark mb-0 hr-summary-value" id="hrSummaryTotalBudget">{{ user_currency_symbol|default:"$" }}{{ total_budget|floatformat:0|intcomma }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department cards grid: 2 columns (real-time updated via API) -->
+            <div class="row g-4 hr-dept-cards-grid" id="hrDepartmentGrid" data-currency="{{ user_currency_symbol|default:'$' }}">
+                {% for dept in departments %}
+                <div class="col-12 col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-3 hr-dept-card h-100">
+                        <div class="card-body p-0">
+                            <!-- Card header: icon + name + employees | Head Count + Budget -->
+                            <div class="hr-dept-card-header d-flex align-items-start justify-content-between flex-wrap gap-2 p-4 pb-3">
+                                <div class="d-flex align-items-start gap-3 min-w-0">
+                                    <div class="hr-dept-card-icon rounded-2 d-flex align-items-center justify-content-center flex-shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h6 class="fw-bold text-dark mb-0 hr-dept-name">{{ dept.name }}</h6>
+                                        <p class="text-muted small mb-0">{{ dept.employee_count|default:0 }} employee{{ dept.employee_count|default:0|pluralize }}</p>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-4 flex-shrink-0">
+                                    <div class="hr-dept-stat">
+                                        <p class="text-muted small mb-0 hr-dept-stat-label">Head Count</p>
+                                        <p class="fw-bold text-dark mb-0 hr-dept-stat-value">{{ dept.employee_count|default:0 }}</p>
+                                    </div>
+                                    <div class="hr-dept-stat-border"></div>
+                                    <div class="hr-dept-stat">
+                                        <p class="text-muted small mb-0 hr-dept-stat-label">Budget</p>
+                                        <p class="fw-bold text-dark mb-0 hr-dept-stat-value">
+                                            {% with b=dept.budget|default:0 %}{% if b >= 1000 %}{{ user_currency_symbol|default:"$" }}{% widthratio b 1000 1 %}k{% else %}{{ user_currency_symbol|default:"$" }}{{ b|floatformat:0|intcomma }}{% endif %}{% endwith %}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Department Manager strip -->
+                            <div class="hr-dept-manager-strip px-4 py-3">
+                                <p class="text-muted small mb-0 hr-dept-manager-label">Department Manager</p>
+                                <p class="fw-bold text-dark mb-0 hr-dept-manager-name">{{ dept.manager_name|default:"—" }}</p>
+                            </div>
+                            <!-- Team Members (summary only on initial load; full list via department detail / API) -->
+                            <div class="hr-dept-team px-4 pb-4 pt-2">
+                                <p class="text-dark small fw-medium mb-2 hr-dept-team-label">Team Members</p>
+                                <p class="text-muted small mb-0">
+                                    {{ dept.employee_count|default:0 }} team member{{ dept.employee_count|default:0|pluralize }}.
+                                    Open this department to see the full list.
+                                </p>
+                            </div>
+                        </div>
+                        {% if perms.hr_staff.view_department or perms.hr_staff.change_department %}
+                        <div class="card-footer bg-transparent border-0 px-4 pb-3 pt-0">
+                            <div class="d-flex gap-2">
+                                {% if perms.hr_staff.view_department %}
+                                <a href="{% url 'hr_staff:department_detail' dept.pk %}" class="btn btn-sm btn-outline-primary rounded-2">View</a>
+                                {% endif %}
+                                {% if perms.hr_staff.change_department %}
+                                <a href="{% url 'hr_staff:department_edit' dept.pk %}" class="btn btn-sm btn-outline-secondary rounded-2">Edit</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-body py-5 text-center text-muted" id="hrDepartmentGridPlaceholder">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Loading departments…</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-dept-page-wrap { background-color: #f5f7fa; max-width: 100%; }
+.hr-dept-page-title { font-size: 1.5rem; color: #333; }
+.hr-dept-subtitle { font-size: 0.9375rem; color: #67748e; }
+.hr-btn-add-dept { background: #1976d2 !important; border-color: #1976d2 !important; border-radius: 0.5rem; font-weight: 500; }
+.hr-btn-add-dept:hover { background: #1565c0 !important; border-color: #1565c0 !important; color: #fff !important; }
+
+/* Summary cards */
+.hr-summary-card { background: #fff; border-radius: 0.5rem; box-shadow: 0 4px 8px rgba(0,0,0,.05); }
+.hr-summary-icon { width: 48px; height: 48px; }
+.hr-summary-icon-blue { background: rgba(25,118,210,.12); color: #1976d2; }
+.hr-summary-icon-green { background: rgba(40,167,69,.12); color: #28a745; }
+.hr-summary-icon-pink { background: rgba(233,30,99,.12); color: #e91e63; }
+.hr-summary-label { font-size: 0.875rem; color: #67748e; }
+.hr-summary-value { font-size: 1.75rem; color: #333; }
+
+/* Department cards */
+.hr-dept-card { background: #fff; border-radius: 0.5rem; box-shadow: 0 4px 8px rgba(0,0,0,.05); transition: box-shadow .2s; }
+.hr-dept-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,.08); }
+.hr-dept-card-header { border-bottom: 1px solid #f0f0f0; }
+.hr-dept-card-icon { width: 44px; height: 44px; background: rgba(25,118,210,.12); color: #1976d2; }
+.hr-dept-name { font-size: 1rem; }
+.hr-dept-stat-label { font-size: 0.75rem; }
+.hr-dept-stat-value { font-size: 1rem; }
+.hr-dept-stat-border { width: 1px; height: 32px; background: #dee2e6; }
+.hr-dept-manager-strip { background: #e8f0fe; }
+.hr-dept-manager-label { font-size: 0.75rem; }
+.hr-dept-manager-name { font-size: 0.9375rem; }
+.hr-dept-team-label { font-size: 0.875rem; }
+.hr-dept-team-item:last-child { border-bottom: none !important; }
+.hr-dept-avatar { width: 40px; height: 40px; flex-shrink: 0; }
+.hr-badge-active { background: #e6ffee; color: #28a745; font-size: 0.7rem; font-weight: 500; padding: 0.25em 0.5em; border-radius: 4px; }
+.hr-badge-on-leave { background: #fff3cd; color: #856404; font-size: 0.7rem; font-weight: 500; padding: 0.25em 0.5em; border-radius: 4px; }
+.hr-badge-other { background: #e9ecef; color: #6c757d; font-size: 0.7rem; font-weight: 500; padding: 0.25em 0.5em; border-radius: 4px; }
+
+@media (max-width: 575.98px) {
+  .hr-dept-page-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  .hr-dept-card-header { flex-direction: column; align-items: flex-start; }
+  .hr-dept-stat-border { display: none; }
+  .hr-summary-value { font-size: 1.5rem; }
+}
+@media (max-width: 767.98px) {
+  .hr-dept-cards-grid { --bs-gutter-x: 0.75rem; --bs-gutter-y: 0.75rem; }
+  .hr-dept-card-header .d-flex.gap-4 { gap: 1rem !important; }
+}
+</style>
+<script>
+(function() {
+    var grid = document.getElementById('hrDepartmentGrid');
+    var totalDeptsEl = document.getElementById('hrSummaryTotalDepts');
+    var totalEmpsEl = document.getElementById('hrSummaryTotalEmps');
+    var totalBudgetEl = document.getElementById('hrSummaryTotalBudget');
+    // Relax polling so summary cards and department list stay accurate without hammering the API.
+    var POLL_MS = 20000;
+
+    function formatBudget(b, sym) {
+        var n = parseFloat(b) || 0;
+        if (n >= 1000) return sym + (n / 1000) + 'k';
+        return sym + (Math.round(n) + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function pollDepartments() {
+        fetch('/api/hr-staff/departments/', { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var results = data.results !== undefined ? data.results : (Array.isArray(data) ? data : []);
+                var sym = (grid && grid.getAttribute('data-currency')) || '$';
+                var totalEmps = 0, totalBudget = 0;
+                if (results.length === 0) {
+                    grid.innerHTML = '<div class="col-12"><div class="card border-0 shadow-sm rounded-3"><div class="card-body py-5 text-center text-muted"><svg class="mb-3 opacity-25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="64" height="64"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg><p class="mb-0">No departments found.</p></div></div></div>';
+                } else {
+                    var html = '';
+                    results.forEach(function(d) {
+                        var ec = d.employee_count !== undefined ? d.employee_count : 0;
+                        var b = parseFloat(d.budget) || 0;
+                        totalEmps += ec;
+                        totalBudget += b;
+                        html += '<div class="col-12 col-lg-6"><div class="card border-0 shadow-sm rounded-3 hr-dept-card h-100"><div class="card-body p-0"><div class="hr-dept-card-header d-flex align-items-start justify-content-between flex-wrap gap-2 p-4 pb-3"><div class="d-flex align-items-start gap-3 min-w-0"><div class="hr-dept-card-icon rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg></div><div class="min-w-0"><h6 class="fw-bold text-dark mb-0 hr-dept-name">' + (d.name || '') + '</h6><p class="text-muted small mb-0">' + ec + ' employee(s)</p></div></div><div class="d-flex align-items-center gap-4 flex-shrink-0"><div class="hr-dept-stat"><p class="text-muted small mb-0 hr-dept-stat-label">Head Count</p><p class="fw-bold text-dark mb-0 hr-dept-stat-value">' + ec + '</p></div><div class="hr-dept-stat-border"></div><div class="hr-dept-stat"><p class="text-muted small mb-0 hr-dept-stat-label">Budget</p><p class="fw-bold text-dark mb-0 hr-dept-stat-value">' + formatBudget(b, sym) + '</p></div></div></div><div class="hr-dept-manager-strip px-4 py-3"><p class="text-muted small mb-0 hr-dept-manager-label">Department Manager</p><p class="fw-bold text-dark mb-0 hr-dept-manager-name">' + (d.manager_name || '—') + '</p></div><div class="hr-dept-team px-4 pb-4 pt-2"><p class="text-muted small">Refresh page for full team list.</p></div></div><div class="card-footer bg-transparent border-0 px-4 pb-3 pt-0"><a href="/hr-staff/departments/' + d.id + '/" class="btn btn-sm btn-outline-primary rounded-2">View</a> <a href="/hr-staff/departments/' + d.id + '/edit/" class="btn btn-sm btn-outline-secondary rounded-2">Edit</a></div></div></div>';
+                    });
+                    grid.innerHTML = html;
+                }
+                if (totalDeptsEl) totalDeptsEl.textContent = results.length;
+                if (totalEmpsEl) totalEmpsEl.textContent = totalEmps;
+                if (totalBudgetEl) totalBudgetEl.textContent = sym + (Math.round(totalBudget) + '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            })
+            .catch(function() {});
+    }
+
+    if (grid) {
+        // Load data immediately for instant shell-first UX.
+        setTimeout(pollDepartments, 0);
+        setInterval(pollDepartments, POLL_MS);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') pollDepartments();
+        });
+    }
+})();
+</script>
+{% endblock %}

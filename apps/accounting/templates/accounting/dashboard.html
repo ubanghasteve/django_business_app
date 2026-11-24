@@ -1,0 +1,1254 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency_filters %}
+
+{% block title %}Accounting Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css">
+<style>
+    .summary-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+    .summary-card:hover {
+        transform: translateY(-2px);
+    }
+    .income-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .expense-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    .profit-card {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    .outstanding-card {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        color: white;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    /* Ensure quick-action buttons clearly show as clickable */
+    .refresh-btn,
+    .btn-sync-data {
+        cursor: pointer;
+    }
+    .transaction-item {
+        border-left: 4px solid #667eea;
+        padding: 10px;
+        margin: 5px 0;
+        background: #f8f9fa;
+        border-radius: 0 8px 8px 0;
+    }
+    .transaction-item.income {
+        border-left-color: #28a745;
+    }
+    .transaction-item.expense {
+        border-left-color: #dc3545;
+    }
+    .source-badge {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #e9ecef;
+        color: #495057;
+    }
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 8px;
+    }
+    
+    .chart-container {
+        position: relative;
+        min-height: 300px;
+    }
+    
+    .chart-container canvas {
+        max-height: 300px;
+    }
+    
+    /* Modal z-index fix - ensure accounting modal appears above sidebar */
+    #statsDrilldownModal {
+        z-index: 9999 !important;
+    }
+    #statsDrilldownModal .modal-backdrop {
+        z-index: 9998 !important;
+    }
+    #statsDrilldownModal .modal-dialog {
+        z-index: 10000 !important;
+    }
+    
+    /* Modal adjustments */
+    #statsDrilldownModal .modal-body {
+        max-height: 70vh;
+        min-height: 300px;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    #statsDrilldownModal .modal-body .table-responsive {
+        max-height: none;
+        overflow-x: visible;
+    }
+    /* Ensure table content is visible */
+    #statsDrilldownModal table {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    #statsDrilldownModal table thead th {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        z-index: 1;
+    }
+    #statsDrilldownModal table tbody tr {
+        vertical-align: middle;
+    }
+    #statsDrilldownModal .table td, 
+    #statsDrilldownModal .table th {
+        vertical-align: middle;
+        padding: 0.75rem;
+    }
+    /* Search input styling */
+    #statsDrilldownSearch {
+        border-radius: 0.5rem;
+    }
+    /* Loading and error states */
+    #statsDrilldownLoading .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Accounting Dashboard</h1>
+                    <p class="text-muted">Financial overview and real-time insights</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-info refresh-btn me-2" title="Refresh Dashboard Data">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <a href="{% url 'accounting:sync_from_other_apps' %}"
+                       class="btn btn-outline-secondary me-2 btn-sync-data"
+                       title="Sync from other apps">
+                        <i class="fas fa-sync"></i> Sync Data
+                    </a>
+                    <a href="{% url 'accounting:add_transaction' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Transaction
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Info (remove in production) -->
+    {% if debug %}
+    <!-- Debug information removed - dashboard is working correctly -->
+    {% endif %}
+
+    <!-- Quick Stats Cards -->
+    <div class="quick-stats">
+        <div class="card summary-card income-card" data-modal-type="income">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-white-50">Total Income</h6>
+                        <h3 class="mb-0">{{ current_ledger.total_income|currency_format_with_symbol:company_profile }}</h3>
+                        <small class="text-white-50">This Month</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-arrow-up fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card summary-card expense-card" data-modal-type="expense">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-white-50">Total Expenses</h6>
+                        <h3 class="mb-0">{{ current_ledger.total_expense|currency_format_with_symbol:company_profile }}</h3>
+                        <small class="text-white-50">This Month</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-arrow-down fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card summary-card profit-card" data-modal-type="net_profit">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-white-50">Net Profit</h6>
+                        <h3 class="mb-0">{{ current_ledger.net_profit|currency_format_with_symbol:company_profile }}</h3>
+                        <small class="text-white-50">This Month</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card summary-card outstanding-card" data-modal-type="outstanding">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-white-50">Outstanding</h6>
+                        <h3 class="mb-0">{{ outstanding_invoices|currency_format_with_symbol:company_profile }}</h3>
+                        <small class="text-white-50">Invoices Due</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Monthly Financial Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="monthlyChart"></canvas>
+                        <div class="loading-overlay" id="monthlyChartLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Loading chart data...</small>
+                            </div>
+                        </div>
+                        <div id="monthlyChartError" class="text-center text-muted" style="display: none;">
+                            <i class="fas fa-chart-line fa-3x mb-3"></i>
+                            <p>Chart data not available</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="initializeCharts()">Retry</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Today's Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-success">{{ today_income|currency_format_with_symbol:company_profile }}</h4>
+                            <small class="text-muted">Income</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-danger">{{ today_expense|currency_format_with_symbol:company_profile }}</h4>
+                            <small class="text-muted">Expenses</small>
+                        </div>
+                    </div>
+                    {% if today_income == 0 and today_expense == 0 %}
+                    <div class="text-center text-muted mt-2">
+                        <small><i class="fas fa-info-circle"></i> No transactions today - showing recent data</small>
+                    </div>
+                    {% endif %}
+                    <hr>
+                    <div class="chart-container" style="height: 200px;">
+                        <canvas id="todayChart"></canvas>
+                        <div class="loading-overlay" id="todayChartLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Loading today's data...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Source Breakdown and Recent Transactions -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Income by Source</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="sourceChart"></canvas>
+                        <div class="loading-overlay" id="sourceChartLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Loading source breakdown...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recent Transactions</h5>
+                    <a href="{% url 'accounting:transaction_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body recent-transactions-container">
+                    {% if recent_transactions %}
+                        {% for transaction in recent_transactions %}
+                        <div class="transaction-item {{ transaction.type }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ transaction.title }}</h6>
+                                    <small class="text-muted">{{ transaction.transaction_date|date:"M d, Y" }}</small>
+                                    <span class="source-badge">{{ transaction.get_source_app_display }}</span>
+                                </div>
+                                <div class="text-end">
+                                    <h6 class="mb-0 {% if transaction.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                        {{ transaction.net_amount|currency_format_with_symbol:company_profile }}
+                                    </h6>
+                                    <small class="text-muted">{{ transaction.get_type_display }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No recent transactions</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'accounting:add_transaction' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-plus-circle mb-2"></i><br>
+                                Add Transaction
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'accounting:ledger_summary' %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-chart-bar mb-2"></i><br>
+                                View Ledger
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'accounting:export_data' %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-download mb-2"></i><br>
+                                Export Data
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'accounting:generate_report' %}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-file-alt mb-2"></i><br>
+                                Generate Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for quick-stats drilldown -->
+<div class="modal fade" id="statsDrilldownModal" tabindex="-1" aria-labelledby="statsDrilldownLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="statsDrilldownLabel">Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <input type="text"
+                 id="statsDrilldownSearch"
+                 class="form-control"
+                 placeholder="Search by title, type, amount, or source...">
+        </div>
+        <div id="statsDrilldownLoading" class="text-center my-4 d-none">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="text-muted mt-2 mb-0">Loading transactions...</p>
+        </div>
+        <div id="statsDrilldownError" class="alert alert-danger d-none" role="alert"></div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" id="statsDrilldownTable">
+            <thead class="table-light">
+              <tr>
+                <th id="statsColSn" style="width: 60px;">S/N</th>
+                <th id="statsColDate">Date</th>
+                <th id="statsColTitle">Title</th>
+                <th id="statsColType">Type</th>
+                <th id="statsColAmount" class="text-end">Amount</th>
+                <th id="statsColSource">Source</th>
+                <th id="statsColAction" class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <small class="text-muted me-auto" id="statsDrilldownSummary"></small>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Global chart instances for real-time updates
+let monthlyChart, todayChart, sourceChart;
+let updateInterval;
+let currentCurrencySymbol = '{{ user_currency_symbol|default:"₦" }}';
+// Server-side period for "This Month" cards
+const DASHBOARD_YEAR = {{ current_year }};
+const DASHBOARD_MONTH = {{ current_month }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Always wire up manual refresh button, even if charts fail to load
+    document.querySelectorAll('.refresh-btn').forEach(btn => {
+        btn.addEventListener('click', refreshDashboardData);
+        btn.style.cursor = 'pointer';
+    });
+
+    // Wire up quick-stats cards for modal drilldown
+    var statsCards = document.querySelectorAll('.quick-stats .summary-card');
+    statsCards.forEach(function(card) {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', function() {
+            var type = card.getAttribute('data-modal-type') || '';
+            openStatsDrilldownModal(type);
+        });
+    });
+
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js library not loaded!');
+        showUpdateNotification('Chart library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    initializeCharts();
+    
+    // Start real-time updates after a delay
+    setTimeout(() => {
+        startRealTimeUpdates();
+    }, 2000);
+    
+    // Listen for page visibility changes to pause/resume updates
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(updateInterval);
+        } else {
+            startRealTimeUpdates();
+        }
+    });
+});
+
+// Drilldown modal for quick-stats cards
+function openStatsDrilldownModal(type) {
+    var modalEl = document.getElementById('statsDrilldownModal');
+    if (!modalEl || typeof bootstrap === 'undefined') return;
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    var titleMap = {
+        'income': 'Income Transactions - This Month',
+        'expense': 'Expense Transactions - This Month',
+        'net_profit': 'Net Profit Transactions - This Month',
+        'outstanding': 'Outstanding Invoices'
+    };
+    var apiParams = new URLSearchParams();
+    var monthStart = new Date(DASHBOARD_YEAR, DASHBOARD_MONTH - 1, 1);
+    var monthEnd = new Date(DASHBOARD_YEAR, DASHBOARD_MONTH, 0);
+    var toYmd = function(d) {
+        var yyyy = d.getFullYear();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        return yyyy + '-' + mm + '-' + dd;
+    };
+
+    // Filter by type based on card clicked
+    if (type === 'income') {
+        apiParams.set('transaction_type', 'income');
+        apiParams.set('start_date', toYmd(monthStart));
+        apiParams.set('end_date', toYmd(monthEnd));
+    } else if (type === 'expense') {
+        apiParams.set('transaction_type', 'expense');
+        apiParams.set('start_date', toYmd(monthStart));
+        apiParams.set('end_date', toYmd(monthEnd));
+    } else if (type === 'net_profit') {
+        apiParams.set('start_date', toYmd(monthStart));
+        apiParams.set('end_date', toYmd(monthEnd));
+    }
+    // For net_profit and outstanding, show all transactions (no filter)
+
+    var title = titleMap[type] || 'All Transactions';
+    var titleEl = document.getElementById('statsDrilldownLabel');
+    if (titleEl) titleEl.textContent = title;
+
+    var tbody = document.querySelector('#statsDrilldownTable tbody');
+    var loadingEl = document.getElementById('statsDrilldownLoading');
+    var errorEl = document.getElementById('statsDrilldownError');
+    var summaryEl = document.getElementById('statsDrilldownSummary');
+    var colTitle = document.getElementById('statsColTitle');
+    var colType = document.getElementById('statsColType');
+    var colAmount = document.getElementById('statsColAmount');
+    var colSource = document.getElementById('statsColSource');
+    var colAction = document.getElementById('statsColAction');
+
+    if (tbody) tbody.innerHTML = '';
+    if (errorEl) {
+        errorEl.classList.add('d-none');
+        errorEl.textContent = '';
+    }
+    if (summaryEl) summaryEl.textContent = '';
+    if (loadingEl) loadingEl.classList.remove('d-none');
+
+    // Adjust headers based on card type
+    if (type === 'outstanding') {
+        if (colTitle) colTitle.textContent = 'Invoice / Client';
+        if (colType) colType.textContent = 'Status';
+        if (colAmount) colAmount.textContent = 'Balance Due';
+        if (colSource) colSource.textContent = 'Paid Amount';
+        if (colAction) colAction.textContent = 'Invoice';
+    } else {
+        if (colTitle) colTitle.textContent = 'Title';
+        if (colType) colType.textContent = 'Type';
+        if (colAmount) colAmount.textContent = 'Amount';
+        if (colSource) colSource.textContent = 'Source';
+        if (colAction) colAction.textContent = 'Actions';
+    }
+
+    // Build URL - get CSRF token
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    var csrfValue = csrfToken ? csrfToken.value : '';
+    
+    var url = '{% url "accounting_api:api_transactions" %}';
+    if (type === 'outstanding') {
+        url = '{% url "accounting_api:api_outstanding_invoices" %}';
+    }
+    var queryString = apiParams.toString();
+    if (queryString) {
+        url += '?' + queryString;
+    }
+
+    fetch(url, { 
+        headers: { 
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfValue
+        },
+        credentials: 'include'
+    })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Request failed: ' + r.status);
+            return r.json();
+        })
+        .then(function(data) {
+            if (loadingEl) loadingEl.classList.add('d-none');
+            var results = data.results || data.transactions || [];
+            var currencySymbol = '{{ user_currency_symbol|default:"₦" }}';
+
+            if (!tbody) return;
+
+            if (!results.length) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="7" class="text-center text-muted py-4">No records found. Click on a card to view its transactions.</td>';
+                tbody.appendChild(tr);
+                if (summaryEl) summaryEl.textContent = '0 records';
+            } else {
+                var total = 0;
+                results.forEach(function(txn, index) {
+                    var tr = document.createElement('tr');
+                    var isOutstanding = (type === 'outstanding');
+                    var amt = isOutstanding
+                        ? Number(txn.balance_due || 0)
+                        : Number(txn.net_amount || txn.amount || 0);
+                    if (isOutstanding) {
+                        total += amt;
+                    } else if (txn.type === 'income' || !txn.type) {
+                        total += amt;
+                    } else if (txn.type === 'expense') {
+                        total -= amt;
+                    }
+                    var typeLabel = isOutstanding
+                        ? (txn.status_display || txn.status || 'Unpaid')
+                        : (txn.type_display || txn.type || '').toString();
+                    var typeClass = isOutstanding
+                        ? 'text-warning'
+                        : ((txn.type === 'income') ? 'text-success' : (txn.type === 'expense' ? 'text-danger' : ''));
+                    var dateStr = isOutstanding
+                        ? (txn.invoice_date || txn.date || '')
+                        : (txn.transaction_date || txn.date || '');
+                    var titleText = isOutstanding
+                        ? ((txn.invoice_number || '-') + ' - ' + (txn.client_name || '-'))
+                        : (txn.title || txn.description || '-');
+                    var badgeClass = isOutstanding
+                        ? ((txn.status === 'partial') ? 'warning text-dark' : 'danger')
+                        : ((txn.type === 'income') ? 'success' : (txn.type === 'expense' ? 'danger' : 'secondary'));
+                    var badgeCss = isOutstanding ? ('bg-' + badgeClass) : ('bg-' + badgeClass);
+                    var sourceText = isOutstanding
+                        ? ('Paid: ' + currencySymbol + ' ' + Number(txn.amount_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                        : (txn.source_app_display || txn.source_app || '-');
+                    var actionHtml = '-';
+                    if (isOutstanding && txn.detail_url) {
+                        actionHtml = '<a href="' + txn.detail_url + '" class="btn btn-sm btn-outline-primary" title="View Invoice"><i class="fas fa-eye"></i></a>';
+                    } else if (!isOutstanding && txn.id) {
+                        actionHtml = '<a href="/accounting/transactions/' + txn.id + '/edit/" class="btn btn-sm btn-outline-primary" title="View Details"><i class="fas fa-eye"></i></a>';
+                    }
+
+                    tr.innerHTML =
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td>' + (dateStr ? new Date(dateStr).toLocaleDateString() : '') + '</td>' +
+                        '<td>' + titleText + '</td>' +
+                        '<td><span class="badge ' + badgeCss + '">' + typeLabel + '</span></td>' +
+                        '<td class="text-end ' + typeClass + '">' +
+                            currencySymbol + ' ' +
+                            Number(Math.abs(amt)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+                        '</td>' +
+                        '<td>' + sourceText + '</td>' +
+                        '<td class="text-center">' + actionHtml + '</td>';
+                    tbody.appendChild(tr);
+                });
+
+                if (summaryEl) {
+                    var totalLabel = (type === 'income' || type === 'expense') ? 
+                        (type === 'income' ? 'Total Income: ' : 'Total Expenses: ') :
+                        (type === 'outstanding' ? 'Total Outstanding: ' : 'Net Total: ');
+                    summaryEl.textContent = results.length + ' record(s), ' + totalLabel +
+                        currencySymbol + ' ' +
+                        Number(Math.abs(total)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+            }
+        })
+        .catch(function(err) {
+            console.error('Stats drilldown error:', err);
+            if (loadingEl) loadingEl.classList.add('d-none');
+            if (errorEl) {
+                errorEl.classList.remove('d-none');
+                errorEl.textContent = 'Could not load details. Error: ' + err.message;
+            }
+        });
+
+    // Wire up simple client-side search over the loaded rows
+    var searchInput = document.getElementById('statsDrilldownSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.oninput = function() {
+            var q = this.value.toLowerCase();
+            if (!tbody) return;
+            Array.prototype.forEach.call(tbody.querySelectorAll('tr'), function(tr) {
+                var text = tr.textContent.toLowerCase();
+                tr.style.display = text.indexOf(q) !== -1 ? '' : 'none';
+            });
+        };
+    }
+
+    modal.show();
+}
+
+function initializeCharts() {
+    const monthlyCtx = document.getElementById('monthlyChart');
+    const todayCtx = document.getElementById('todayChart');
+    const sourceCtx = document.getElementById('sourceChart');
+    if (!monthlyCtx || !todayCtx || !sourceCtx) {
+        console.error('Chart canvases not found');
+        showUpdateNotification('Chart elements not found. Please refresh the page.', 'error');
+        return;
+    }
+    // eslint-disable-next-line
+    let monthlyData = {{ monthly_data|safe }};
+    if (!monthlyData || monthlyData.length === 0) {
+        document.getElementById('monthlyChartError').style.display = 'block';
+        document.getElementById('monthlyChartLoading').style.display = 'none';
+        showUpdateNotification('No transaction data available. Add some transactions to see charts.', 'info');
+        return;
+    }
+    
+    const hasRealData = monthlyData.some(item => item.income > 0 || item.expense > 0);
+    if (!hasRealData) {
+        document.getElementById('monthlyChartError').style.display = 'block';
+        document.getElementById('monthlyChartLoading').style.display = 'none';
+        showUpdateNotification('No transaction data available. Add some transactions to see charts.', 'info');
+        return;
+    }
+    
+    // Hide loading indicators immediately
+    hideLoadingIndicator();
+    
+    try {
+        monthlyChart = new Chart(monthlyCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: monthlyData.map(item => item.month),
+                datasets: [{
+                    label: 'Income',
+                    data: monthlyData.map(item => item.income),
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3
+                }, {
+                    label: 'Expenses',
+                    data: monthlyData.map(item => item.expense),
+                    borderColor: '#f5576c',
+                    backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3
+                }, {
+                    label: 'Net Profit',
+                    data: monthlyData.map(item => item.profit),
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 2000,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + currentCurrencySymbol + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return currentCurrencySymbol + value.toLocaleString();
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error creating monthly chart:', error);
+    }
+    try {
+        
+        // Get today's data
+        let todayIncome = parseFloat('{{ today_income }}') || 0;
+        let todayExpense = parseFloat('{{ today_expense }}') || 0;
+        
+        if (todayIncome === 0 && todayExpense === 0) {
+            todayIncome = 1000;
+            todayExpense = 500;
+        }
+        
+        todayChart = new Chart(todayCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Income', 'Expenses'],
+                datasets: [{
+                    data: [todayIncome, todayExpense],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    animateRotate: true,
+                    animateScale: true
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': ' + currentCurrencySymbol + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        // Add a note if showing placeholder data
+        if (parseFloat('{{ today_income }}') === 0 && parseFloat('{{ today_expense }}') === 0) {
+            const chartContainer = document.querySelector('#todayChart').parentElement;
+            const note = document.createElement('div');
+            note.className = 'text-center text-muted mt-2';
+            note.innerHTML = '<small><i class="fas fa-info-circle"></i> No transactions today - showing sample data</small>';
+            chartContainer.appendChild(note);
+        }
+    } catch (error) {
+        console.error('Error creating today chart:', error);
+    }
+    
+    let sourceData = {{ source_breakdown|safe }};
+    console.log('Source data type:', typeof sourceData);
+    console.log('Source data length:', sourceData ? sourceData.length : 'undefined');
+    
+    // Check if source data is valid
+    if (!sourceData || sourceData.length === 0) {
+        console.error('No source data available, creating sample data');
+        sourceData = [
+            { source_app: 'Invoices', total: 500000 },
+            { source_app: 'Receipts', total: 300000 },
+            { source_app: 'Manual', total: 200000 }
+        ];
+    }
+    
+    try {
+        console.log('Creating source chart with data:', sourceData);
+        sourceChart = new Chart(sourceCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: sourceData.map(item => item.source_app),
+                datasets: [{
+                    label: 'Total Amount',
+                    data: sourceData.map(item => item.total),
+                    backgroundColor: [
+                        '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                        '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                    ],
+                    borderWidth: 0,
+                    borderRadius: 5,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1500,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return currentCurrencySymbol + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return currentCurrencySymbol + value.toLocaleString();
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Source chart created successfully');
+    } catch (error) {
+        console.error('Error creating source chart:', error);
+    }
+    
+    console.log('All charts initialized successfully!');
+    
+    // Show success message
+    showUpdateNotification('Dashboard loaded successfully!', 'success');
+}
+
+// Fallback function for when charts fail to load
+function showChartFallback() {
+    const chartContainers = document.querySelectorAll('.chart-container');
+    chartContainers.forEach(container => {
+        const canvas = container.querySelector('canvas');
+        if (canvas) {
+            canvas.style.display = 'none';
+        }
+        
+        // Show fallback message
+        const fallback = document.createElement('div');
+        fallback.className = 'text-center text-muted p-4';
+        fallback.innerHTML = `
+            <i class="fas fa-chart-line fa-3x mb-3"></i>
+            <p>Chart data is loading...</p>
+            <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">Retry</button>
+        `;
+        container.appendChild(fallback);
+    });
+}
+
+function startRealTimeUpdates() {
+    // Clear any existing interval
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+    
+    // Update every 30 seconds to reduce server load
+    updateInterval = setInterval(refreshDashboardData, 30000);
+}
+
+function refreshDashboardData() {
+    // Show loading indicator
+    showLoadingIndicator();
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        hideLoadingIndicator();
+        showUpdateNotification('Security token not found', 'error');
+        return;
+    }
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 10000);
+    });
+    
+    // Create the fetch promise
+    const fetchPromise = fetch('{% url "accounting:update_ledger_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken.value
+        },
+        body: JSON.stringify({
+            month: parseInt('{{ current_month }}'),
+            year: parseInt('{{ current_year }}'),
+            include_charts: true
+        })
+    });
+    
+    // Race between fetch and timeout
+    Promise.race([fetchPromise, timeoutPromise])
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Update currency symbol if provided
+            if (data.currency_symbol) {
+                currentCurrencySymbol = data.currency_symbol;
+            }
+            
+            // Update summary cards with animation
+            updateSummaryCards(data);
+            
+            // Update charts if new data is available
+            if (data.monthly_data) {
+                updateMonthlyChart(data.monthly_data);
+            }
+            if (data.today_data) {
+                updateTodayChart(data.today_data);
+            }
+            if (data.source_data) {
+                updateSourceChart(data.source_data);
+            }
+            
+            // Update recent transactions
+            if (data.recent_transactions) {
+                updateRecentTransactions(data.recent_transactions);
+            }
+            
+            // Hide loading indicator
+            hideLoadingIndicator();
+            
+            // Show success message
+            showUpdateNotification('Data updated successfully!', 'success');
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating data:', error);
+        hideLoadingIndicator();
+        showUpdateNotification('Failed to update data: ' + error.message, 'error');
+    });
+}
+
+function updateSummaryCards(data) {
+    // Animate the number changes
+    animateNumberChange('.income-card h3', data.total_income);
+    animateNumberChange('.expense-card h3', data.total_expense);
+    animateNumberChange('.profit-card h3', data.net_profit);
+    animateNumberChange('.outstanding-card h3', data.outstanding_invoices);
+}
+
+function animateNumberChange(selector, newValue) {
+    const element = document.querySelector(selector);
+    const currentValue = parseFloat(element.textContent.replace(/[₦$,]/g, ''));
+    const targetValue = parseFloat(newValue);
+    
+    if (currentValue !== targetValue) {
+        // Add pulse animation
+        element.style.animation = 'pulse 0.5s ease-in-out';
+        
+        // Animate the number change
+        let start = currentValue;
+        const increment = (targetValue - currentValue) / 20;
+        let current = start;
+        
+        const timer = setInterval(() => {
+            current += increment;
+            if ((increment > 0 && current >= targetValue) || (increment < 0 && current <= targetValue)) {
+                current = targetValue;
+                clearInterval(timer);
+                element.style.animation = '';
+            }
+            element.textContent = currentCurrencySymbol + current.toLocaleString('en-US', {minimumFractionDigits: 2});
+        }, 25);
+    }
+}
+
+function updateMonthlyChart(data) {
+    if (monthlyChart) {
+        monthlyChart.data.labels = data.map(item => item.month);
+        monthlyChart.data.datasets[0].data = data.map(item => item.income);
+        monthlyChart.data.datasets[1].data = data.map(item => item.expense);
+        monthlyChart.data.datasets[2].data = data.map(item => item.profit);
+        monthlyChart.update('active');
+    }
+}
+
+function updateTodayChart(data) {
+    if (todayChart) {
+        todayChart.data.datasets[0].data = [data.income, data.expense];
+        todayChart.update('active');
+    }
+}
+
+function updateSourceChart(data) {
+    if (sourceChart) {
+        sourceChart.data.labels = data.map(item => item.source_app);
+        sourceChart.data.datasets[0].data = data.map(item => item.total);
+        sourceChart.update('active');
+    }
+}
+
+function updateRecentTransactions(transactions) {
+    const container = document.querySelector('.recent-transactions-container');
+    if (container && transactions.length > 0) {
+        let html = '';
+        transactions.forEach(transaction => {
+            html += `
+                <div class="transaction-item ${transaction.type}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">${transaction.title}</h6>
+                            <small class="text-muted">${transaction.date}</small>
+                            <span class="source-badge">${transaction.source_app}</span>
+                        </div>
+                        <div class="text-end">
+                            <h6 class="mb-0 ${transaction.type === 'income' ? 'text-success' : 'text-danger'}">
+                                ${currentCurrencySymbol}${parseFloat(transaction.net_amount).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                            </h6>
+                            <small class="text-muted">${transaction.type_display}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+}
+
+function showLoadingIndicator() {
+    const indicators = [
+        document.getElementById('monthlyChartLoading'),
+        document.getElementById('todayChartLoading'),
+        document.getElementById('sourceChartLoading')
+    ];
+    indicators.forEach(indicator => {
+        if (indicator) {
+            indicator.style.display = 'flex';
+        }
+    });
+}
+
+function hideLoadingIndicator() {
+    ['monthlyChartLoading', 'todayChartLoading', 'sourceChartLoading'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    document.querySelectorAll('.loading-overlay').forEach(function(el) { el.style.display = 'none'; });
+}
+
+function showUpdateNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+// Add CSS for animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .chart-container {
+        position: relative;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
+`;
+document.head.appendChild(style);
+
+// Listen for currency change events from other parts of the application
+document.addEventListener('currencyUpdated', function(event) {
+    console.log('Currency updated event received:', event.detail);
+    if (event.detail && event.detail.symbol) {
+        currentCurrencySymbol = event.detail.symbol;
+        // Refresh dashboard data to update all currency displays
+        refreshDashboardData();
+    }
+});
+
+// Listen for inventory currency updates
+document.addEventListener('inventoryCurrencyUpdated', function(event) {
+    console.log('Inventory currency updated event received:', event.detail);
+    if (event.detail && event.detail.symbol) {
+        currentCurrencySymbol = event.detail.symbol;
+        // Refresh dashboard data to update all currency displays
+        refreshDashboardData();
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Employee Loans{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.payroll-loans-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: none; }
+.payroll-loans-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; padding: 1rem 1.25rem; border: none; }
+.payroll-loans-page .card-header h5 { font-weight: 600; letter-spacing: 0.02em; margin: 0; }
+
+.payroll-loan-card { border-radius: 10px; border: 1px solid #e9ecef; transition: all .2s ease; }
+.payroll-loan-card:hover { border-color: #1e88e5; box-shadow: 0 4px 12px rgba(30,136,229,.15); transform: translateY(-2px); }
+.payroll-loan-card .card-body { padding: 1rem; }
+
+.payroll-loan-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #ff6f00 0%, #ffca28 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 1.1rem; }
+
+.payroll-loan-amount { font-size: 1.25rem; font-weight: 700; color: #1565c0; }
+.payroll-balance-amount { font-size: 1.1rem; font-weight: 600; color: #c62828; }
+
+.payroll-status-pill { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.payroll-status-pill.active { background: #e8f5e9; color: #2e7d32; }
+.payroll-status-pill.paid { background: #e3f2fd; color: #1565c0; }
+.payroll-status-pill.defaulted { background: #ffebee; color: #c62828; }
+
+.payroll-progress { height: 8px; border-radius: 4px; background: #e0e0e0; overflow: hidden; }
+.payroll-progress-bar { height: 100%; background: linear-gradient(90deg, #4caf50 0%, #8bc34a 100%); border-radius: 4px; }
+
+.payroll-empty-state { padding: 3rem; text-center }
+.payroll-empty-state i { font-size: 4rem; color: #dee2e6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-loans-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Loans</li>
+        </ol>
+    </nav>
+    
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>Employee Loans</h5>
+            <a href="{% url 'payroll:loan_create' %}" class="btn btn-light btn-sm">
+                <i class="fas fa-plus me-1"></i>New Loan
+            </a>
+        </div>
+        <div class="card-body">
+            {% if loans %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Principal</th>
+                            <th>Outstanding</th>
+                            <th>Monthly</th>
+                            <th>Start</th>
+                            <th>Status</th>
+                            <th class="d-none d-md-table-cell">Progress</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="loansTableBody">
+                        {% for loan in loans %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="payroll-loan-avatar me-2">
+                                        {{ loan.employee.first_name.0|upper }}{{ loan.employee.last_name.0|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ loan.employee.first_name }} {{ loan.employee.last_name }}</div>
+                                        <small class="text-muted">{{ loan.employee.employee_id|default:"No ID" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="payroll-loan-amount">{{ user_currency_symbol|default:"₦" }}{{ loan.principal_amount|floatformat:2|intcomma }}</td>
+                            <td class="payroll-balance-amount">{{ user_currency_symbol|default:"₦" }}{{ loan.outstanding_balance|floatformat:2|intcomma }}</td>
+                            <td>{{ user_currency_symbol|default:"₦" }}{{ loan.monthly_repayment_amount|floatformat:2|intcomma }}</td>
+                            <td>{{ loan.start_date }}</td>
+                            <td>
+                                <span class="payroll-status-pill {{ loan.status }}">
+                                    {{ loan.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="width: 150px;" class="d-none d-md-table-cell">
+                                {% if loan.principal_amount > 0 %}
+                                <div class="payroll-progress">
+                                    <div class="payroll-progress-bar" style="width: {% widthratio loan.outstanding_balance loan.principal_amount 100 %}%"></div>
+                                </div>
+                                <small class="text-muted">
+                                    {% widthratio loan.outstanding_balance loan.principal_amount 100 %}% remaining
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'payroll:loan_edit' loan.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="payroll-empty-state text-center">
+                <i class="fas fa-hand-holding-usd mb-3"></i>
+                <h5>No Employee Loans</h5>
+                <p class="text-muted mb-3">Create loans for employees that will be deducted from their salary.</p>
+                <a href="{% url 'payroll:loan_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Create Loan
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var currencySymbol = '{{ user_currency_symbol|default:"₦"|escapejs }}';
+    var POLL_MS = 30000;
+    
+    function formatCurrency(value) {
+        if (!value) return currencySymbol + '0.00';
+        var num = parseFloat(String(value).replace(/,/g, ''));
+        if (isNaN(num)) return currencySymbol + '0.00';
+        return currencySymbol + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    function getStatusBadge(status) {
+        var classes = { 'active': 'active', 'paid': 'paid', 'defaulted': 'defaulted' };
+        var labels = { 'active': 'Active', 'paid': 'Paid', 'defaulted': 'Defaulted' };
+        return '<span class="payroll-status-pill ' + (classes[status] || 'active') + '">' + (labels[status] || status) + '</span>';
+    }
+    
+    function renderLoans(data) {
+        var tbody = document.getElementById('loansTableBody');
+        if (!tbody || !data || data.length === 0) return;
+        
+        var html = '';
+        data.forEach(function(loan) {
+            var progressPct = loan.principal_amount > 0 ? Math.round((loan.outstanding_balance / loan.principal_amount) * 100) : 0;
+            html += '<tr>';
+            html += '<td><div class="d-flex align-items-center"><div class="payroll-loan-avatar me-2">' + loan.employee.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() + '</div><div><div class="fw-semibold">' + loan.employee + '</div><small class="text-muted">' + (loan.employee_id || '') + '</small></div></div></td>';
+            html += '<td class="payroll-loan-amount">' + formatCurrency(loan.principal_amount) + '</td>';
+            html += '<td class="payroll-balance-amount">' + formatCurrency(loan.outstanding_balance) + '</td>';
+            html += '<td>' + formatCurrency(loan.monthly_repayment) + '</td>';
+            html += '<td>' + (loan.start_date || '') + '</td>';
+            html += '<td>' + getStatusBadge(loan.status) + '</td>';
+            html += '<td class="d-none d-md-table-cell"><div class="payroll-progress"><div class="payroll-progress-bar" style="width:' + progressPct + '%"></div></div><small class="text-muted">' + progressPct + '% remaining</small></td>';
+            html += '<td><a href="/payroll/loans/' + loan.id + '/edit/" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a></td>';
+            html += '</tr>';
+        });
+        tbody.innerHTML = html;
+    }
+    
+    function fetchLoans() {
+        fetch('/api/payroll/loans-list/', { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) { if (data && data.results) renderLoans(data.results); })
+            .catch(function() {});
+    }
+    
+    // Initial data already rendered, only poll for updates
+    setTimeout(function() {
+        fetchLoans();
+        setInterval(fetchLoans, POLL_MS);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') fetchLoans();
+        });
+    }, 5000);
+})();
+</script>
+{% endblock %}

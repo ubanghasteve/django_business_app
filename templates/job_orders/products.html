@@ -1,0 +1,1155 @@
+{% extends 'base.html' %}
+{% block title %}Products Page{% endblock %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<style>
+/* Enhanced form styling for Raise Job Order form */
+.card .form-control,
+.card .form-select,
+.card textarea,
+.card input[type="text"],
+.card input[type="email"],
+.card input[type="number"],
+.card input[type="date"],
+.card input[type="file"] {
+    border: 2px solid #e9ecef !important;
+    border-radius: 8px !important;
+    padding: 12px 15px !important;
+    font-size: 14px !important;
+    transition: all 0.3s ease !important;
+    background-color: #fff !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.card .form-control:focus,
+.card .form-select:focus,
+.card textarea:focus,
+.card input[type="text"]:focus,
+.card input[type="email"]:focus,
+.card input[type="number"]:focus,
+.card input[type="date"]:focus {
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    outline: none !important;
+}
+
+.card .form-control:hover,
+.card .form-select:hover,
+.card textarea:hover,
+.card input[type="text"]:hover,
+.card input[type="email"]:hover,
+.card input[type="number"]:hover,
+.card input[type="date"]:hover {
+    border-color: #007bff !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+}
+
+.card label {
+    font-weight: 600 !important;
+    color: #495057 !important;
+    margin-bottom: 8px !important;
+    font-size: 14px !important;
+}
+
+.card .form-text {
+    color: #6c757d !important;
+    font-size: 12px !important;
+    margin-top: 5px !important;
+}
+
+.card .invalid-feedback {
+    color: #dc3545 !important;
+    font-size: 12px !important;
+    margin-top: 5px !important;
+}
+
+.card .btn-success {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    border-radius: 8px !important;
+    padding: 12px 30px !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3) !important;
+}
+
+.card .btn-success:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4) !important;
+}
+
+.card .btn-success:active {
+    transform: translateY(0) !important;
+}
+
+/* Form field spacing */
+.card .form-group {
+    margin-bottom: 20px !important;
+}
+
+.card .form-group:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* File input styling */
+.card input[type="file"] {
+    padding: 8px 12px !important;
+    border: 2px dashed #dee2e6 !important;
+    background-color: #f8f9fa !important;
+}
+
+.card input[type="file"]:hover {
+    border-color: #007bff !important;
+    background-color: #e3f2fd !important;
+}
+
+/* Select dropdown styling */
+.card .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 16px 12px !important;
+    padding-right: 40px !important;
+}
+
+/* Textarea specific styling */
+.card textarea {
+    resize: vertical !important;
+    min-height: 80px !important;
+}
+
+/* Required field indicator */
+.card label[for*="required"]:after,
+.card .required:after {
+    content: " *" !important;
+    color: #dc3545 !important;
+    font-weight: bold !important;
+}
+
+/* Form section headers */
+.card h5 {
+    color: #007bff !important;
+    font-weight: 700 !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 2px solid #e9ecef !important;
+}
+
+.card hr {
+    border-color: #e9ecef !important;
+    margin: 20px 0 !important;
+}
+
+/* Card styling */
+.card {
+    border: 1px solid #e9ecef !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.card:hover {
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15) !important;
+    transform: translateY(-2px) !important;
+}
+
+.card-body {
+    padding: 25px !important;
+}
+
+/* Approval Status Styling */
+.approval-status-container {
+    position: relative;
+    min-width: 120px;
+}
+
+.approval-header {
+    text-align: center;
+}
+
+.approval-select {
+    border: 2px solid #007bff !important;
+    border-radius: 6px !important;
+    background-color: #f8f9fa !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-weight: 600 !important;
+}
+
+.approval-select:hover {
+    border-color: #0056b3 !important;
+    background-color: #e3f2fd !important;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3) !important;
+}
+
+.approval-select:focus {
+    border-color: #0056b3 !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    outline: none !important;
+}
+
+.approval-status-display {
+    text-align: center;
+}
+
+.approval-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.approval-badge.approval-approved {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.approval-badge.approval-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.approval-badge.approval-rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.approval-badge.approval-none {
+    background-color: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+.approval-badge i {
+    margin-right: 4px;
+}
+
+/* Table header styling for approval status */
+th:nth-child(22) {
+    background-color: #007bff !important;
+    color: white !important;
+    position: relative;
+}
+
+th:nth-child(22):after {
+    content: "👆 Click to change";
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #007bff;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* Add a help tooltip for the approval status column */
+.approval-help {
+    position: relative;
+    display: inline-block;
+    margin-left: 5px;
+    cursor: help;
+}
+
+.approval-help:hover::after {
+    content: "Staff members can click on the dropdown to change the approval status of job orders";
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.approval-help:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 115%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+    z-index: 1000;
+}
+
+/* Enhanced Pagination Styling */
+.pagination-wrapper {
+    position: relative;
+    z-index: 10;
+}
+
+.pagination-wrapper .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+}
+
+.pagination-wrapper .page-item {
+    margin: 0;
+    display: inline-block;
+}
+
+.pagination-wrapper .page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    border: 2px solid #dee2e6;
+    background-color: #ffffff;
+    color: #495057;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-height: 45px;
+}
+
+.pagination-wrapper .page-link:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+    color: #495057;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.pagination-wrapper .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.pagination-wrapper .page-item.active .page-link:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+/* Responsive pagination */
+@media (max-width: 768px) {
+    .pagination-wrapper .page-link {
+        padding: 10px 12px;
+        font-size: 13px;
+        min-width: 40px;
+    }
+    
+    .pagination-wrapper .pagination {
+        gap: 4px;
+    }
+}
+
+@media (max-width: 576px) {
+    .pagination-wrapper .page-link {
+        padding: 8px 10px;
+        font-size: 12px;
+        min-width: 35px;
+    }
+    
+    .pagination-wrapper .pagination {
+        gap: 2px;
+    }
+    
+    .pagination-wrapper .page-link i {
+        display: none;
+    }
+}
+</style>
+{% include 'partials/topside.html' %}
+
+{# Always-visible CSRF token for approval/status actions (e.g. approve then set back to pending) when user has no add form #}
+<input type="hidden" name="csrfmiddlewaretoken" id="job-orders-csrf" value="{{ csrf_token }}">
+
+<div class="row my-4">
+    <div class="col-md-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if perms.job_orders.add_product %}
+        <div class="card card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h5 class="mb-0">Raise Job Order</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Job Order Number:</span>
+                    <strong class="text-primary" style="font-size: 1.1rem;">{{ next_job_order_number|default:"JO-001" }}</strong>
+                </div>
+            </div>
+            <p class="text-muted small mb-2">This number will be assigned when you click Add.</p>
+            <hr>
+            <form id="add-product-form" method="POST" enctype="multipart/form-data" action="{% url 'job_orders:products' %}">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <input class="btn btn-success btn-block" type="submit" value="Add" id="add-product-submit-btn">
+            </form>
+        </div>
+        {% else %}
+        <div class="card card-body">
+            <p class="text-muted mb-0">You do not have permission to create job orders. Contact your administrator if you need access.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-8">
+        <div class="card card-body mb-3">
+            <form method="GET" class="form-inline">
+                <div class="row w-100">
+                    <div class="col-md-4">
+                        <input type="text" name="search" class="form-control w-100" placeholder="Search Job Order Number, organization..." value="{{ request.GET.search }}">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="status" class="form-control w-100">
+                            <option value="">All Status</option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Approved</option>
+                            <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                        </select>
+                    </div>
+                    {% if show_created_by %}
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Created by</label>
+                        <select name="created_by" class="form-control w-100">
+                            <option value="">All team members</option>
+                            {% for u in account_users %}
+                            <option value="{{ u.pk }}" {% if request.GET.created_by == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                        <a href="{% url 'job_orders:products' %}" class="btn btn-secondary ml-2">Reset</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="d-flex justify-content-end mb-3">
+            {% if perms.job_orders.download_product %}
+            {% if perms.job_orders.download_product %}
+            <a class="btn btn-primary" href="{% url 'job_orders:export_products_pdf' %}">Export to PDF</a>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bg-white table-bordered" style="min-width: 1500px;">
+                <thead class="bg-info text-white sticky-top">
+                    <tr>
+                        <th>S/N</th>
+                        <th>Job Order Date</th>
+                        <th>Job Order Number</th>
+                        <th>Image</th>
+                        <th>Job Name</th>
+                        <th>Customer Name</th>
+                        <th>Contact Number</th>
+                        <th>Package Type/Product</th>
+                        <th>No. of Colors/Color Names</th>
+                        <th>Treatment</th>
+                        <th>Cutting Length</th>
+                        <th>Flap</th>
+                        <th>Thickness</th>
+                        <th>Width</th>
+                        <th>Sealing Type</th>
+                        <th>Cutting</th>
+                        <th>Gusset</th>
+                        <th>Price ({{ currency_symbol }})</th>
+                        <th>Extrusion Quantity</th>
+                        <th>Delivery Quantity</th>
+                        <th>Total ({{ currency_symbol }})</th>
+                        <th>Est. Delivery</th>
+                        <th>Act. Delivery</th>
+                        <th>Cycle Time</th>
+                        <th>Submission ID</th>
+                        <th>Approval Status 
+                            <i class="fas fa-question-circle approval-help" title="Click to change approval status"></i>
+                        </th>
+                        {% if show_created_by %}<th>Created by</th>{% endif %}
+                        <th>Approved By</th>
+                        <th>Production Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody id="products-table-body">
+                    {% for product in products %}
+                    {% include 'job_orders/includes/product_table_row.html' with product=product row_index=products.start_index|add:forloop.counter0 %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination - Improved responsive design -->
+        <div class="pagination-wrapper" style="margin-top: 40px; margin-bottom: 40px; padding: 25px 15px; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); clear: both; overflow-x: auto;">
+            <div class="container-fluid px-0">
+                <nav aria-label="Page navigation" class="d-flex justify-content-center">
+                    <ul class="pagination pagination-lg mb-0 flex-wrap justify-content-center" style="gap: 5px;">
+                        {% if products.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" style="min-width: 60px; text-align: center; border-radius: 8px; margin: 0 2px;">
+                                    <i class="fas fa-angle-double-left"></i> First
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" style="min-width: 80px; text-align: center; border-radius: 8px; margin: 0 2px;">
+                                    <i class="fas fa-angle-left"></i> Previous
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        {% for num in products.paginator.page_range %}
+                            <li class="page-item {% if products.number == num %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" 
+                                   style="min-width: 45px; text-align: center; border-radius: 8px; margin: 0 2px; {% if products.number == num %}background-color: #007bff; border-color: #007bff; color: white;{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                        {% endfor %}
+
+                        {% if products.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" style="min-width: 80px; text-align: center; border-radius: 8px; margin: 0 2px;">
+                                    Next <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}" style="min-width: 60px; text-align: center; border-radius: 8px; margin: 0 2px;">
+                                    Last <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                
+                <!-- Page info -->
+                <div class="text-center mt-4">
+                    <div class="alert alert-info d-inline-block mb-0" style="padding: 10px 20px; border-radius: 20px; font-size: 14px;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Showing {{ products.start_index }} to {{ products.end_index }} of {{ products.paginator.count }} entries</strong>
+                        {% if products.paginator.num_pages > 1 %}
+                            <br><small class="text-muted">Page {{ products.number }} of {{ products.paginator.num_pages }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// When page is restored from back-forward cache, reload so job order list is always fresh
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
+// Single place to get CSRF token: form input, meta tag, or cookie (works for approve, set to pending, etc.)
+function getCsrfToken() {
+    var el = document.getElementById('job-orders-csrf') || document.querySelector('input[name=csrfmiddlewaretoken]') || document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el && el.value) return el.value;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+        var c = meta.getAttribute('content') || (meta.content || '');
+        if (c) return c;
+    }
+    var match = document.cookie ? document.cookie.match(/csrftoken=([^;]+)/) : null;
+    return match ? match[1].trim() : '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ----- AJAX Add Job Order: submit form via fetch, prepend new row on success -----
+    const addForm = document.getElementById('add-product-form');
+    if (addForm) {
+        addForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('add-product-submit-btn');
+            const originalText = submitBtn ? submitBtn.value : 'Add';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.value = 'Adding...';
+            }
+            const formData = new FormData(addForm);
+            const csrfInput = addForm.querySelector('[name=csrfmiddlewaretoken]');
+            const csrfToken = (csrfInput && csrfInput.value) || (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || '';
+            formData.append('csrfmiddlewaretoken', csrfToken);
+
+            fetch(addForm.action, {
+                method: 'POST',
+                body: formData,
+                cache: 'no-store',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(function(r) {
+                return r.text().then(function(text) {
+                    var data = null;
+                    try {
+                        data = text ? JSON.parse(text) : {};
+                    } catch (e) {
+                        return { ok: false, data: { message: r.ok ? 'Invalid response from server.' : 'Server error. Please try again.' } };
+                    }
+                    return { ok: r.ok, data: data };
+                });
+            })
+            .then(function(result) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.value = originalText;
+                }
+                if (!result || !result.data) {
+                    var errMsg = 'Could not add job order. Please try again.';
+                    if (typeof showToast === 'function') showToast(errMsg, 'error');
+                    else alert(errMsg);
+                    return;
+                }
+                if (result.ok && result.data.success && result.data.row_html) {
+                    const tbody = document.getElementById('products-table-body');
+                    if (tbody) {
+                        tbody.insertAdjacentHTML('afterbegin', result.data.row_html);
+                        var rows = tbody.querySelectorAll('tr.product-row');
+                        rows.forEach(function(row, idx) { row.querySelector('td:first-child').textContent = idx + 1; });
+                    }
+                    var d = result.data;
+                    if (d.product_count !== undefined && d.product_count !== null) {
+                        var el = document.getElementById('product-count');
+                        if (el) el.textContent = String(d.product_count);
+                    }
+                    if (d.pending_count !== undefined && d.pending_count !== null) {
+                        var el = document.getElementById('pending-orders-count');
+                        if (el) el.textContent = String(d.pending_count);
+                    }
+                    if (d.approved_count !== undefined && d.approved_count !== null) {
+                        var el = document.getElementById('approved-orders-count');
+                        if (el) el.textContent = String(d.approved_count);
+                    }
+                    if (d.rejected_count !== undefined && d.rejected_count !== null) {
+                        var el = document.getElementById('rejected-orders-count');
+                        if (el) el.textContent = String(d.rejected_count);
+                    }
+                    if (d.customer_count !== undefined && d.customer_count !== null) {
+                        var el = document.getElementById('customer-count');
+                        if (el) el.textContent = String(d.customer_count);
+                    }
+                    if (d.order_count !== undefined && d.order_count !== null) {
+                        var el = document.getElementById('order-count');
+                        if (el) el.textContent = String(d.order_count);
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast(result.data.message || 'Job order added.', 'success');
+                    } else {
+                        var alertEl = document.createElement('div');
+                        alertEl.className = 'alert alert-success alert-dismissible fade show';
+                        alertEl.setAttribute('role', 'alert');
+                        alertEl.innerHTML = (result.data.message || 'Job order added.') + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                        addForm.insertAdjacentElement('beforebegin', alertEl);
+                        setTimeout(function() { alertEl.remove(); }, 5000);
+                    }
+                    addForm.reset();
+                } else {
+                    var errMsg = result.data.message || result.data.error || 'Could not add job order. Please try again.';
+                    if (typeof showToast === 'function') showToast(errMsg, 'error');
+                    else alert(errMsg);
+                }
+            })
+            .catch(function(err) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.value = originalText;
+                }
+                var msg = 'Request failed. Please check your connection and try again.';
+                if (typeof showToast === 'function') showToast(msg, 'error');
+                else alert(msg);
+            });
+        });
+    }
+
+    // ----- AJAX Delete: remove row from table without page refresh; offline: queue via wrapDelete -----
+    document.getElementById('products-table-body') && document.getElementById('products-table-body').addEventListener('click', function(e) {
+        var btn = e.target.closest('.product-delete-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var productId = btn.getAttribute('data-product-id');
+        var productUuid = btn.getAttribute('data-product-uuid');
+        var jobOrder = btn.getAttribute('data-job-order') || productId;
+        if (!confirm('Are you sure you want to delete job order ' + jobOrder + '? This cannot be undone.')) return;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        var deleteUrl = '{% url "job_orders:product_delete" 0 %}'.replace('/0/', '/' + productId + '/');
+        var csrfToken = (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || '';
+        var attemptAjax = function() {
+            return fetch(deleteUrl, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrfToken)
+            }).then(function(r) { return r.json(); });
+        };
+        var doDelete = function() {
+            return (window.OfflineSync && productUuid && !navigator.onLine && typeof window.OfflineSync.wrapDelete === 'function')
+                ? window.OfflineSync.wrapDelete('job_orders', productUuid, (window.OfflineSync.getTenantId && window.OfflineSync.getTenantId()) || '', attemptAjax)
+                : attemptAjax();
+        };
+        doDelete().then(function(data) {
+            if (data && (data.success || data.savedOffline)) {
+                var row = document.querySelector('tr.product-row[data-product-id="' + productId + '"]');
+                if (row) row.remove();
+                if (data && data.savedOffline && typeof showNotification === 'function') showNotification('Job order will be deleted when you\'re back online.', 'success');
+                var tbody = document.getElementById('products-table-body');
+                if (tbody) {
+                    var rows = tbody.querySelectorAll('tr.product-row');
+                    rows.forEach(function(r, idx) { var cell = r.querySelector('td:first-child'); if (cell) cell.textContent = idx + 1; });
+                }
+                var d = data;
+                if (d.product_count !== undefined && d.product_count !== null) {
+                    var el = document.getElementById('product-count');
+                    if (el) el.textContent = String(d.product_count);
+                }
+                if (d.pending_count !== undefined && d.pending_count !== null) {
+                    var el = document.getElementById('pending-orders-count');
+                    if (el) el.textContent = String(d.pending_count);
+                }
+                if (d.approved_count !== undefined && d.approved_count !== null) {
+                    var el = document.getElementById('approved-orders-count');
+                    if (el) el.textContent = String(d.approved_count);
+                }
+                if (d.rejected_count !== undefined && d.rejected_count !== null) {
+                    var el = document.getElementById('rejected-orders-count');
+                    if (el) el.textContent = String(d.rejected_count);
+                }
+                if (d.customer_count !== undefined && d.customer_count !== null) {
+                    var el = document.getElementById('customer-count');
+                    if (el) el.textContent = String(d.customer_count);
+                }
+                if (d.order_count !== undefined && d.order_count !== null) {
+                    var el = document.getElementById('order-count');
+                    if (el) el.textContent = String(d.order_count);
+                }
+            }
+            if (!data || (!data.success && !data.savedOffline)) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                alert((data && data.message) || 'Delete failed.');
+            }
+        }).catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+            alert('Network error. Please try again.');
+        });
+    });
+
+    // Show helpful message for new users about approval status
+    if (!localStorage.getItem('approvalStatusHelpShown')) {
+        setTimeout(() => {
+            const helpMessage = document.createElement('div');
+            helpMessage.className = 'alert alert-info alert-dismissible fade show position-fixed';
+            helpMessage.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
+            helpMessage.innerHTML = `
+                <strong><i class="fas fa-info-circle"></i> Quick Tip:</strong><br>
+                Staff members can click on the <strong>Approval Status</strong> dropdown to change job order status.<br>
+                <small class="text-muted">This message won't show again.</small>
+                <button type="button" class="btn-close" onclick="this.parentElement.remove(); localStorage.setItem('approvalStatusHelpShown', 'true');"></button>
+            `;
+            document.body.appendChild(helpMessage);
+            
+            // Auto-dismiss after 8 seconds
+            setTimeout(() => {
+                if (helpMessage.parentElement) {
+                    helpMessage.remove();
+                    localStorage.setItem('approvalStatusHelpShown', 'true');
+                }
+            }, 8000);
+        }, 2000);
+    }
+
+    // Parse delivery quantity (text + numbers) like invoice app: "100", "100 kg", "50+50", "3k", "1.5m"
+    function parseSmartQuantity(input) {
+        if (!input || input === '') return 0;
+        var str = String(input).trim();
+        if (str === '' || str === '-' || str === '+') return 0;
+        str = str.replace(/,/g, '');
+        if (str.toLowerCase().endsWith('k')) {
+            var base = parseFloat(str.slice(0, -1));
+            return isNaN(base) ? 0 : base * 1000;
+        }
+        if (str.toLowerCase().endsWith('m')) {
+            var baseM = parseFloat(str.slice(0, -1));
+            return isNaN(baseM) ? 0 : baseM * 1000000;
+        }
+        var matches = str.match(/-?\d+(?:\.\d+)?/g);
+        if (!matches || matches.length === 0) return 0;
+        var total = 0;
+        for (var i = 0; i < matches.length; i++) {
+            total += parseFloat(matches[i]) || 0;
+        }
+        return Math.round(total * 100) / 100;
+    }
+
+    var priceInput = document.getElementById('id_price');
+    var quantityInput = document.getElementById('id_order_quantity');
+    if (priceInput && quantityInput) {
+        priceInput.addEventListener('input', function() {});
+        quantityInput.addEventListener('input', function() {});
+    }
+
+    // Production Status Update Handler (delegated so dynamically added rows work)
+    const tableBody = document.getElementById('products-table-body');
+    if (tableBody) {
+        tableBody.addEventListener('click', function(e) {
+            const button = e.target.closest('.save-status-btn');
+            if (!button) return;
+            const container = button.closest('.production-status-container');
+            const textarea = container.querySelector('.production-status');
+            const productId = textarea.dataset.productId;
+            const statusText = textarea.value;
+            const timestamp = container.querySelector('small');
+
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+            button.disabled = true;
+            textarea.disabled = true;
+
+            fetch('{% url "job_orders:update_production_status" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') && document.querySelector('[name=csrfmiddlewaretoken]').value) || (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'product_id=' + encodeURIComponent(productId) + '&new_status=' + encodeURIComponent(statusText)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    button.innerHTML = '<i class="fas fa-check"></i> Saved!';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-success');
+                    textarea.value = statusText;
+                    timestamp.innerHTML = 'Last updated: ' + new Date().toLocaleString() + '<br>Updated by: {{ user.get_full_name|default:user.email }}';
+                    timestamp.classList.add('text-success');
+                    textarea.style.backgroundColor = '#e8f0fe';
+                    setTimeout(function() {
+                        button.innerHTML = 'Save Status';
+                        button.classList.remove('btn-success');
+                        button.classList.add('btn-primary');
+                        button.disabled = false;
+                        textarea.disabled = false;
+                        textarea.style.backgroundColor = '';
+                        timestamp.classList.remove('text-success');
+                    }, 1500);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-danger');
+                textarea.disabled = false;
+                button.disabled = false;
+                timestamp.classList.add('text-danger');
+                setTimeout(function() {
+                    button.innerHTML = 'Save Status';
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-primary');
+                    timestamp.classList.remove('text-danger');
+                }, 2000);
+            });
+        });
+    }
+
+    // Quick save with Enter key + auto-resize (delegated)
+    if (tableBody) {
+        tableBody.addEventListener('keydown', function(e) {
+            if (e.target.classList.contains('production-status') && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const saveButton = e.target.closest('.production-status-container').querySelector('.save-status-btn');
+                if (saveButton && !saveButton.disabled) saveButton.click();
+            }
+        });
+        tableBody.addEventListener('input', function(e) {
+            if (e.target.classList.contains('production-status')) {
+                e.target.style.height = 'auto';
+                e.target.style.height = (e.target.scrollHeight) + 'px';
+            }
+        });
+    }
+
+    // Add hover effect for better UX
+    const style = document.createElement('style');
+    style.textContent = `
+        .clickable-row:hover td:not(.no-click) {
+            background-color: rgba(0,123,255,0.1);
+            transition: background-color 0.2s;
+        }
+        .clickable-row {
+            cursor: pointer;
+        }
+        .no-click {
+            cursor: default;
+        }
+    `;
+    document.head.appendChild(style);
+});
+
+// Update approval status function
+function updateApprovalStatus(productId, newStatus) {
+    console.log('Updating approval status for product ' + productId + ' to ' + newStatus);
+    
+    var selectElement = document.querySelector('select.approval-select[data-product-id="' + productId + '"]');
+    if (!selectElement) {
+        selectElement = document.querySelector('select[data-product-id="' + productId + '"]');
+    }
+    if (!selectElement) {
+        console.error('Select element not found for product ID:', productId);
+        return;
+    }
+    var previousValue = selectElement.getAttribute('data-original-value') || selectElement.value;
+    selectElement.setAttribute('data-original-value', selectElement.value);
+    
+    selectElement.disabled = true;
+    selectElement.style.opacity = '0.6';
+    
+    var productUuid = selectElement.getAttribute('data-product-uuid');
+    var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId && window.OfflineSync.getTenantId()) || '';
+    var payload = { uuid: productUuid, updated_at: new Date().toISOString(), is_deleted: false, approval_status: newStatus };
+    var attemptAjax = function() {
+        var csrfToken = getCsrfToken();
+        if (!csrfToken) return Promise.reject(new Error('CSRF missing'));
+        return fetch('/job-orders/product/' + productId + '/approve/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+            body: 'action=' + encodeURIComponent(newStatus) + '&csrfmiddlewaretoken=' + encodeURIComponent(csrfToken),
+            cache: 'no-store',
+            credentials: 'same-origin'
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var ct = r.headers.get('content-type');
+            if (!ct || !ct.includes('application/json')) throw new Error('Non-JSON');
+            return r.json();
+        });
+    };
+    var csrfToken = getCsrfToken();
+    if (!csrfToken && navigator.onLine) {
+        selectElement.disabled = false;
+        selectElement.style.opacity = '1';
+        showNotification('Security token missing. Please refresh the page.', 'error');
+        selectElement.value = previousValue;
+        return;
+    }
+    var requestPromise = (productUuid && window.OfflineSync && typeof window.OfflineSync.wrapSubmit === 'function')
+        ? window.OfflineSync.wrapSubmit('job_orders', payload, tenantId, attemptAjax)
+        : attemptAjax();
+    requestPromise.then(function(response) {
+        var data = response;
+        if (data && (data.success || data.savedOffline)) {
+            if (data.savedOffline) { if (typeof showNotification === 'function') showNotification('Status will sync when you\'re back online.', 'success'); }
+            else if (data.message) { showNotification(data.message, 'success'); }
+            
+            selectElement.value = newStatus;
+            selectElement.setAttribute('data-original-value', newStatus);
+            
+            var approvedByEl = document.getElementById('approved-by-' + productId);
+            if (approvedByEl) {
+                if (newStatus === 'approved' && data.approved_by) {
+                    approvedByEl.textContent = data.approved_by;
+                } else if (newStatus === 'pending' || newStatus === 'rejected') {
+                    approvedByEl.textContent = 'Not yet approved';
+                }
+            }
+            
+            var createdByEl = document.getElementById('created-by-' + productId);
+            if (createdByEl && data.created_by) {
+                createdByEl.textContent = data.created_by;
+            }
+            
+            if (data.pending_count !== undefined && data.pending_count !== null) {
+                var pendingCard = document.getElementById('pending-orders-count');
+                if (pendingCard) pendingCard.textContent = String(data.pending_count);
+            }
+            if (data.approved_count !== undefined && data.approved_count !== null) {
+                var approvedCard = document.getElementById('approved-orders-count');
+                if (approvedCard) approvedCard.textContent = String(data.approved_count);
+            }
+            if (data.rejected_count !== undefined && data.rejected_count !== null) {
+                var rejectedCard = document.getElementById('rejected-orders-count');
+                if (rejectedCard) rejectedCard.textContent = String(data.rejected_count);
+            }
+            if (data.product_count !== undefined && data.product_count !== null) {
+                var productCard = document.getElementById('product-count');
+                if (productCard) productCard.textContent = String(data.product_count);
+            }
+            if (data.customer_count !== undefined && data.customer_count !== null) {
+                var customerCard = document.getElementById('customer-count');
+                if (customerCard) customerCard.textContent = String(data.customer_count);
+            }
+            if (data.order_count !== undefined && data.order_count !== null) {
+                var orderCard = document.getElementById('order-count');
+                if (orderCard) orderCard.textContent = String(data.order_count);
+            }
+            
+            selectElement.style.backgroundColor = '#d4edda';
+            selectElement.style.borderColor = '#28a745';
+            setTimeout(function() {
+                selectElement.style.backgroundColor = '';
+                selectElement.style.borderColor = '';
+            }, 2000);
+            if (data.success) { try { window.dispatchEvent(new CustomEvent('notifications-changed')); setTimeout(function(){ if (window.refreshNotifications) window.refreshNotifications(); }, 500); } catch (e) {} }
+        } else {
+            showNotification((data && data.message) || 'Failed to update approval status', 'error');
+            selectElement.value = selectElement.getAttribute('data-original-value') || previousValue;
+        }
+    }).catch(function(error) {
+        console.error('Error updating approval status:', error);
+        showNotification('Error updating approval status: ' + (error && error.message) || 'Unknown error', 'error');
+        selectElement.value = selectElement.getAttribute('data-original-value') || previousValue;
+    }).finally(function() {
+        selectElement.disabled = false;
+        selectElement.style.opacity = '1';
+    });
+}
+
+// Update delivery date function
+function updateDeliveryDate(productId, fieldName, value) {
+    console.log(`Updating ${fieldName} for product ${productId} to ${value}`);
+    
+    const inputElement = document.querySelector(`input[data-product-id="${productId}"][data-field="${fieldName}"]`);
+    if (!inputElement) {
+        console.error('Input element not found for product ID:', productId);
+        return;
+    }
+    
+    // Show loading state
+    inputElement.disabled = true;
+    inputElement.style.opacity = '0.6';
+    
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showNotification('Security token missing. Please refresh the page.', 'error');
+        inputElement.disabled = false;
+        inputElement.style.opacity = '1';
+        return;
+    }
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append(fieldName, value);
+    
+    // Make AJAX request to update delivery dates
+    fetch(`/job-orders/product/${productId}/update-delivery/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showNotification(data.message, 'success');
+            
+            // Update cycle time if both dates are set
+            if (data.cycle_time) {
+                document.getElementById(`cycle-time-${productId}`).textContent = data.cycle_time;
+            }
+            
+            // Update visual feedback
+            inputElement.style.backgroundColor = '#d4edda';
+            inputElement.style.borderColor = '#28a745';
+            
+            // Reset after a short delay
+            setTimeout(() => {
+                inputElement.style.backgroundColor = '';
+                inputElement.style.borderColor = '';
+            }, 2000);
+            
+        } else {
+            // Show error message
+            showNotification(data.message || 'Failed to update delivery date', 'error');
+            
+            // Revert the input value
+            inputElement.value = inputElement.getAttribute('data-original-value') || '';
+        }
+    })
+    .catch(error => {
+        console.error('Error updating delivery date:', error);
+        showNotification('Error updating delivery date: ' + error.message, 'error');
+        
+        // Revert the input value
+        inputElement.value = inputElement.getAttribute('data-original-value') || '';
+    })
+    .finally(() => {
+        // Re-enable the input element
+        inputElement.disabled = false;
+        inputElement.style.opacity = '1';
+    });
+}
+
+// Store original values when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.approval-select').forEach(select => {
+        select.setAttribute('data-original-value', select.value);
+    });
+    
+    // Store original values for delivery date inputs
+    document.querySelectorAll('.delivery-date-input').forEach(input => {
+        input.setAttribute('data-original-value', input.value);
+    });
+});
+
+// Notification function
+function showNotification(message, type) {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification-alert');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    // Create new notification
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show notification-alert position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <strong>${type.charAt(0).toUpperCase() + type.slice(1)}!</strong> ${message}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

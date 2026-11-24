@@ -1,0 +1,68 @@
+{% load humanize %}
+{# Inline SVGs so icons display even when Font Awesome CDN is slow or blocked #}
+<div class="row mb-4">
+    <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-4">
+        <div class="card border-0 shadow-sm dashboard-card h-100 hr-card">
+            <div class="card-body position-relative pt-3 pb-3">
+                <small class="position-absolute top-0 end-0 mt-2 me-2 text-success small">+12%</small>
+                <div class="d-flex align-items-center">
+                    <div class="hr-metric-icon-box rounded-3 bg-primary text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0">
+                        <svg class="hr-metric-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="mb-0 fw-bold dashboard-card-count text-dark" data-card-key="total_employees">{{ total_employees|default:0 }}</h4>
+                        <p class="text-muted small mb-0 mt-1">Total Employees</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-4">
+        <div class="card border-0 shadow-sm dashboard-card h-100 hr-card">
+            <div class="card-body position-relative pt-3 pb-3">
+                <small class="position-absolute top-0 end-0 mt-2 me-2 text-success small">+5%</small>
+                <div class="d-flex align-items-center">
+                    <div class="hr-metric-icon-box rounded-3 bg-success text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0">
+                        <svg class="hr-metric-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="mb-0 fw-bold dashboard-card-count text-dark" data-card-key="active_employees">{{ active_employees|default:0 }}</h4>
+                        <p class="text-muted small mb-0 mt-1">Active Employees</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-4">
+        <div class="card border-0 shadow-sm dashboard-card h-100 hr-card">
+            <div class="card-body position-relative pt-3 pb-3">
+                <small class="position-absolute top-0 end-0 mt-2 me-2 text-muted small">0%</small>
+                <div class="d-flex align-items-center">
+                    <div class="hr-metric-icon-box hr-icon-purple rounded-3 text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0">
+                        <svg class="hr-metric-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="mb-0 fw-bold dashboard-card-count text-dark" data-card-key="total_departments">{{ total_departments|default:0 }}</h4>
+                        <p class="text-muted small mb-0 mt-1">Departments</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-4">
+        <div class="card border-0 shadow-sm dashboard-card h-100 hr-card">
+            <div class="card-body position-relative pt-3 pb-3">
+                <small class="position-absolute top-0 end-0 mt-2 me-2 text-danger small">-3%</small>
+                <div class="d-flex align-items-center">
+                    <div class="hr-metric-icon-box hr-icon-orange rounded-3 text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0">
+                        <svg class="hr-metric-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="mb-0 fw-bold dashboard-card-count text-dark" data-card-key="pending_leaves">{{ pending_leaves|default:0 }}</h4>
+                        <p class="text-muted small mb-0 mt-1">Pending Leaves</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

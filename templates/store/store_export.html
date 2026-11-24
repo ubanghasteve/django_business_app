@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Export Store Data{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; }
+    .btn-secondary { background-color: #6c757d !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">Export Store Data</h5><p class="text-muted text-sm mb-0">Download your store records</p></div>
+        <div class="col-auto"><a href="{% url 'store:list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a></div>
+    </div>
+
+    <form method="get" action="{% url 'store:list_print' %}">
+        <div class="card mb-3">
+            <div class="card-header"><h6 class="mb-0">Filter Options</h6></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Date From</label>
+                        <input type="date" name="date_from" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date To</label>
+                        <input type="date" name="date_to" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Range</label>
+                        <select name="range_type" class="form-control">
+                            <option value="all">All Time</option>
+                            <option value="day">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="year">This Year</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header"><h6 class="mb-0">Export Format</h6></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <a href="{% url 'store:list_print' %}?{% for k,v in request.GET.items %}{{ k }}={{ v }}&{% endfor %}" class="btn btn-primary w-100">
+                            <i class="fas fa-print"></i> Print View
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="{% url 'store:list_pdf' %}?{% for k,v in request.GET.items %}{{ k }}={{ v }}&{% endfor %}" class="btn btn-danger w-100">
+                            <i class="fas fa-file-pdf"></i> PDF Download
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-eye"></i> Preview Print
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

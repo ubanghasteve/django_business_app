@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tax Summary{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Tax Summary</h1>
+            <p class="text-muted">High-level summary of computed tax obligations. Synced with all apps in real time.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <select id="taxPeriodType" class="form-select form-select-sm" style="width: auto;">
+                <option value="">All periods</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+            </select>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="taxRefreshBtn" title="Refresh"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+    </div>
+
+    <div id="taxMessage" class="alert d-none" role="alert"></div>
+
+    <div class="card position-relative">
+        <div id="taxLoading" class="position-absolute top-0 start-0 end-0 bottom-0 d-flex align-items-center justify-content-center bg-light opacity-75 d-none" style="z-index: 5;"><div class="spinner-border text-primary" role="status"></div></div>
+        <div class="card-body">
+            <div class="row text-center" id="taxSummaryContainer">
+                <div class="col-md-4">
+                    <h5>Total Revenue</h5>
+                    <h3 id="taxTotalRevenue">—</h3>
+                </div>
+                <div class="col-md-4">
+                    <h5>Taxable Profit</h5>
+                    <h3 id="taxTaxableProfit">—</h3>
+                </div>
+                <div class="col-md-4">
+                    <h5>Corporate Tax</h5>
+                    <h3 id="taxCorporateTax">—</h3>
+                </div>
+            </div>
+            <p class="text-muted small mb-0 mt-2" id="taxPeriodLabel">—</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function fmt(n) { return n == null || isNaN(n) ? '0.00' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function showLoading(show) { var el = document.getElementById('taxLoading'); if (el) el.classList.toggle('d-none', !show); }
+    function showMessage(text, type) {
+        var el = document.getElementById('taxMessage');
+        if (!el) return;
+        el.textContent = text || '';
+        el.className = 'alert d-none';
+        if (text) { el.classList.remove('d-none'); el.classList.add(type === 'error' ? 'alert-danger' : 'alert-info'); }
+    }
+    function loadTaxSummary() {
+        showMessage('');
+        showLoading(true);
+        var period = document.getElementById('taxPeriodType');
+        var qs = period && period.value ? '?period_type=' + encodeURIComponent(period.value) : '';
+        fetch('{% url "accounting_api:api_tax_summary" %}' + qs, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { if (!r.ok) throw new Error('Request failed'); return r.json(); })
+            .then(function(data) {
+                document.getElementById('taxTotalRevenue').textContent = fmt(data.total_revenue);
+                document.getElementById('taxTaxableProfit').textContent = fmt(data.taxable_profit);
+                document.getElementById('taxCorporateTax').textContent = fmt(data.corporate_tax);
+                var lbl = document.getElementById('taxPeriodLabel');
+                if (lbl) {
+                    if (data.has_data && data.period_start && data.period_end)
+                        lbl.textContent = 'Period: ' + data.period_start + ' to ' + data.period_end + (data.period_type ? ' (' + data.period_type + ')' : '');
+                    else
+                        lbl.textContent = 'No tax records yet. Data from invoices, receipts, expenses, and other apps will appear here.';
+                }
+            })
+            .catch(function(err) { showMessage('Could not load tax summary.'); console.error(err); })
+            .finally(function() { showLoading(false); });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTaxSummary();
+        var b = document.getElementById('taxRefreshBtn');
+        if (b) b.addEventListener('click', loadTaxSummary);
+        var p = document.getElementById('taxPeriodType');
+        if (p) p.addEventListener('change', loadTaxSummary);
+        // Periodically refresh so tax summary reflects latest invoices, receipts, expenses
+        setInterval(loadTaxSummary, 60000);
+    });
+})();
+</script>
+{% endblock %}
+

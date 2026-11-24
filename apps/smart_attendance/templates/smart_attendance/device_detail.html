@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Device Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <a href="{% url 'smart_attendance:devices' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Devices
+      </a>
+    </div>
+    <a href="{% url 'smart_attendance:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-home me-1"></i> Dashboard
+    </a>
+  </div>
+  
+  <h2 class="mb-3"><i class="fas fa-fingerprint me-2"></i>{{ device.device_name }}</h2>
+
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-primary text-white">
+          <i class="fas fa-info-circle me-2"></i>Device Information
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Device Name</dt>
+            <dd class="col-sm-8">{{ device.device_name }}</dd>
+            <dt class="col-sm-4">Serial</dt>
+            <dd class="col-sm-8"><code>{{ device.device_serial }}</code></dd>
+            <dt class="col-sm-4">IP Address</dt>
+            <dd class="col-sm-8">{{ device.device_ip|default:"Push only" }}:{{ device.device_port }}</dd>
+            <dt class="col-sm-4">Model</dt>
+            <dd class="col-sm-8">{{ device.device_model|default:"—" }}</dd>
+            <dt class="col-sm-4">Firmware</dt>
+            <dd class="col-sm-8">{{ device.firmware_version|default:"—" }}</dd>
+            <dt class="col-sm-4">Location</dt>
+            <dd class="col-sm-8">{{ device.location|default:"—" }}</dd>
+            <dt class="col-sm-4">Status</dt>
+            <dd class="col-sm-8">
+              <span class="badge {% if device.status == 'online' %}bg-success{% elif device.status == 'offline' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ device.status|title }}
+              </span>
+            </dd>
+            <dt class="col-sm-4">Last Seen</dt>
+            <dd class="col-sm-8">{{ device.last_seen|default:"—" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-info text-white">
+          <i class="fas fa-plug me-2"></i>Push Configuration
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Push URL</dt>
+            <dd class="col-sm-8">
+              <code class="small">{{ request.scheme }}://{{ request.get_host }}/api/biometric/push</code>
+            </dd>
+            <dt class="col-sm-4">Device Serial</dt>
+            <dd class="col-sm-8"><code>{{ device.device_serial }}</code></dd>
+            <dt class="col-sm-4">Device Secret</dt>
+            <dd class="col-sm-8"><code>***</code> (configured in device)</dd>
+          </dl>
+          <div class="mt-3">
+            <a href="{% url 'smart_attendance:device_setup_complete' device.pk %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-cog me-1"></i> View Setup Guide
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-history me-2"></i>Recent Attendance Logs</span>
+      <span class="badge bg-secondary">{{ recent_logs|length }} records</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Employee ID</th>
+            <th>Punch Time</th>
+            <th>Type</th>
+            <th>Verify Mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td>
+              {% if log.employee %}
+                <a href="{% url 'smart_attendance:employee_profile' log.employee.pk %}">
+                  {{ log.employee.first_name }} {{ log.employee.last_name }}
+                </a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ log.employee.employee_id|default:"—" }}</td>
+            <td>{{ log.punch_time }}</td>
+            <td>
+              {% if log.punch_type == 'Check In' %}
+                <span class="badge bg-success">Check In</span>
+              {% elif log.punch_type == 'Check Out' %}
+                <span class="badge bg-warning">Check Out</span>
+              {% else %}
+                {{ log.punch_type|default:"—" }}
+              {% endif %}
+            </td>
+            <td>{{ log.verify_mode|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-3">No logs yet. Clock in/out on this device to see records.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

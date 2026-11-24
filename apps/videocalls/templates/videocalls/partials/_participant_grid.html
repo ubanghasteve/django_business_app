@@ -1,0 +1,33 @@
+<div class="participant-grid" id="participantGrid" data-count="{{ participants|length }}">
+    {% for participant in participants %}
+    <div class="participant-tile" data-session-id="{{ participant.session_id }}">
+        <div class="participant-video-wrapper">
+            <video id="remoteVideo-{{ participant.session_id }}" autoplay playsinline></video>
+            <div class="video-placeholder">
+                {{ participant.display_name|slice:":2"|upper }}
+            </div>
+            {% if participant.is_screen_sharing %}
+            <div class="screen-share-badge">
+                <i class="bi bi-display"></i> Sharing Screen
+            </div>
+            {% endif %}
+        </div>
+        <div class="participant-details">
+            <span class="participant-name">
+                {{ participant.display_name }}
+                {% if participant.is_host %}
+                <span class="badge bg-warning text-dark">Host</span>
+                {% endif %}
+            </span>
+            <div class="participant-badges">
+                {% if participant.is_audio_muted %}
+                <span class="badge bg-danger"><i class="bi bi-mic-mute"></i></span>
+                {% endif %}
+                {% if participant.is_video_off %}
+                <span class="badge bg-secondary"><i class="bi bi-camera-video-off"></i></span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

@@ -1,0 +1,754 @@
+{% extends 'base.html' %}
+
+{% block title %}Security Dashboard | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-shield-alt me-2"></i>Security Dashboard</h2>
+                <p class="text-muted mb-0">Monitor your account activity and manage your sessions <span class="text-muted">· Last updated: {{ last_updated|date:"d M Y, H:i" }}</span></p>
+            </div>
+            <div>
+                {% if perms.accounts.view_activity_log or perms.accounts.view_useractivity %}
+                <a href="{% url 'accounts:admin_security_overview' %}" class="btn btn-warning me-2">
+                    <i class="fas fa-users-cog me-1"></i>Admin View
+                </a>
+                {% endif %}
+                <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Profile
+                </a>
+            </div>
+        </div>
+
+        <!-- Security Overview Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-desktop fa-2x opacity-75"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0">{{ active_sessions_count }}</h3>
+                                <small>Active Sessions</small>
+                                <div class="small opacity-75 mt-0">Live</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-history fa-2x opacity-75"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0">{{ activity_summary.total_activities }}</h3>
+                                <small>Activities</small>
+                                <div class="small opacity-75 mt-0">Last 30 days</div>
+                                <div class="small opacity-75 mt-1">
+                                    <span class="me-1">{{ significant_activities_count_30d }} significant</span>
+                                    <a href="{% url 'accounts:activity_log' %}?significant_only=1" class="text-white text-decoration-underline" title="View only logins, creates, updates, deletes (no page views)">View significant only</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-sign-in-alt fa-2x opacity-75"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0">{{ logins_count_30d }}</h3>
+                                <small>Logins</small>
+                                <div class="small opacity-75 mt-0">Last 30 days</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                    <div class="card-body {% if suspicious_count > 0 %}text-danger{% else %}text-dark{% endif %}">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle fa-2x {% if suspicious_count > 0 %}{% else %}opacity-50{% endif %}"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0">{{ suspicious_count }}</h3>
+                                <small>Suspicious Events</small>
+                                <div class="small opacity-75 mt-0">Live</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activities per day -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <h5 class="mb-0 text-white"><i class="fas fa-calendar-day me-2"></i>Activities per day</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'accounts:activity_log' %}" class="btn btn-sm btn-light text-dark" title="View all activities with date, time, user, IP, etc.">
+                        <i class="fas fa-list-alt me-1"></i>View all activities
+                    </a>
+                    <span class="badge bg-light text-dark">Last 30 days</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light border mb-3 py-2 small" role="note">
+                    <strong>Why are counts high?</strong> These counts are <strong>accurate database records</strong> for <strong>your account only</strong>—you never see other users’ or other accounts’ activities. Each time you or a team member <strong>opens a page</strong> or performs an action (login, create, edit, delete), one activity is recorded. So high numbers usually mean many page views plus actions—nothing is assumed.
+                </div>
+                {% if activities_per_day %}
+                <p class="text-muted small mb-2">Click a row to see all activities for that day (date, time, user, IP address, and more).</p>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0 activities-per-day-table">
+                        <thead>
+                            <tr>
+                                <th>S/N</th>
+                                <th>Date</th>
+                                <th class="text-end">Activities</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in activities_per_day %}
+                            <tr class="activities-per-day-row" role="button" tabindex="0" onclick="window.location='{% url 'accounts:activity_log' %}?date={{ row.date|date:'Y-m-d' }}';" onkeydown="if(event.key==='Enter') window.location='{% url 'accounts:activity_log' %}?date={{ row.date|date:'Y-m-d' }}';">
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ row.date|date:"D, d M Y" }}</td>
+                                <td class="text-end"><span class="badge bg-success">{{ row.count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No activity in the last 30 days.</p>
+                {% endif %}
+                {% if activity_breakdown %}
+                <hr class="my-3">
+                <p class="small text-muted mb-2"><strong>Breakdown by type (last 30 days)</strong> — click a badge to see all activities of that type:</p>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for type_code, label, count in activity_breakdown %}
+                    <a href="{% url 'accounts:activity_log' %}?type={{ type_code }}" class="badge bg-secondary text-decoration-none" title="View all {{ label }} activities">{{ label }}: <strong>{{ count }}</strong></a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if activity_breakdown_per_day %}
+                <hr class="my-3">
+                <p class="small text-muted mb-2"><strong>Breakdown by type per day</strong> — click a date to see all activities that day; click a badge to see that day’s activities of that type:</p>
+                <div id="breakdownPerDayAccordion">
+                    {% for date_val, breakdown in activity_breakdown_per_day %}
+                    <div class="d-flex align-items-center justify-content-between py-2 px-2 bg-light rounded mb-2 breakdown-per-day-row">
+                        <a href="{% url 'accounts:activity_log' %}?date={{ date_val|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary text-decoration-none" title="View all activities on {{ date_val|date:'d M Y' }}">{{ date_val|date:"D, d M Y" }}</a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#day-{{ date_val|date:'Y-m-d' }}" aria-expanded="false" aria-controls="day-{{ date_val|date:'Y-m-d' }}"><i class="fas fa-chevron-down me-1"></i>Breakdown</button>
+                    </div>
+                    <div id="day-{{ date_val|date:'Y-m-d' }}" class="collapse mb-3 ps-2" data-bs-parent="#breakdownPerDayAccordion">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for type_code, label, count in breakdown %}
+                            <a href="{% url 'accounts:activity_log' %}?date={{ date_val|date:'Y-m-d' }}&type={{ type_code }}" class="badge bg-secondary text-decoration-none" title="View {{ label }} on {{ date_val|date:'d M Y' }}">{{ label }}: <strong>{{ count }}</strong></a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Team Members & Roles Cards - Staff only can manage -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-users me-2"></i>Team Members</h5>
+                        {% if user_can_manage_users %}
+                        <a href="{% url 'accounts:subuser_list' %}" class="btn btn-sm btn-light">
+                            <i class="fas fa-cog me-1"></i>Manage
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-2">Team members log in with their own email and password. All actions are tracked individually. What each person can do is determined by <strong>assigned roles and permissions</strong>, not by a staff flag. Sessions and Activity Log show who performed each action.</p>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-info fs-6 me-2">{{ sub_users|length }}</span>
+                            <span>team member{{ sub_users|length|pluralize }}</span>
+                            {% if user_can_manage_users %}
+                            <a href="{% url 'accounts:subuser_create' %}" class="btn btn-sm btn-outline-info ms-3">
+                                <i class="fas fa-plus me-1"></i>Add Team Member
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h5 class="mb-0"><i class="fas fa-user-shield me-2"></i>Roles &amp; Permissions</h5>
+                        <div class="d-flex gap-1">
+                            {% if perms.auth.add_group %}
+                            <a href="{% url 'accounts:role_create' %}" class="btn btn-sm btn-success">
+                                <i class="fas fa-plus me-1"></i>Create Role
+                            </a>
+                            {% endif %}
+                            {% if perms.auth.view_group %}
+                            <a href="{% url 'accounts:role_list' %}" class="btn btn-sm btn-light">
+                                <i class="fas fa-cog me-1"></i>Manage
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-2">
+                            Roles group permissions using Django’s built-in <code>Group</code> and <code>Permission</code> models, scoped strictly to your account.
+                            Assign users to roles so access checks can rely on <code>user.has_perm()</code> everywhere.
+                        </p>
+                        <p class="text-muted small mb-0">
+                            <strong>Note:</strong> You need the appropriate Django permissions (e.g. <code>auth.view_group</code>, <code>auth.change_group</code>, <code>auth.add_group</code>) to manage roles.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if suspicious_sessions %}
+        <!-- Suspicious Sessions Alert -->
+        <div class="alert alert-danger shadow-sm mb-4">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-circle fa-2x me-3"></i>
+                <div class="flex-grow-1">
+                    <h5 class="mb-1">Suspicious Login Activity Detected</h5>
+                    <p class="mb-0">We detected {{ suspicious_sessions|length }} suspicious login(s). Please review your session history.</p>
+                </div>
+                <a href="{% url 'accounts:session_history' %}?status=suspicious" class="btn btn-danger">
+                    Review Now
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <!-- Active Sessions -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-laptop me-2"></i>Active Sessions</h5>
+                        {% if active_sessions|length > 1 %}
+                        <form method="post" action="{% url 'accounts:terminate_all_sessions' %}" class="d-inline" data-offline-queue="true">
+                            {% csrf_token %}
+<button type="submit" class="btn btn-sm btn-light" onclick="return confirm('Log out all other sessions? Every other user and every other device (including your own on other browsers/devices) will be logged out. Only this browser will stay logged in.');">
+                                                <i class="fas fa-sign-out-alt me-1"></i>Log out all users
+                                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-0">
+                        {% if active_sessions %}
+                        <div class="list-group list-group-flush">
+                            {% for session in active_sessions %}
+                            <div class="list-group-item {% if session.id|stringformat:'s' == current_session_id %}bg-light{% endif %}">
+                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center mb-1">
+                                            {% if session.device_type == 'Mobile' %}
+                                                <i class="fas fa-mobile-alt text-primary me-2"></i>
+                                            {% elif session.device_type == 'Tablet' %}
+                                                <i class="fas fa-tablet-alt text-info me-2"></i>
+                                            {% else %}
+                                                <i class="fas fa-desktop text-secondary me-2"></i>
+                                            {% endif %}
+                                            <strong>{{ session.actor_display }}</strong>
+                                            <span class="text-muted ms-1">({{ session.device_info }})</span>
+                                            {% if session.id|stringformat:'s' == current_session_id %}
+                                                <span class="badge bg-success ms-2">Current</span>
+                                            {% endif %}
+                                            {% if session.is_suspicious %}
+                                                <span class="badge bg-danger ms-2">Suspicious</span>
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-globe me-1"></i>{{ session.browser_info }} on {{ session.os_info }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-map-marker-alt me-1"></i>{{ session.location_info }}
+                                            <span class="mx-1">|</span>
+                                            <i class="fas fa-network-wired me-1"></i>{{ session.ip_address }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-clock me-1"></i>Last active: {{ session.last_activity|timesince }} ago
+                                        </small>
+                                    </div>
+                                    <div class="ms-2">
+                                        {% if session.id|stringformat:'s' != current_session_id %}
+                                        <form method="post" action="{% url 'accounts:terminate_session' session.id %}" class="d-inline" data-offline-queue="true">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Terminate this session?')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        <a href="{% url 'accounts:session_detail' session.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-laptop fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No active sessions</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-light text-center">
+                        <a href="{% url 'accounts:session_history' %}" class="text-primary">
+                            View All Sessions <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+                    </div>
+                    <div class="card-body p-0" id="recent-activities-container">
+                        {% if recent_activities %}
+                        <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                            {% for activity in recent_activities %}
+                            <a href="{% url 'accounts:activity_detail' activity.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <div>
+                                        <div class="d-flex align-items-center">
+                                            {% if activity.activity_type == 'LOGIN' %}
+                                                <span class="badge bg-success me-2"><i class="fas fa-sign-in-alt"></i></span>
+                                            {% elif activity.activity_type == 'LOGOUT' %}
+                                                <span class="badge bg-secondary me-2"><i class="fas fa-sign-out-alt"></i></span>
+                                            {% elif activity.activity_type == 'LOGIN_FAILED' %}
+                                                <span class="badge bg-danger me-2"><i class="fas fa-times"></i></span>
+                                            {% elif activity.activity_type == 'CREATE' %}
+                                                <span class="badge bg-primary me-2"><i class="fas fa-plus"></i></span>
+                                            {% elif activity.activity_type == 'UPDATE' %}
+                                                <span class="badge bg-info me-2"><i class="fas fa-edit"></i></span>
+                                            {% elif activity.activity_type == 'DELETE' %}
+                                                <span class="badge bg-danger me-2"><i class="fas fa-trash"></i></span>
+                                            {% elif activity.activity_type == 'PAGE_VIEW' %}
+                                                <span class="badge bg-light text-dark me-2"><i class="fas fa-eye"></i></span>
+                                            {% else %}
+                                                <span class="badge bg-secondary me-2"><i class="fas fa-circle"></i></span>
+                                            {% endif %}
+                                            <span>{{ activity.get_activity_type_display }}</span>
+                                            {% if activity.is_suspicious %}
+                                                <span class="badge bg-warning ms-2">Suspicious</span>
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted">{{ activity.description }}</small>
+                                        <br><small class="text-muted">By: <strong>{{ activity.actor_display }}</strong>{% if activity.sub_user_id %} <span class="badge bg-info">Team member</span>{% elif activity.user_id %} <span class="badge bg-secondary">Owner</span>{% endif %}</small>
+                                        {% if activity.app_name %}
+                                        <br><small class="badge bg-light text-dark">{{ activity.app_name|title }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted text-nowrap">{{ activity.timestamp|timesince }} ago</small>
+                                        <br><span class="badge bg-primary small"><i class="fas fa-eye me-1"></i>View</span>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% if recent_activities_pages > 1 %}
+                        <div class="card-footer bg-light" id="activities-pagination">
+                            <nav aria-label="Recent activities pagination">
+                                <ul class="pagination pagination-sm mb-0 justify-content-center align-items-center security-pagination">
+                                    {% if recent_activities_page > 1 %}
+                                    <li class="page-item">
+                                        <a class="page-link security-page-link" href="?sessions_page={{ recent_sessions_page }}&activities_page={{ recent_activities_page|add:'-1' }}" onclick="loadPagination(this, 'activities'); return false;"><i class="fas fa-chevron-left me-1"></i>Previous</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link security-page-link"><i class="fas fa-chevron-left me-1"></i>Previous</span>
+                                    </li>
+                                    {% endif %}
+                                    <li class="page-item mx-3">
+                                        <span class="badge bg-secondary fs-6">Page {{ recent_activities_page }} of {{ recent_activities_pages }}</span>
+                                    </li>
+                                    {% if recent_activities_page < recent_activities_pages %}
+                                    <li class="page-item">
+                                        <a class="page-link security-page-link" href="?sessions_page={{ recent_sessions_page }}&activities_page={{ recent_activities_page|add:'1' }}" onclick="loadPagination(this, 'activities'); return false;">Next<i class="fas fa-chevron-right ms-1"></i></a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link security-page-link">Next<i class="fas fa-chevron-right ms-1"></i></span>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No recent activity</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-light text-center">
+                        <a href="{% url 'accounts:activity_log' %}" class="text-success">
+                            View Full Activity Log <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Summary by App -->
+        {% if activity_summary.by_app %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Activity by Application (Last 30 Days)</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for app, count in activity_summary.by_app.items %}
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="d-flex align-items-center p-3 bg-light rounded">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 text-capitalize">{{ app|default:"Other" }}</h6>
+                                <small class="text-muted">{{ count }} activities</small>
+                            </div>
+                            <div class="ms-2">
+                                <span class="badge bg-info fs-6">{{ count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Sessions -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Login History</h5>
+                <a href="{% url 'accounts:session_history' %}" class="btn btn-sm btn-light">View All</a>
+            </div>
+            <div class="card-body p-0" id="recent-sessions-container">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S/N</th>
+                                <th>Who / Device</th>
+                                <th>Browser/OS</th>
+                                <th>IP Address</th>
+                                <th>Location</th>
+                                <th>Login Time</th>
+                                <th>Logout Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in recent_sessions %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong>{{ session.actor_display }}</strong>
+                                    <br>
+                                    {% if session.device_type == 'Mobile' %}
+                                        <i class="fas fa-mobile-alt text-primary me-1"></i>
+                                    {% elif session.device_type == 'Tablet' %}
+                                        <i class="fas fa-tablet-alt text-info me-1"></i>
+                                    {% else %}
+                                        <i class="fas fa-desktop text-secondary me-1"></i>
+                                    {% endif %}
+                                    <small>{{ session.device_info }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ session.browser_info }}<br>{{ session.os_info }}</small>
+                                </td>
+                                <td><code>{{ session.ip_address }}</code></td>
+                                <td>{{ session.location_info }}</td>
+                                <td>
+                                    <small>{{ session.login_time|date:"M d, Y" }}<br>{{ session.login_time|time:"g:i A" }}</small>
+                                </td>
+                                <td>
+                                    {% if session.logout_time %}
+                                    <small>{{ session.logout_time|date:"M d, Y" }}<br>{{ session.logout_time|time:"g:i A" }}</small>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if session.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Ended</span>
+                                    {% endif %}
+                                    {% if session.is_suspicious %}
+                                        <span class="badge bg-danger">Suspicious</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4">No session history available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if recent_sessions_pages > 1 %}
+            <div class="card-footer bg-light" id="sessions-pagination">
+                <nav aria-label="Recent sessions pagination">
+                    <ul class="pagination pagination-sm mb-0 justify-content-center align-items-center security-pagination">
+                        {% if recent_sessions_page > 1 %}
+                        <li class="page-item">
+                            <a class="page-link security-page-link" href="?sessions_page={{ recent_sessions_page|add:'-1' }}&activities_page={{ recent_activities_page }}" onclick="loadPagination(this, 'sessions'); return false;"><i class="fas fa-chevron-left me-1"></i>Previous</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link security-page-link"><i class="fas fa-chevron-left me-1"></i>Previous</span>
+                        </li>
+                        {% endif %}
+                        <li class="page-item mx-3">
+                            <span class="badge bg-secondary fs-6">Page {{ recent_sessions_page }} of {{ recent_sessions_pages }} ({{ recent_sessions_total }} total)</span>
+                        </li>
+                        {% if recent_sessions_page < recent_sessions_pages %}
+                        <li class="page-item">
+                            <a class="page-link security-page-link" href="?sessions_page={{ recent_sessions_page|add:'1' }}&activities_page={{ recent_activities_page }}" onclick="loadPagination(this, 'sessions'); return false;">Next<i class="fas fa-chevron-right ms-1"></i></a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link security-page-link">Next<i class="fas fa-chevron-right ms-1"></i></span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Security Tips -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Security Tips</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-start mb-3">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>Monitor Your Sessions</strong>
+                                <p class="small text-muted mb-0">Regularly check for unfamiliar devices or locations in your login history.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-start mb-3">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>Log Out Unused Sessions</strong>
+                                <p class="small text-muted mb-0">If you see devices you don't recognize, terminate those sessions immediately.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-start mb-3">
+                            <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                            <div>
+                                <strong>Use Strong Passwords</strong>
+                                <p class="small text-muted mb-0">Use a unique, complex password and consider changing it periodically.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 0.5rem;
+    }
+    
+    .card-header {
+        border-radius: 0.5rem 0.5rem 0 0 !important;
+    }
+    
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+    }
+    
+    .list-group-item:first-child {
+        border-top: none;
+    }
+    
+    .badge {
+        font-weight: 500;
+    }
+    
+    code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.85em;
+    }
+    
+    .activities-per-day-row {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+    .activities-per-day-row:hover {
+        background-color: rgba(17, 153, 142, 0.1);
+    }
+    .activities-per-day-row:focus {
+        outline: 2px solid #11998e;
+        outline-offset: -2px;
+    }
+    
+    .breakdown-per-day-row {
+        transition: background-color 0.15s ease;
+    }
+    .breakdown-per-day-row:hover {
+        background-color: rgba(17, 153, 142, 0.08);
+    }
+    
+    .security-pagination {
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .security-pagination .page-item {
+        margin: 0;
+    }
+    .security-pagination .security-page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid #cfd4da;
+        background-color: #fff;
+        color: #495057;
+        font-weight: 600;
+        line-height: 1;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    .security-pagination .page-item:not(.disabled) .security-page-link:hover {
+        border-color: #0d6efd;
+        color: #0d6efd;
+        background-color: #eff6ff;
+        transform: translateY(-1px);
+    }
+    .security-pagination .page-item.disabled .security-page-link {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: #f1f3f5;
+    }
+    .security-pagination .badge {
+        padding: 0.5em 1em;
+    }
+    .ajax-loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    .ajax-spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-left: 8px;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+function loadPagination(link, type) {
+    var url = link.getAttribute('href');
+    var container, tbody, paginationContainer;
+    
+    if (type === 'activities') {
+        container = document.getElementById('recent-activities-container');
+        paginationContainer = document.getElementById('activities-pagination');
+    } else {
+        container = document.getElementById('recent-sessions-container');
+        paginationContainer = document.getElementById('sessions-pagination');
+    }
+    
+    if (!container) {
+        window.location.href = url;
+        return;
+    }
+    
+    var btn = link;
+    btn.classList.add('ajax-loading');
+    btn.innerHTML = '<span class="ajax-spinner"></span> Loading...';
+    
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(html, 'text/html');
+        
+        if (type === 'activities') {
+            var newList = doc.querySelector('#recent-activities-container .list-group');
+            var newPagination = doc.querySelector('#activities-pagination');
+        } else {
+            var newTable = doc.querySelector('#recent-sessions-container tbody');
+            var newPagination = doc.querySelector('#sessions-pagination');
+        }
+        
+        if (type === 'activities' && newList) {
+            container.querySelector('.list-group').innerHTML = newList.innerHTML;
+            if (newPagination) {
+                paginationContainer.innerHTML = newPagination.innerHTML;
+            }
+        } else if (type === 'sessions' && newTable) {
+            container.querySelector('tbody').innerHTML = newTable.innerHTML;
+            if (newPagination) {
+                paginationContainer.innerHTML = newPagination.innerHTML;
+            }
+        }
+    })
+    .catch(function() {
+        window.location.href = url;
+    });
+}
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

@@ -1,0 +1,18 @@
+{% load humanize store_extras %}
+{% for m in movements %}
+<tr>
+    <td class="text-center">{{ forloop.counter }}</td>
+    <td>{% if m.date %}{{ m.date|date:"Y-m-d" }}{% else %}{{ m.created_at|date:"Y-m-d" }}{% endif %}</td>
+    <td class="text-end">{% firstof m.opening_stock_input m.opening_stock %}</td>
+    <td class="text-end text-success fw-semibold">{{ m.quantity_in|default:"0.00" }}</td>
+    <td class="text-end text-danger fw-semibold">{{ m.quantity_out|default:"0.00" }}</td>
+    <td class="text-end text-warning fw-semibold">{% if m.waste_input %}{{ m.waste_input }}{% elif m.waste > 0 %}{{ m.waste|default:"0.00" }}{% else %}—{% endif %}</td>
+    <td class="text-end fw-semibold">{{ m.quantity_after|default:"0.00" }}</td>
+    <td>{{ m.created_by.get_full_name|default:m.created_by.email|default:"—" }}</td>
+    <td>{{ m.remark|truncatewords:12|default:"—" }}</td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="9" class="text-center text-muted py-4">No movements yet for this product. When you add or remove stock, each state will appear here (same format as main table).</td>
+</tr>
+{% endfor %}

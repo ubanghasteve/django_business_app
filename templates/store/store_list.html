@@ -1,0 +1,1233 @@
+{% extends 'base.html' %}
+{% load static humanize store_extras %}
+{% block title %}Store List{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ---- Layout & container ---- */
+.store-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: none; overflow: hidden; }
+.store-page .card-header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: #fff; padding: 1rem 1.25rem; border: none; }
+.store-page .card-header h6 { font-weight: 600; letter-spacing: 0.02em; }
+.store-page .store-list-header { padding: 1.25rem 1.5rem; }
+.store-page .store-list-title { font-size: 1.75rem; font-weight: 700; letter-spacing: 0.03em; text-shadow: 0 1px 2px rgba(0,0,0,.2); margin: 0; }
+.store-page .card-body { padding: 1.25rem; }
+
+/* ---- Summary cards ---- */
+.store-stats .card { border-radius: 10px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: transform .15s ease; }
+.store-stats .card:hover { transform: translateY(-2px); }
+.store-stats .card.bg-dark { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important; }
+.store-stats .card-body { padding: 1rem 1.25rem; }
+
+/* ---- Filters (responsive) ---- */
+.store-filters .form-control,
+.store-filters .form-select { border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem; }
+.store-filters .btn { border-radius: 8px; font-weight: 500; }
+@media (max-width: 768px) {
+  .store-filters .col-auto { flex: 0 0 100%; max-width: 100%; margin-bottom: 0.5rem; }
+}
+
+/* ---- Table wrapper ---- */
+.store-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  touch-action: manipulation;
+}
+.store-table {
+  margin: 0;
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1400px;
+  font-size: 0.9rem;
+}
+/* ---- Table heading: professional gradient (matches page header) ---- */
+.store-table thead th {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #234a70 100%);
+  padding: 14px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #fff;
+  border-bottom: 2px solid #1a334d;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+/* S/N column header: eye-catching accent so it draws attention ---- */
+.store-table thead th:first-child {
+  position: relative;
+  background: linear-gradient(135deg, #2d4a6f 0%, #3d6a97 40%, #a67c2d 100%);
+  color: #fff;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  min-width: 4rem;
+}
+.store-table thead th:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #d4af37 0%, #b8962e 100%);
+  border-radius: 2px 0 0 0;
+}
+.store-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f3f5;
+  vertical-align: middle;
+}
+.store-table tbody tr:hover { background-color: #f8fafc; }
+.store-table tbody tr[data-row-type="new"] { background-color: #f0f7ff; }
+.store-table tbody tr[data-row-type="new"] .editable-cell { background: #fff; }
+
+/* ---- S/N column cells: attractive pill (matches S/N header accent) ---- */
+.store-sn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding: 5px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1a334d;
+  background: linear-gradient(135deg, #e8f0fe 0%, #d6e4f7 50%, #fef3d4 100%);
+  border-radius: 20px;
+  border: 1px solid #c9a227;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(201,162,39,.25);
+}
+.store-sn.empty-sn { color: #6c757d; background: #f1f3f5; border-color: #dee2e6; box-shadow: none; }
+td[data-remark-cell] { max-width: 180px; min-width: 100px; }
+td[data-remark-cell] .editable-cell { min-width: 80px; max-width: 180px; white-space: normal; word-break: break-word; }
+
+/* ---- Editable cells: clear input-like appearance ---- */
+.editable-cell {
+  display: inline-block;
+  min-width: 60px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  color: #212529;
+  cursor: text;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  box-sizing: border-box;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-tap-highlight-color: transparent;
+}
+.editable-cell:hover {
+  border-color: #80bdff;
+  background: #f8fafc;
+}
+.editable-cell:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+  background: #fff;
+}
+.editable-cell[contenteditable="true"]:empty::before { content: attr(data-placeholder); color: #adb5bd; }
+td .editable-cell { max-width: 100%; }
+
+/* New row placeholder style */
+tr[data-row-type="new"] .editable-cell {
+  border-style: dashed;
+  background: #fff;
+}
+tr[data-row-type="new"] .editable-cell:focus { border-style: solid; }
+
+/* ---- Quantity & amounts ---- */
+.qty-in { color: #198754; font-weight: 600; }
+.qty-out { color: #dc3545; font-weight: 600; }
+.qty-waste { color: #fd7e14; font-weight: 600; }
+.rem-qty { font-weight: 600; color: #0d6efd; }
+.rem-qty.negative { color: #dc3545; }
+.amount-cell { font-family: inherit; font-weight: 500; }
+
+/* ---- Badges ---- */
+.badge-status { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; }
+.approval-draft { background: #6c757d; color: #fff; }
+.approval-pending { background: #ffc107; color: #212529; }
+.approval-approved { background: #198754; color: #fff; }
+.approval-rejected { background: #dc3545; color: #fff; }
+/* Stock status: distinct, visible colors (no overlap) */
+.stock-out_of_stock { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #fff; box-shadow: 0 1px 3px rgba(185,28,28,.3); }
+.stock-low_stock { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; box-shadow: 0 1px 3px rgba(217,119,6,.3); }
+.stock-in_stock { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; box-shadow: 0 1px 3px rgba(4,120,87,.3); }
+
+/* ---- Approval + Stock column: stacked layout to prevent overlap with Remark ---- */
+.status-cell {
+  min-width: 140px;
+  max-width: 160px;
+  width: 160px;
+  overflow: hidden;
+  white-space: normal;
+  vertical-align: middle;
+  padding-right: 12px;
+}
+/* Remark column: ensure it never gets covered */
+.store-table td:nth-child(14) { min-width: 100px; }
+.status-cell-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.status-cell .approval-select {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  height: auto;
+  min-height: 28px;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  box-sizing: border-box;
+}
+.status-cell .approval-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,.2); }
+.stock-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+.stock-label { font-size: 0.7rem; color: #6b7280; font-weight: 600; min-width: 38px; }
+.stock-badge-lg {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ---- Actions ---- */
+.actions-cell { white-space: nowrap; }
+.actions-cell .btn { border-radius: 6px; }
+@media (max-width: 768px) { .actions-cell .btn { display: inline-block; margin: 2px; } }
+
+/* ---- Add row button (below table) ---- */
+.store-add-row-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+#store-add-row-btn {
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.25);
+  transition: transform .1s ease, box-shadow .15s ease;
+}
+#store-add-row-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+/* ---- Pagination: attractive, professional ---- */
+.store-pagination {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+.store-pagination .pagination-info {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+.store-pagination .page-link {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+.store-pagination .page-link.prev-next {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+  color: #fff;
+  border-color: #1a334d;
+  box-shadow: 0 2px 4px rgba(30,58,95,.25);
+}
+.store-pagination .page-link.prev-next:hover {
+  background: linear-gradient(135deg, #2d5a87 0%, #3d6a97 100%);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(30,58,95,.3);
+}
+.store-pagination .page-link.page-num {
+  background: #fff;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.store-pagination .page-link.page-num:hover {
+  background: #e8eef5;
+  color: #1e3a5f;
+  border-color: #c5d4e8;
+}
+.store-pagination .page-link.page-num.current {
+  background: linear-gradient(135deg, #2d4a6f 0%, #3d6a97 100%);
+  color: #fff;
+  border-color: #1e3a5f;
+  box-shadow: 0 2px 4px rgba(30,58,95,.25);
+}
+.store-pagination .page-link.disabled,
+.store-pagination .page-link.disabled:hover {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.store-pagination .pagination-ellipsis {
+  padding: 0 0.25rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<script>document.getElementById('pageLoader')&&document.getElementById('pageLoader').classList.add('loaded');</script>
+<input type="hidden" name="csrfmiddlewaretoken" id="store-ajax-csrf" value="{{ csrf_token }}">
+<div class="container-fluid py-4 store-page">
+    <div class="card">
+        <div class="card-header store-list-header">
+            <h4 class="mb-0 text-white store-list-title">Store Management System</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">Comprehensive view of your product store.</p>
+            <div class="row mb-3 store-stats">
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-dark text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Products" data-card-key="total_products" data-card-count="{{ total_products|default:0|intcomma }}" data-card-href="{% url 'store:list' %}" data-card-desc="Total number of store records.">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Total Products</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_products|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-success text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Quantity In" data-card-key="total_quantity_in" data-card-count="{{ total_quantity_in|default:0|intcomma }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of all quantity received into store.">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Total Quantity In</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_quantity_in|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-danger text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Quantity Out" data-card-key="total_quantity_out" data-card-count="{{ total_quantity_out|default:0|intcomma }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of all quantity taken out of store.">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Total Quantity Out</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_quantity_out|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3 store-stats pt-3 justify-content-center">
+                <div class="col-12 col-md-6 col-lg-4 mb-2 mb-md-0">
+                    <div class="card text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Grand Total Balance" data-card-key="total_balance" data-card-format="currency" data-currency-symbol="{{ user_currency_symbol|default:'₦' }}" data-card-count="{{ total_balance|default:0 }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of all store balance (Quantity In × Unit Price) across all records." style="background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Grand Total Balance</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ user_currency_symbol|default:"₦" }}{{ total_balance|floatformat:2|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Stock Value Remaining" data-card-key="total_stock_value_remaining" data-card-format="currency" data-currency-symbol="{{ user_currency_symbol|default:'₦' }}" data-card-count="{{ total_stock_value_remaining|default:0 }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of Rem. Qty × Unit Price across all records (value of remaining stock)." style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);">
+                        <div class="card-body py-3">
+                            <p class="text-white-50 small mb-0">Stock Value Remaining</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ user_currency_symbol|default:"₦" }}{{ total_stock_value_remaining|floatformat:2|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-muted small mb-2">Approval status</p>
+            <div class="row mb-4 store-stats">
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-secondary text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Draft" data-card-key="approval_counts.draft" data-card-count="{{ approval_counts.draft|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?approval_status=draft" data-card-desc="Records not yet submitted for approval.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Draft</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.draft|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-warning text-dark dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Pending" data-card-key="approval_counts.pending" data-card-count="{{ approval_counts.pending|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?approval_status=pending" data-card-desc="Records awaiting approval.">
+                        <div class="card-body py-2">
+                            <p class="small mb-0 opacity-75">Pending</p>
+                            <h4 class="mb-0 text-dark fw-bold dashboard-card-count">{{ approval_counts.pending|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-success text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Approved" data-card-key="approval_counts.approved" data-card-count="{{ approval_counts.approved|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?approval_status=approved" data-card-desc="Records that have been approved.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Approved</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.approved|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card bg-danger text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Rejected" data-card-key="approval_counts.rejected" data-card-count="{{ approval_counts.rejected|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?approval_status=rejected" data-card-desc="Records that were rejected.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Rejected</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.rejected|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-muted small mb-2">Stock status</p>
+            <div class="row mb-4 store-stats">
+                <div class="col-6 col-md-3 mb-2 mb-md-0">
+                    <div class="card text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Waste" data-card-key="total_waste" data-card-count="{{ total_waste|default:0|intcomma }}" data-card-href="{% url 'store:waste_list' %}" data-card-desc="Total waste recorded across all store items." style="background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Total Waste</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_waste|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            <div class="row mb-4 store-stats">
+                <div class="col-6 col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-success text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="In Stock" data-card-key="stock_counts.in_stock" data-card-count="{{ stock_counts.in_stock|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?stock_status=in_stock" data-card-desc="Records with balance above low-stock threshold.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">In Stock</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ stock_counts.in_stock|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-warning text-dark dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Low Stock" data-card-key="stock_counts.low_stock" data-card-count="{{ stock_counts.low_stock|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?stock_status=low_stock" data-card-desc="Records with balance at or below low-stock threshold.">
+                        <div class="card-body py-2">
+                            <p class="small mb-0 opacity-75">Low Stock</p>
+                            <h4 class="mb-0 text-dark fw-bold dashboard-card-count">{{ stock_counts.low_stock|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4 mb-2 mb-md-0">
+                    <div class="card bg-danger text-white dashboard-card cursor-pointer mb-0" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Out of Stock" data-card-key="stock_counts.out_of_stock" data-card-count="{{ stock_counts.out_of_stock|default:0|intcomma }}" data-card-href="{% url 'store:list' %}?stock_status=out_of_stock" data-card-desc="Records with zero or negative balance.">
+                        <div class="card-body py-2">
+                            <p class="text-white-50 small mb-0">Out of Stock</p>
+                            <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ stock_counts.out_of_stock|default:0|intcomma }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <form method="get" class="mb-4 row g-2 store-filters">
+                <div class="col-auto">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Search product, category, vendor, location, remark, S/N… (any text)" value="{{ search }}" title="Type one or more words; matches any part of product name, category, company, vendor, location, phone, remark, or transaction ID.">
+                </div>
+                <div class="col-auto">
+                    <select name="approval_status" class="form-select form-select-sm">
+                        <option value="">All approval</option>
+                        {% for v, l in approval_choices %}<option value="{{ v }}" {% if approval_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="stock_status" class="form-select form-select-sm">
+                        <option value="">All stock</option>
+                        {% for v, l in stock_choices %}<option value="{{ v }}" {% if stock_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="workflow_status" class="form-select form-select-sm">
+                        <option value="">All workflow</option>
+                        {% for v, l in workflow_choices %}<option value="{{ v }}" {% if workflow_status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}" placeholder="From">
+                </div>
+                <div class="col-auto">
+                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}" placeholder="To">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Filter</button>
+                </div>
+                {% if perms.store.print_store or perms.store.download_store %}
+                <div class="col-auto ms-auto d-flex gap-1">
+                    {% if perms.store.print_store %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#storePrintDownloadModal" title="Print store table (A4, with date range)">
+                        <i class="fas fa-print me-1"></i>Print
+                    </button>
+                    {% endif %}
+                    {% if perms.store.download_store %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#storePrintDownloadModal" title="Open print view to print or save as PDF (A4, with date range)">
+                        <i class="fas fa-file-pdf me-1"></i>Download
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </form>
+
+            <div class="store-table-wrap">
+                <table class="store-table table table-sm">
+                    <thead>
+                        <tr>
+                            <th>S/N</th>
+                            <th>Product</th>
+                            <th>Opening Stock</th>
+                            <th>Received (Input)</th>
+                            <th>Output</th>
+                            <th>Waste</th>
+                            <th>Total Stock</th>
+                            <th>Date</th>
+                            <th>Created By</th>
+                            <th>Remark</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="store-tbody">
+                        {% for obj in object_list %}
+                        <tr data-pk="{{ obj.pk }}" data-store-uuid="{{ obj.uuid|default:'' }}">
+                            <td class="text-center"><span class="store-sn">{{ obj.sn }}</span></td>
+                            <td>
+                                <span class="editable-cell" {% if perms.store.change_store %}contenteditable="true"{% endif %} data-field="product_name" data-placeholder="Product name">{{ obj.product_name }}</span>
+                                <div class="small text-muted">
+                                    {{ obj.category|default:"" }} &middot; {{ obj.stock_location|default:"" }}
+                                </div>
+                            </td>
+                            <td class="text-end opening-stock-cell">
+                                <span class="editable-cell" {% if perms.store.change_store %}contenteditable="true"{% endif %} data-field="opening_stock">
+                                    {% firstof obj.opening_stock_input obj.opening_stock %}
+                                </span>
+                            </td>
+                            <td class="text-end qty-in">
+                                <span class="editable-cell" {% if perms.store.change_store %}contenteditable="true"{% endif %} data-field="quantity_in">
+                                    {% if obj.quantity_in_input %}{{ obj.quantity_in_input }}{% else %}{{ obj.quantity_in|format_number }}{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-end qty-out">
+                                <span class="editable-cell" {% if perms.store.change_store %}contenteditable="true"{% endif %} data-field="quantity_out">
+                                    {% if obj.quantity_out_input %}{{ obj.quantity_out_input }}{% else %}{{ obj.quantity_out|format_number }}{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-end qty-waste">
+                                <span class="editable-cell" {% if perms.store.change_store %}contenteditable="true"{% endif %} data-field="waste">
+                                    {% if obj.waste_input %}{{ obj.waste_input }}{% elif obj.waste > 0 %}{{ obj.waste|format_number }}{% else %}—{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-end balance-qty-cell {% if obj.balance_quantity < 0 %}negative{% endif %}">
+                                {% firstof obj.opening_stock_input obj.balance_quantity %}
+                            </td>
+                            <td>
+                                {% if perms.store.change_store %}
+                                <input type="date" class="form-control form-control-sm editable-date" value="{{ obj.date|date:'Y-m-d' }}" data-field="date" data-pk="{{ obj.pk }}" style="width:140px;">
+                                {% else %}
+                                <span>{{ obj.date|date:'Y-m-d'|default:"—" }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ obj.created_by.get_full_name|default:obj.created_by.email|default:"—" }}</td>
+                            <td data-remark-cell>
+                                <span class="editable-cell" {% if perms.store.change_store %}contenteditable="true"{% endif %} data-field="remark" data-placeholder="Add note…">{{ obj.remark|truncatewords:5 }}</span>
+                            </td>
+                            <td class="actions-cell">
+                                {% if perms.store.view_store %}
+                                <a href="{% url 'store:detail' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
+                                {% endif %}
+                                {% if perms.store.view_store %}
+                                <a href="{% url 'store:product_report' obj.pk %}" class="btn btn-sm btn-outline-info" title="Report"><i class="fas fa-chart-line"></i></a>
+                                {% endif %}
+                                {% if perms.store.change_store %}
+                                <a href="{% url 'store:update' obj.pk %}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
+                                {% endif %}
+                                {% if perms.store.delete_store %}
+                                <form method="post" action="{% url 'store:delete' obj.pk %}" class="d-inline store-delete-form" data-store-uuid="{{ obj.uuid|default:'' }}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger store-delete-btn" title="Delete"><i class="fas fa-trash"></i></button></form>
+                                {% endif %}
+                                {% if perms.store.print_store %}
+                                <a href="{% url 'store:print' obj.pk %}" class="btn btn-sm btn-outline-secondary" title="Print"><i class="fas fa-print"></i></a>
+                                {% endif %}
+                                {% if perms.store.download_store %}
+                                <a href="{% url 'store:print' obj.pk %}" class="btn btn-sm btn-outline-success" title="Download / PDF" target="_blank" rel="noopener"><i class="fas fa-file-download"></i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="empty-row-placeholder">
+                            <td colspan="11" class="text-center text-muted py-4">
+                                No store records found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="store-add-row-footer">
+                {% if perms.store.add_store %}
+                <label for="store-add-product-name" class="col-form-label col-form-label-sm">Product:</label>
+                <input type="text" id="store-add-product-name" class="form-control form-control-sm" placeholder="Product name" style="width:180px;">
+                <label for="store-add-opening-stock" class="col-form-label col-form-label-sm">Opening Stock:</label>
+                <input type="text" id="store-add-opening-stock" class="form-control form-control-sm" placeholder="e.g. 100" inputmode="decimal" style="width:120px;">
+                <button type="button" id="store-add-row-btn" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add row</button>
+                {% endif %}
+            </div>
+
+            <div id="store-pagination-wrap">
+            {% with base=pagination_base_query|default:"" %}
+            <nav class="store-pagination" aria-label="Store pagination">
+                <span class="pagination-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }})</span>
+                {% if page_obj.has_previous %}
+                <a class="page-link prev-next" href="?{% if base %}{{ base }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous page"><i class="fas fa-chevron-left me-1"></i>Previous</a>
+                {% else %}
+                <span class="page-link prev-next disabled" aria-disabled="true"><i class="fas fa-chevron-left me-1"></i>Previous</span>
+                {% endif %}
+                {% if page_obj.paginator.num_pages > 1 %}
+                {% for p in page_obj.paginator.page_range %}
+                  {% if p == page_obj.number %}
+                <span class="page-link page-num current" aria-current="page">{{ p }}</span>
+                  {% else %}
+                <a class="page-link page-num" href="?{% if base %}{{ base }}&{% endif %}page={{ p }}">{{ p }}</a>
+                  {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a class="page-link prev-next" href="?{% if base %}{{ base }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next page">Next<i class="fas fa-chevron-right ms-1"></i></a>
+                {% else %}
+                <span class="page-link prev-next disabled" aria-disabled="true">Next<i class="fas fa-chevron-right ms-1"></i></span>
+                {% endif %}
+            </nav>
+            {% endwith %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Print / Download store with date range -->
+<div class="modal fade" id="storePrintDownloadModal" tabindex="-1" aria-labelledby="storePrintDownloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="storePrintDownloadModalLabel"><i class="fas fa-print me-2"></i>Print or Download Store</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Choose the date range for the report. Table will include company details and logo, fit to A4 with text wrapping.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Date range</label>
+                    <select id="store-report-range-type" class="form-select form-select-sm">
+                        <option value="all">All records</option>
+                        <option value="day">Today</option>
+                        <option value="week">This week (Mon–Sun)</option>
+                        <option value="month">This month</option>
+                        <option value="quarter">This quarter</option>
+                        <option value="year">This year</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                </div>
+                <div id="store-report-period-date-wrap" class="mb-3" style="display:none;">
+                    <label class="form-label small">Date</label>
+                    <input type="date" id="store-report-period-date" class="form-control form-control-sm">
+                </div>
+                <div id="store-report-custom-range-wrap" class="mb-3 row g-2" style="display:none;">
+                    <div class="col-6">
+                        <label class="form-label small">From</label>
+                        <input type="date" id="store-report-date-from" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">To</label>
+                        <input type="date" id="store-report-date-to" class="form-control form-control-sm">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if perms.store.print_store %}
+                <a href="#" id="store-report-print-btn" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-print me-1"></i>Print</a>
+                {% endif %}
+                {% if perms.store.download_store %}
+                <a href="#" id="store-report-pdf-btn" class="btn btn-primary" target="_blank" rel="noopener noreferrer"><i class="fas fa-file-pdf me-1"></i>Print / Save as PDF</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for dashboard cards (same as dashboard page) -->
+<div class="modal fade" id="dashboardCardModal" tabindex="-1" aria-labelledby="dashboardCardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dashboardCardModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2"><strong class="display-6 text-primary" id="dashboardCardModalCount"></strong></p>
+                <p class="text-muted small mb-0" id="dashboardCardModalDesc"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="dashboardCardModalLink"><i class="fas fa-list me-1"></i>View in list</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-card.cursor-pointer { cursor: pointer; }
+.dashboard-card:hover { opacity: 0.92; }
+.dashboard-card .dashboard-card-count { font-size: 1.25rem; line-height: 1.3; min-height: 1.5rem; visibility: visible; opacity: 1; }
+</style>
+
+<script>
+(function() {
+    var modal = document.getElementById('dashboardCardModal');
+    var listUrl = "{% url 'store:list' %}";
+    var dashboardStatsUrl = "{% url 'store:dashboard_stats_json' %}";
+    var titleToApprovalParam = { 'Draft': 'draft', 'Pending': 'pending', 'Approved': 'approved', 'Rejected': 'rejected' };
+    var titleToStockParam = { 'In Stock': 'in_stock', 'Low Stock': 'low_stock', 'Out of Stock': 'out_of_stock' };
+    function buildViewListHref(title) {
+        var param = titleToApprovalParam[title];
+        if (param) return listUrl + (listUrl.indexOf('?') >= 0 ? '&' : '?') + 'approval_status=' + encodeURIComponent(param);
+        var stockParam = titleToStockParam[title];
+        if (stockParam) return listUrl + (listUrl.indexOf('?') >= 0 ? '&' : '?') + 'stock_status=' + encodeURIComponent(stockParam);
+        return listUrl;
+    }
+    function getCountFromStats(stats, key) {
+        if (!stats || !key) return '0';
+        var parts = key.split('.');
+        var v = stats;
+        for (var i = 0; i < parts.length && v != null; i++) v = v[parts[i]];
+        return v != null ? v : (key === 'total_balance' ? 0 : '0');
+    }
+    function formatCardDisplay(card, value) {
+        if (card.getAttribute('data-card-format') === 'currency') {
+            var sym = card.getAttribute('data-currency-symbol') || '';
+            var n = parseFloat(String(value).replace(/,/g, ''));
+            return (sym + (isNaN(n) ? '0.00' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })));
+        }
+        return (typeof window.formatCount === 'function' ? window.formatCount(value) : value);
+    }
+    window.formatCurrency = function(num, symbol) {
+        var n = parseFloat(String(num).replace(/,/g, ''));
+        var s = symbol || '';
+        return s + (isNaN(n) ? '0.00' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    };
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function(e) {
+            var trigger = e.relatedTarget;
+            if (!trigger || !trigger.closest) return;
+            var card = trigger.closest('.dashboard-card');
+            if (!card) return;
+            var title = card.getAttribute('data-card-title') || '';
+            var count = card.getAttribute('data-card-count') || '0';
+            var desc = card.getAttribute('data-card-desc') || '';
+            document.getElementById('dashboardCardModalLabel').textContent = title;
+            document.getElementById('dashboardCardModalCount').textContent = formatCardDisplay(card, count);
+            document.getElementById('dashboardCardModalDesc').textContent = desc;
+            var linkEl = document.getElementById('dashboardCardModalLink');
+            if (linkEl) linkEl.setAttribute('href', buildViewListHref(title));
+            fetch(dashboardStatsUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(stats) {
+                    if (stats && card.getAttribute('data-card-key')) {
+                        var freshCount = getCountFromStats(stats, card.getAttribute('data-card-key'));
+                        var formatted = formatCardDisplay(card, freshCount);
+                        document.getElementById('dashboardCardModalCount').textContent = formatted;
+                        card.setAttribute('data-card-count', freshCount);
+                        var countEl = card.querySelector('.dashboard-card-count');
+                        if (countEl) countEl.textContent = formatted;
+                    }
+                })
+                .catch(function() {});
+        });
+    }
+    window.refreshDashboardCards = function() {
+        fetch(dashboardStatsUrl, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(stats) {
+                if (!stats) return;
+                if (stats.currency_symbol) {
+                    document.querySelectorAll('.dashboard-card[data-card-format="currency"]').forEach(function(c) {
+                        c.setAttribute('data-currency-symbol', stats.currency_symbol);
+                    });
+                }
+                document.querySelectorAll('.dashboard-card[data-card-key]').forEach(function(card) {
+                    var key = card.getAttribute('data-card-key');
+                    var count = getCountFromStats(stats, key);
+                    var formatted = formatCardDisplay(card, count);
+                    card.setAttribute('data-card-count', count);
+                    var countEl = card.querySelector('.dashboard-card-count');
+                    if (countEl) countEl.textContent = formatted;
+                });
+            })
+            .catch(function() {});
+    };
+
+    if (typeof window.refreshDashboardCards === 'function') {
+        setTimeout(window.refreshDashboardCards, 1500);
+        setInterval(window.refreshDashboardCards, 5000);
+    }
+})();
+</script>
+
+<script>
+(function() {
+    var listPrintUrl = "{% url 'store:list_print' %}";
+    var modal = document.getElementById('storePrintDownloadModal');
+    var rangeSelect = document.getElementById('store-report-range-type');
+    var periodWrap = document.getElementById('store-report-period-date-wrap');
+    var periodInput = document.getElementById('store-report-period-date');
+    var customWrap = document.getElementById('store-report-custom-range-wrap');
+    var dateFromInput = document.getElementById('store-report-date-from');
+    var dateToInput = document.getElementById('store-report-date-to');
+    var printBtn = document.getElementById('store-report-print-btn');
+    var pdfBtn = document.getElementById('store-report-pdf-btn');
+
+    function todayStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function updateRangeVisibility() {
+        var v = rangeSelect ? rangeSelect.value : 'all';
+        if (periodWrap) periodWrap.style.display = (v && v !== 'all' && v !== 'custom') ? 'block' : 'none';
+        if (customWrap) customWrap.style.display = (v === 'custom') ? 'flex' : 'none';
+        if (v === 'day' || v === 'week' || v === 'month' || v === 'quarter' || v === 'year') {
+            if (periodInput && !periodInput.value) periodInput.value = todayStr();
+        }
+    }
+    function buildQueryString() {
+        var v = rangeSelect ? rangeSelect.value : 'all';
+        var params = new URLSearchParams();
+        params.set('range_type', v);
+        if (v === 'custom') {
+            if (dateFromInput && dateFromInput.value) params.set('date_from', dateFromInput.value);
+            if (dateToInput && dateToInput.value) params.set('date_to', dateToInput.value);
+        } else if (v && v !== 'all' && periodInput && periodInput.value) {
+            params.set('period_date', periodInput.value);
+        }
+        return params.toString();
+    }
+    function updatePrintDownloadUrls() {
+        var qs = buildQueryString();
+        var printHref = listPrintUrl + (qs ? '?' + qs : '');
+        if (printBtn) { printBtn.href = printHref; }
+        if (pdfBtn) { pdfBtn.href = printHref; }
+    }
+    if (rangeSelect) rangeSelect.addEventListener('change', function() { updateRangeVisibility(); updatePrintDownloadUrls(); });
+    if (periodInput) periodInput.addEventListener('change', updatePrintDownloadUrls);
+    if (dateFromInput) dateFromInput.addEventListener('change', updatePrintDownloadUrls);
+    if (dateToInput) dateToInput.addEventListener('change', updatePrintDownloadUrls);
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function() {
+            updateRangeVisibility();
+            updatePrintDownloadUrls();
+        });
+    }
+    updateRangeVisibility();
+    updatePrintDownloadUrls();
+})();
+</script>
+
+<script>
+(function() {
+    var tbody = document.getElementById('store-tbody');
+    var wrap = document.getElementById('store-pagination-wrap');
+    if (!tbody || !wrap) return;
+
+    function loadPage(url, pushState) {
+        if (pushState === undefined) pushState = true;
+        fetch(url, {
+            method: 'GET',
+            headers: { 'X-Pagination-Ajax': '1', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function(r) {
+            if (!r.ok) throw new Error('Load failed');
+            return r.json();
+        }).then(function(data) {
+            if (data.rows_html) {
+                tbody.innerHTML = data.rows_html;
+                if (data.pagination_html) {
+                    wrap.innerHTML = data.pagination_html;
+                    bindPaginationLinks();
+                }
+                if (pushState && window.history && window.history.pushState) {
+                    window.history.pushState({url: url}, '', url);
+                }
+                rebindEditableCells();
+                rebindDeleteButtons();
+                rebindApprovalSelects();
+            }
+        }).catch(function(e) {
+            console.error('Page load failed', e);
+        });
+    }
+
+    function bindPaginationLinks() {
+        var links = wrap.querySelectorAll('a[href]');
+        links.forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                loadPage(link.href);
+            });
+        });
+    }
+
+    bindPaginationLinks();
+    
+    function rebindEditableCells() {
+        var cells = tbody.querySelectorAll('.editable-cell[contenteditable="true"]');
+        cells.forEach(function(cell) {
+            cell.removeEventListener('blur', handleCellBlur);
+            cell.addEventListener('blur', handleCellBlur);
+        });
+    }
+
+    function rebindDeleteButtons() {
+        var btns = tbody.querySelectorAll('.store-delete-btn');
+        btns.forEach(function(btn) {
+            btn.removeEventListener('click', handleDeleteClick);
+            btn.addEventListener('click', handleDeleteClick);
+        });
+    }
+
+    function rebindApprovalSelects() {
+        var selects = tbody.querySelectorAll('.approval-select');
+        selects.forEach(function(sel) {
+            sel.removeEventListener('change', handleApprovalChange);
+            sel.addEventListener('change', handleApprovalChange);
+        });
+    }
+
+    function rebindEditableDates() {
+        var inputs = tbody.querySelectorAll('.editable-date');
+        inputs.forEach(function(input) {
+            input.removeEventListener('change', handleDateChange);
+            input.addEventListener('change', handleDateChange);
+        });
+    }
+
+    function handleDateChange(e) {
+        var input = e.target;
+        var pk = input.getAttribute('data-pk');
+        var field = input.getAttribute('data-field');
+        var value = input.value;
+        if (!pk || !field) return;
+        var csrfToken = document.getElementById('store-ajax-csrf');
+        if (!csrfToken) return;
+        var formData = new FormData();
+        formData.append('id', pk);
+        formData.append('field', field);
+        formData.append('value', value);
+        fetch("{% url 'store:ajax_update_field' %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken.value },
+            credentials: 'same-origin'
+        }).then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) {
+              if (data && data.success) {
+                  updateRowFromResponse(input.closest('tr'), data);
+              }
+          })
+          .catch(function() {});
+    }
+
+    function handleCellBlur(e) {
+        var cell = e.target;
+        var row = cell.closest('tr');
+        if (!row) return;
+        var pk = row.getAttribute('data-pk');
+        var field = cell.getAttribute('data-field');
+        var value = cell.textContent.trim();
+        if (!pk || !field) return;
+        
+        var csrfToken = document.getElementById('store-ajax-csrf');
+        if (!csrfToken) return;
+        
+        var formData = new FormData();
+        formData.append('id', pk);
+        formData.append('field', field);
+        formData.append('value', value);
+        
+        fetch("{% url 'store:ajax_update_field' %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken.value },
+            credentials: 'same-origin'
+        }).then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) {
+              if (data && data.success) {
+                  updateRowFromResponse(row, data);
+              }
+          })
+          .catch(function() {});
+    }
+
+    function handleDeleteClick(e) {
+        e.preventDefault();
+        var form = e.target.closest('form');
+        if (!form) return;
+        var pk = form.closest('tr').getAttribute('data-pk');
+        var csrfToken = document.getElementById('store-ajax-csrf');
+        if (!csrfToken) return;
+        
+        if (!confirm('Delete this record?')) return;
+        
+        var formData = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken.value },
+            credentials: 'same-origin'
+        }).then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) {
+              if (data && data.success) {
+                  form.closest('tr').remove();
+                  if (window.refreshDashboardCards) window.refreshDashboardCards();
+              }
+          })
+          .catch(function() {});
+    }
+
+    function handleApprovalChange(e) {
+        var sel = e.target;
+        var row = sel.closest('tr');
+        if (!row) return;
+        var pk = row.getAttribute('data-pk');
+        var value = sel.value;
+        var csrfToken = document.getElementById('store-ajax-csrf');
+        if (!csrfToken) return;
+        
+        var formData = new FormData();
+        formData.append('id', pk);
+        formData.append('approval_status', value);
+        
+        fetch("{% url 'store:ajax_status_update' %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken.value },
+            credentials: 'same-origin'
+        }).then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) {
+              if (data && data.success) {
+                  var feedback = sel.nextElementSibling;
+                  if (feedback && feedback.classList.contains('approval-saved-feedback')) {
+                      feedback.textContent = 'Saved!';
+                      feedback.style.display = 'inline';
+                      setTimeout(function() { feedback.style.display = 'none'; }, 2000);
+                  }
+              }
+          })
+          .catch(function() {});
+    }
+
+    function updateRowFromResponse(row, data) {
+        var qtyInCell = row.querySelector('[data-field="quantity_in"]');
+        var qtyOutCell = row.querySelector('[data-field="quantity_out"]');
+        var openingStockCell = row.querySelector('[data-field="opening_stock"]');
+        var wasteCell = row.querySelector('[data-field="waste"]');
+        if (qtyInCell && data.quantity_in_input) {
+            qtyInCell.textContent = data.quantity_in_input;
+        }
+        if (qtyOutCell && data.quantity_out_input) {
+            qtyOutCell.textContent = data.quantity_out_input;
+        }
+        if (openingStockCell) {
+            openingStockCell.textContent = data.opening_stock_input || (data.opening_stock !== undefined ? data.opening_stock : openingStockCell.textContent);
+        }
+        if (wasteCell && data.waste !== undefined) {
+            var wasteRaw = data.waste_input && String(data.waste_input).trim() !== '';
+            wasteCell.textContent = wasteRaw
+                ? String(data.waste_input)
+                : (parseFloat(data.waste) > 0 ? parseFloat(data.waste).toFixed(2) : '—');
+        }
+        var balanceCell = row.querySelector('.balance-qty-cell');
+        if (balanceCell && data.balance_quantity !== undefined) {
+            var osInput = data.opening_stock_input || '';
+            var osTextPart = osInput.replace(/[\d.,\s-]+/g, '').trim();
+            if (osTextPart) {
+                balanceCell.textContent = data.balance_quantity + ' ' + osTextPart;
+            } else {
+                balanceCell.textContent = data.balance_quantity;
+            }
+            if (parseFloat(data.balance_quantity) < 0) {
+                balanceCell.classList.add('negative');
+            } else {
+                balanceCell.classList.remove('negative');
+            }
+        }
+        var stockBadge = row.querySelector('[data-role="stock-badge"]');
+        if (stockBadge && data.stock_status) {
+            stockBadge.textContent = data.stock_status_display;
+            stockBadge.className = 'badge badge-status stock-badge-lg stock-' + data.stock_status;
+        }
+        var remarkCell = row.querySelector('[data-field="remark"]');
+        if (remarkCell && data.remark !== undefined) {
+            remarkCell.textContent = data.remark || '';
+        }
+        var dateInput = row.querySelector('.editable-date');
+        if (dateInput && data.date !== undefined) {
+            dateInput.value = data.date || '';
+        }
+    }
+
+    rebindEditableCells();
+    rebindDeleteButtons();
+    rebindApprovalSelects();
+    rebindEditableDates();
+
+    var addBtn = document.getElementById('store-add-row-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function() {
+            var csrfToken = document.getElementById('store-ajax-csrf');
+            if (!csrfToken) return;
+            
+            addBtn.disabled = true;
+            addBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+            
+            var productNameInput = document.getElementById('store-add-product-name');
+            var openingStockInput = document.getElementById('store-add-opening-stock');
+            var productName = productNameInput ? productNameInput.value.trim() : '';
+            var openingStock = openingStockInput ? (openingStockInput.value.trim() || '0') : '0';
+            if (!productName) {
+                productName = 'New Product';
+            }
+            
+            var formData = new FormData();
+            formData.append('product_name', productName);
+            formData.append('opening_stock', openingStock);
+            formData.append('quantity_in', '0');
+            formData.append('quantity_out', '0');
+            formData.append('unit_price', '0');
+            formData.append('low_stock_threshold', '10');
+            var today = new Date().toISOString().split('T')[0];
+            formData.append('date', today);
+            
+            if (productNameInput) productNameInput.value = '';
+            if (openingStockInput) openingStockInput.value = '';
+            
+            fetch("{% url 'store:ajax_create' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken.value },
+                credentials: 'same-origin'
+            }).then(function(r) { return r.ok ? r.json() : null; })
+              .then(function(data) {
+                  if (data && data.success) {
+                      var newRow = buildRowHtml(data);
+                      var emptyRow = tbody.querySelector('tr[data-empty-row]');
+                      if (emptyRow) {
+                          emptyRow.remove();
+                      }
+                      tbody.appendChild(newRow);
+                      rebindEditableCells();
+                      rebindDeleteButtons();
+                      rebindApprovalSelects();
+                      rebindEditableDates();
+                      if (window.refreshDashboardCards) window.refreshDashboardCards();
+                  }
+                  addBtn.disabled = false;
+                  addBtn.innerHTML = '<i class="fas fa-plus me-2"></i>Add row';
+              })
+              .catch(function() {
+                  addBtn.disabled = false;
+                  addBtn.innerHTML = '<i class="fas fa-plus me-2"></i>Add row';
+              });
+        });
+    }
+
+    function buildRowHtml(data) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-pk', data.id);
+        tr.setAttribute('data-store-uuid', data.uuid || '');
+        tr.setAttribute('data-row-type', 'new');
+        
+        var csrfTokenVal = document.getElementById('store-ajax-csrf').value;
+        var detailUrl = "{% url 'store:detail' 0 %}".replace('/0/', '/' + data.id + '/');
+        var printUrl = "{% url 'store:print' 0 %}".replace('/0/', '/' + data.id + '/');
+        var reportUrl = "{% url 'store:product_report' 0 %}".replace('/0/', '/' + data.id + '/');
+        var deleteUrl = "{% url 'store:delete' 0 %}".replace('/0/', '/' + data.id + '/');
+        
+        var osRaw = data.opening_stock;
+        var osNum = parseFloat(osRaw);
+        var openingStock = !isNaN(osNum) ? osNum.toFixed(2) : '0.00';
+        var osDisplay = data.opening_stock_input || openingStock;
+        
+        var isNegative = parseFloat(data.balance_quantity || 0) < 0;
+        var dateVal = data.date || '';
+        
+        var osCell = '<td class="text-end opening-stock-cell"><span class="editable-cell" contenteditable="true" data-field="opening_stock">' + escHtml(osDisplay) + '</span></td>';
+        
+        var osInput = data.opening_stock_input || '';
+        var osTextPart = osInput.replace(/[\d.,\s-]+/g, '').trim();
+        var totalDisplay = data.balance_quantity;
+        if (osTextPart) {
+            totalDisplay = totalDisplay + ' ' + osTextPart;
+        }
+        
+        var wasteVal = (data.waste_input && String(data.waste_input).trim() !== '')
+            ? String(data.waste_input)
+            : (data.waste && parseFloat(data.waste) > 0 ? parseFloat(data.waste).toFixed(2) : '—');
+        var wasteCell = '<td class="text-end qty-waste"><span class="editable-cell" contenteditable="true" data-field="waste">' + wasteVal + '</span></td>';
+        
+        tr.innerHTML = [
+            '<td class="text-center"><span class="store-sn">' + escHtml(String(data.sn || '')) + '</span></td>',
+            '<td>',
+            '  <span class="editable-cell" contenteditable="true" data-field="product_name" data-placeholder="Product name">' + escHtml(String(data.product_name || '')) + '</span>',
+            '  <div class="small text-muted">' + escHtml(String(data.category || '')) + ' &middot; ' + escHtml(String(data.stock_location || '')) + '</div>',
+            '</td>',
+            osCell,
+            '<td class="text-end qty-in"><span class="editable-cell" contenteditable="true" data-field="quantity_in">' + escHtml(String(data.quantity_in_input || data.quantity_in || '0')) + '</span></td>',
+            '<td class="text-end qty-out"><span class="editable-cell" contenteditable="true" data-field="quantity_out">' + escHtml(String(data.quantity_out_input || data.quantity_out || '0')) + '</span></td>',
+            wasteCell,
+            '<td class="text-end balance-qty-cell' + (isNegative ? ' negative' : '') + '">' + escHtml(String(totalDisplay)) + '</td>',
+            '<td><input type="date" class="form-control form-control-sm editable-date" value="' + dateVal + '" data-field="date" data-pk="' + data.id + '" style="width:140px;"></td>',
+            '<td>' + escHtml(String(data.created_by_display || '—')) + '</td>',
+            '<td data-remark-cell><span class="editable-cell" contenteditable="true" data-field="remark" data-placeholder="Add note…">' + escHtml(String(data.remark || '')) + '</span></td>',
+            '<td class="actions-cell">',
+            '  <a href="' + detailUrl + '" class="btn btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>',
+            '  <a href="' + reportUrl + '" class="btn btn-sm btn-outline-info" title="Report"><i class="fas fa-chart-line"></i></a>',
+            '  <form method="post" action="' + deleteUrl + '" class="d-inline store-delete-form"><input type="hidden" name="csrfmiddlewaretoken" value="' + csrfTokenVal + '"><button type="submit" class="btn btn-sm btn-outline-danger store-delete-btn" title="Delete"><i class="fas fa-trash"></i></button></form>',
+            '  <a href="' + printUrl + '" class="btn btn-sm btn-outline-secondary" title="Print"><i class="fas fa-print"></i></a>',
+            '</td>'
+        ].join('');
+        
+        return tr;
+    }
+
+    function escHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+})();
+</script>
+{% endblock %}

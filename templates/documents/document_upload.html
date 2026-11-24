@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load document_tags %}
+
+{% block title %}Upload Document - Document Extraction{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Fix modal z-index to be above sidebar */
+    .modal {
+        z-index: 1060 !important;
+    }
+    .modal-backdrop {
+        z-index: 1055 !important;
+    }
+    .modal-dialog {
+        z-index: 1061 !important;
+    }
+    
+    .form-select, .form-control {
+        border: 2px solid #dee2e6 !important;
+        transition: all 0.2s ease;
+    }
+    .form-select:focus, .form-control:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+        outline: none;
+    }
+    .form-select:hover, .form-control:hover {
+        border-color: #667eea !important;
+    }
+    .form-label {
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .drop-zone-active {
+        background-color: rgba(102, 126, 234, 0.1) !important;
+        border-color: #667eea !important;
+    }
+    .file-preview-item {
+        transition: all 0.2s ease;
+    }
+    .file-preview-item:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <h2 class="fw-bold text-dark mb-1">Upload Documents</h2>
+        <p class="text-muted mb-0">Upload documents for extraction and analysis. Supports PDF, Word, Excel, and images.</p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Select Files</label>
+                            <div class="border border-2 border-dashed rounded-3 p-5 text-center bg-light" id="dropZone">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <p class="mb-2 text-muted">Drag and drop files here, or</p>
+                                <label class="btn btn-primary mb-0">
+                                    <i class="fas fa-folder-open me-2"></i>Browse Files
+                                    <input type="file" name="file" id="fileInput" class="d-none" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.gif,.webp">
+                                </label>
+                                <p class="small text-muted mt-3 mb-0">
+                                    Supported formats: PDF, Word (.doc, .docx), Excel (.xls, .xlsx, .xlsm), Images (jpg, png, gif, tiff, bmp, webp)
+                                </p>
+                            </div>
+                            <div id="fileList" class="mt-3"></div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Document Type</label>
+                                <select name="document_type" class="form-select" style="border: 2px solid #dee2e6;">
+                                    <option value="">Select type (optional)</option>
+                                    <option value="invoice">Invoice</option>
+                                    <option value="receipt">Receipt</option>
+                                    <option value="tax_form">Tax Form</option>
+                                    <option value="bank_statement">Bank Statement</option>
+                                    <option value="accounting_statement">Accounting Statement</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <div class="form-text">Auto-detected if not selected</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Title</label>
+                                <input type="text" name="title" class="form-control" placeholder="Enter title (optional)" style="border: 2px solid #dee2e6;">
+                                <div class="form-text">Auto-generated from filename if empty</div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Period Month</label>
+                                <select name="period_month" class="form-select" style="border: 2px solid #dee2e6;">
+                                    <option value="">Select month (optional)</option>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Period Year</label>
+                                <select name="period_year" class="form-select" style="border: 2px solid #dee2e6;">
+                                    <option value="">Select year (optional)</option>
+                                    {% for y in years %}
+                                    <option value="{{ y }}">{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tags</label>
+                                <input type="text" name="tags" class="form-control" placeholder="e.g., invoice, 2024" style="border: 2px solid #dee2e6;">
+                                <div class="form-text">Comma-separated</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Enter description (optional)" style="border: 2px solid #dee2e6;"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'documents:list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                                <i class="fas fa-upload me-2"></i>Upload & Process
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body p-4">
+                    <h5 class="mb-3"><i class="fas fa-info-circle me-2 text-info"></i>What happens next?</h5>
+                    <ol class="mb-0 text-muted">
+                        <li class="mb-2">Your document is uploaded and stored securely</li>
+                        <li class="mb-2">The system extracts text and data using OCR and AI</li>
+                        <li class="mb-2">Financial transactions are automatically identified</li>
+                        <li class="mb-2">Tax calculations are computed based on the content</li>
+                        <li>You can edit extracted tables and re-process if needed</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.add('drop-zone-active');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.remove('drop-zone-active');
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        fileInput.files = files;
+        updateFileList(files);
+    });
+
+    fileInput.addEventListener('change', function() {
+        updateFileList(this.files);
+    });
+
+    function updateFileList(files) {
+        fileList.innerHTML = '';
+        uploadBtn.disabled = files.length === 0;
+        
+        if (files.length > 0) {
+            const list = document.createElement('div');
+            list.className = 'list-group';
+            
+            Array.from(files).forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item file-preview-item d-flex justify-content-between align-items-center';
+                
+                const iconClass = getFileIcon(file.name);
+                const fileSize = formatFileSize(file.size);
+                
+                item.innerHTML = `
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fas ${iconClass} text-muted fs-4"></i>
+                        <div>
+                            <div class="fw-medium">${escapeHtml(file.name)}</div>
+                            <small class="text-muted">${fileSize}</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-file" data-index="${index}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                list.appendChild(item);
+            });
+            
+            fileList.appendChild(list);
+            
+            document.querySelectorAll('.remove-file').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    removeFile(index);
+                });
+            });
+        }
+    }
+
+    function removeFile(index) {
+        const dt = new DataTransfer();
+        const files = fileInput.files;
+        
+        Array.from(files).forEach((file, i) => {
+            if (i !== index) {
+                dt.items.add(file);
+            }
+        });
+        
+        fileInput.files = dt.files;
+        updateFileList(fileInput.files);
+    }
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+            'pdf': 'fa-file-pdf text-danger',
+            'doc': 'fa-file-word text-primary',
+            'docx': 'fa-file-word text-primary',
+            'xls': 'fa-file-excel text-success',
+            'xlsx': 'fa-file-excel text-success',
+            'xlsm': 'fa-file-excel text-success',
+            'csv': 'fa-file-csv text-info',
+            'jpg': 'fa-file-image text-warning',
+            'jpeg': 'fa-file-image text-warning',
+            'png': 'fa-file-image text-warning',
+            'gif': 'fa-file-image text-warning',
+            'tiff': 'fa-file-image text-warning',
+            'tif': 'fa-file-image text-warning',
+            'bmp': 'fa-file-image text-warning',
+            'webp': 'fa-file-image text-warning',
+        };
+        return icons[ext] || 'fa-file text-secondary';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(uploadForm);
+        const files = fileInput.files;
+        
+        if (files.length === 0) {
+            alert('Please select at least one file to upload.');
+            return;
+        }
+        
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(uploadForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            const contentType = response.headers.get('Content-Type') || '';
+            if (contentType.includes('application/json')) {
+                return response.json().then(data => ({ ok: response.ok, data }));
+            }
+            if (response.redirected) {
+                window.location.href = response.url;
+                return { ok: true, data: { redirect_url: response.url } };
+            }
+            return response.text().then(text => ({ 
+                ok: false, 
+                data: { message: 'Server error: ' + response.status } 
+            }));
+        })
+        .then(result => {
+            if (result.ok && result.data.status === 'success') {
+                window.location.href = result.data.redirect_url || '/documents/';
+            } else if (result.ok && result.data.redirect_url) {
+                window.location.href = result.data.redirect_url;
+            } else {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload & Process';
+                alert(result.data.message || 'Error uploading file');
+            }
+        })
+        .catch(error => {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload & Process';
+            alert('Upload failed: ' + error.message);
+        });
+    });
+});
+</script>
+{% endblock %}

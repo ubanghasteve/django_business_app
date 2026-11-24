@@ -1,0 +1,572 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Staff Offence Management - {{ register.reference_number }}{% endblock %}
+{% block page_title %}Staff Offence Management{% endblock %}
+{% block breadcrumb %}Staff Offences / {{ register.reference_number }}{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --so-primary: {{ theme_primary_color|default:"#f97316" }};
+  --so-soft: {{ theme_accent_color|default:"#ffedd5" }};
+  --so-card: {{ theme_secondary_color|default:"#fff7ed" }};
+  --so-text: {{ theme_text_color|default:"#111827" }};
+  --so-accent-text: color-mix(in srgb, {{ theme_primary_color|default:"#f97316" }} 72%, #7c2d12);
+}
+.so-shell { max-width: 920px; margin: 0 auto; }
+.so-toolbar {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin-bottom: 0.9rem; animation: soFadeUp 0.35s ease both;
+}
+.so-page {
+  background: #fff;
+  border-radius: 18px;
+  padding: 1.75rem 1.75rem 1.5rem;
+  border: 1px solid #e5e7eb;
+  animation: soFadeUp 0.45s ease both;
+}
+.so-header {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; margin-bottom: 1.25rem;
+}
+.so-icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  background: var(--so-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; flex-shrink: 0;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--so-primary) 28%, transparent);
+}
+.so-title { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--so-text); }
+.so-subtitle { margin: 0.18rem 0 0; font-size: 0.88rem; color: #6b7280; }
+.so-meta {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 2rem; margin-bottom: 1.25rem;
+  animation: soFadeUp 0.5s ease both; animation-delay: 0.05s;
+}
+.so-meta-label {
+  font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #9ca3af; margin-bottom: 0.2rem;
+}
+.so-meta-value { font-weight: 700; color: var(--so-text); font-size: 1.02rem; }
+.so-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;
+  animation: soFadeUp 0.55s ease both; animation-delay: 0.08s;
+}
+.so-stat-card {
+  background: var(--so-card); border-radius: 14px; padding: 1.15rem 1.25rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.so-stat-card:hover { transform: translateY(-2px); }
+.so-stat-label {
+  font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #9ca3af; margin-bottom: 0.35rem;
+}
+.so-stat-value {
+  font-size: 1.8rem; font-weight: 700; color: var(--so-accent-text); margin: 0;
+  transition: transform 0.25s ease;
+}
+.so-stat-value.so-bump { animation: soBump 0.4s ease; }
+.so-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.75rem; gap: 0.75rem; flex-wrap: wrap;
+}
+.so-section-head h5 { margin: 0; font-weight: 700; color: var(--so-text); font-size: 1.05rem; }
+.so-btn-add {
+  background: var(--so-primary); border: none; color: #fff;
+  font-weight: 600; border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.9rem;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--so-primary) 28%, transparent);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.so-btn-add:hover { filter: brightness(0.96); color: #fff; transform: translateY(-1px); }
+.so-table-wrap {
+  border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6;
+  animation: soFadeUp 0.55s ease both; animation-delay: 0.1s;
+}
+.so-table { width: 100%; border-collapse: collapse; margin: 0; }
+.so-table thead th {
+  background: var(--so-soft); color: #6b7280; font-size: 0.8rem;
+  font-weight: 600; padding: 0.8rem 1rem; border: none;
+}
+.so-table tbody td {
+  padding: 0.9rem 1rem; border-top: 1px solid #f3f4f6;
+  color: var(--so-text); vertical-align: middle; background: #fff;
+}
+.so-table tbody tr.so-row-enter {
+  animation: soRowIn 0.35s ease both;
+}
+.so-table tbody tr.so-row-exit {
+  animation: soRowOut 0.28s ease forwards;
+}
+.so-edit-btn {
+  background: none; border: none; color: var(--so-primary);
+  padding: 0.3rem 0.4rem; cursor: pointer; border-radius: 6px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.so-edit-btn:hover { background: var(--so-soft); transform: scale(1.08); }
+.so-footer-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 0.15rem 0.2rem; margin-top: 0.15rem;
+}
+.so-grand-label { font-weight: 700; color: var(--so-text); }
+.so-grand-sub { font-size: 0.82rem; color: #9ca3af; }
+.so-grand-amount {
+  font-size: 1.4rem; font-weight: 700; color: var(--so-primary);
+  transition: transform 0.25s ease;
+}
+.so-grand-amount.so-bump { animation: soBump 0.4s ease; }
+.so-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1.4rem;
+}
+.so-action-btn {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.8rem 1rem; border: 1.5px solid #111827; border-radius: 12px;
+  background: #fff; color: #111827; font-weight: 600; text-decoration: none;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.so-action-btn:hover { background: #f9fafb; color: #111827; transform: translateY(-1px); }
+.so-empty { text-align: center; color: #9ca3af; padding: 2.2rem 1rem; }
+.so-toast {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1080;
+  background: #111827; color: #fff; padding: 0.75rem 1rem; border-radius: 10px;
+  font-size: 0.88rem; box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.so-toast.show { opacity: 1; transform: translateY(0); }
+.so-modal .modal-content { border-radius: 14px; border: none; }
+.so-modal .modal-header { border-bottom: 1px solid #f3f4f6; }
+.so-modal .btn-save {
+  background: var(--so-primary); border-color: var(--so-primary); font-weight: 600;
+}
+@media (max-width: 767px) {
+  .so-meta, .so-stats, .so-actions { grid-template-columns: 1fr; }
+  .so-page { padding: 1.15rem; }
+}
+@keyframes soFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes soBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes soRowIn {
+  from { opacity: 0; transform: translateY(8px); background: var(--so-soft); }
+  to { opacity: 1; transform: translateY(0); background: #fff; }
+}
+@keyframes soRowOut {
+  to { opacity: 0; transform: translateX(12px); height: 0; padding: 0; }
+}
+</style>
+
+<div class="container-fluid py-4">
+  <div class="so-shell">
+    <div class="so-toolbar">
+      <a href="{% url 'staff_offences:list' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> All registers
+      </a>
+      {% if perms.staff_offences.delete_staffoffenceregister %}
+      <a href="{% url 'staff_offences:delete' register.pk %}" class="btn btn-outline-danger btn-sm ms-auto">
+        <i class="fas fa-trash me-1"></i> Delete register
+      </a>
+      {% endif %}
+    </div>
+
+    <div class="so-page" id="so-register-page"
+         data-register-id="{{ register.pk }}"
+         data-currency="{{ currency_symbol }}"
+         data-can-edit="{{ perms.staff_offences.change_staffoffenceregister|yesno:'1,0' }}">
+      <div class="so-header">
+        <div class="so-icon"><i class="fas fa-building"></i></div>
+        <div>
+          <h1 class="so-title">Staff Offence Management</h1>
+          <p class="so-subtitle">Human Resources · Monthly Register</p>
+        </div>
+      </div>
+
+      <div class="so-meta">
+        <div>
+          <div class="so-meta-label">Staff Member</div>
+          <div class="so-meta-value">{{ register.staff_name }}</div>
+        </div>
+        <div>
+          <div class="so-meta-label">Department</div>
+          <div class="so-meta-value">{{ register.department_name|default:"—" }}</div>
+        </div>
+        <div>
+          <div class="so-meta-label">Month</div>
+          <div class="so-meta-value">{{ register.month_label }}</div>
+        </div>
+        <div>
+          <div class="so-meta-label">Record No.</div>
+          <div class="so-meta-value">{{ register.reference_number }}</div>
+        </div>
+      </div>
+
+      <div class="so-stats">
+        <div class="so-stat-card">
+          <div class="so-stat-label">Total Offences</div>
+          <p class="so-stat-value" id="so-offence-count">{{ offence_count }}</p>
+        </div>
+        <div class="so-stat-card">
+          <div class="so-stat-label">Monthly Total</div>
+          <p class="so-stat-value" id="so-monthly-total">{{ currency_symbol }}{{ monthly_total|floatformat:0|intcomma }}</p>
+        </div>
+      </div>
+
+      <div class="so-section-head">
+        <h5>Offence History</h5>
+        {% if perms.staff_offences.change_staffoffenceregister %}
+        <button type="button" class="so-btn-add" id="so-add-btn">+ Add Offence</button>
+        {% endif %}
+      </div>
+
+      <div class="so-table-wrap table-responsive">
+        <table class="so-table" id="so-offence-table">
+          <thead>
+            <tr>
+              <th style="width:56px;">S/N</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Amount</th>
+              {% if perms.staff_offences.change_staffoffenceregister %}
+              <th style="width:64px;">Edit</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody id="so-offence-tbody">
+            {% for entry in entries %}
+            <tr data-entry-id="{{ entry.pk }}">
+              <td class="so-sn">{{ forloop.counter }}</td>
+              <td class="so-date">{{ entry.date|date:"d M" }}</td>
+              <td class="so-desc">{{ entry.description }}</td>
+              <td class="so-amt">{{ currency_symbol }}{{ entry.amount|floatformat:0|intcomma }}</td>
+              {% if perms.staff_offences.change_staffoffenceregister %}
+              <td>
+                <button type="button" class="so-edit-btn" title="Edit"
+                        data-id="{{ entry.pk }}"
+                        data-date="{{ entry.date|date:'Y-m-d' }}"
+                        data-description="{{ entry.description|escape }}"
+                        data-amount="{{ entry.amount }}">
+                  <i class="fas fa-pen"></i>
+                </button>
+              </td>
+              {% endif %}
+            </tr>
+            {% empty %}
+            <tr class="so-empty-row">
+              <td colspan="{% if perms.staff_offences.change_staffoffenceregister %}5{% else %}4{% endif %}" class="so-empty">
+                No offences recorded for this month yet. Click <strong>+ Add Offence</strong> to begin.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="so-footer-row">
+        <div>
+          <div class="so-grand-label">Grand Total</div>
+          <div class="so-grand-sub">
+            <span id="so-entry-count-label">{{ offence_count }}</span>
+            offence <span id="so-entry-word">entr{{ offence_count|pluralize:"y,ies" }}</span>
+          </div>
+        </div>
+        <div class="so-grand-amount" id="so-grand-total">{{ currency_symbol }}{{ monthly_total|floatformat:0|intcomma }}</div>
+      </div>
+
+      <div class="so-actions">
+        {% if perms.staff_offences.print_staffoffenceregister %}
+        <a href="{% url 'staff_offences:print' register.pk %}" class="so-action-btn" target="_blank" rel="noopener">
+          <i class="fas fa-print"></i> Print Register
+        </a>
+        <a href="{% url 'staff_offences:pdf' register.pk %}" class="so-action-btn" target="_blank" rel="noopener">
+          <i class="fas fa-file-download"></i> Download PDF
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="so-toast" id="so-toast" role="status" aria-live="polite"></div>
+
+{% if perms.staff_offences.change_staffoffenceregister %}
+<div class="modal fade so-modal" id="offenceModal" tabindex="-1" aria-labelledby="offenceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="offenceForm">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="offenceModalLabel">Add Offence</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="entry_id" id="offence-entry-id" value="">
+          <div class="mb-3">
+            <label class="form-label" for="id_date">Date</label>
+            <input type="date" name="date" id="id_date" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_description">Description</label>
+            <input type="text" name="description" id="id_description" class="form-control" maxlength="500" required placeholder="e.g. Late arrival">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_amount">Amount ({{ currency_symbol }})</label>
+            <input type="number" name="amount" id="id_amount" class="form-control" step="0.01" min="0" required placeholder="0.00">
+          </div>
+          <div id="offenceFormErrors" class="text-danger small" style="display:none;"></div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button" class="btn btn-outline-danger btn-sm" id="offence-delete-btn" style="display:none;">Delete</button>
+          <div class="ms-auto d-flex gap-2">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-save" id="offence-save-btn">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var page = document.getElementById('so-register-page');
+  if (!page) return;
+  var currency = page.getAttribute('data-currency') || '₦';
+  var canEdit = page.getAttribute('data-can-edit') === '1';
+  var createUrl = "{% url 'staff_offences:entry_create_ajax' register.pk %}";
+  var editUrlTpl = "{% url 'staff_offences:entry_edit_ajax' register.pk 999999 %}";
+  var deleteUrlTpl = "{% url 'staff_offences:entry_delete_ajax' register.pk 999999 %}";
+  var csrfInput = document.querySelector('#offenceForm [name=csrfmiddlewaretoken]');
+  var csrf = csrfInput ? csrfInput.value : '';
+  var canEditCol = canEdit;
+  var tbody = document.getElementById('so-offence-tbody');
+  var toastEl = document.getElementById('so-toast');
+
+  function toast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(function() { toastEl.classList.remove('show'); }, 2200);
+  }
+
+  function formatMoney(displayOrNumber) {
+    var raw = String(displayOrNumber).replace(/,/g, '');
+    var num = Number(raw);
+    if (isNaN(num)) num = 0;
+    return currency + Math.round(num).toLocaleString();
+  }
+
+  function bump(el) {
+    if (!el) return;
+    el.classList.remove('so-bump');
+    void el.offsetWidth;
+    el.classList.add('so-bump');
+  }
+
+  function updateTotals(count, totalDisplay) {
+    var pretty = formatMoney(totalDisplay);
+    var countEl = document.getElementById('so-offence-count');
+    var monthlyEl = document.getElementById('so-monthly-total');
+    var grandEl = document.getElementById('so-grand-total');
+    var label = document.getElementById('so-entry-count-label');
+    var word = document.getElementById('so-entry-word');
+    if (countEl) { countEl.textContent = count; bump(countEl); }
+    if (monthlyEl) { monthlyEl.textContent = pretty; bump(monthlyEl); }
+    if (grandEl) { grandEl.textContent = pretty; bump(grandEl); }
+    if (label) label.textContent = count;
+    if (word) word.textContent = (Number(count) === 1) ? 'entry' : 'entries';
+  }
+
+  function renumber() {
+    var rows = tbody.querySelectorAll('tr[data-entry-id]');
+    rows.forEach(function(row, i) {
+      var sn = row.querySelector('.so-sn');
+      if (sn) sn.textContent = i + 1;
+    });
+  }
+
+  function ensureEmptyState() {
+    var rows = tbody.querySelectorAll('tr[data-entry-id]');
+    var empty = tbody.querySelector('.so-empty-row');
+    if (rows.length === 0) {
+      if (!empty) {
+        var tr = document.createElement('tr');
+        tr.className = 'so-empty-row';
+        tr.innerHTML = '<td colspan="' + (canEditCol ? 5 : 4) + '" class="so-empty">No offences recorded for this month yet. Click <strong>+ Add Offence</strong> to begin.</td>';
+        tbody.appendChild(tr);
+      }
+    } else if (empty) {
+      empty.remove();
+    }
+  }
+
+  function buildRow(entry, animate) {
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-entry-id', entry.id);
+    if (animate) tr.classList.add('so-row-enter');
+    var editCell = '';
+    if (canEditCol) {
+      editCell = '<td><button type="button" class="so-edit-btn" title="Edit"'
+        + ' data-id="' + entry.id + '"'
+        + ' data-date="' + entry.date_iso + '"'
+        + ' data-description="' + String(entry.description).replace(/"/g, '&quot;') + '"'
+        + ' data-amount="' + entry.amount + '">'
+        + '<i class="fas fa-pen"></i></button></td>';
+    }
+    tr.innerHTML =
+      '<td class="so-sn"></td>'
+      + '<td class="so-date">' + entry.date + '</td>'
+      + '<td class="so-desc"></td>'
+      + '<td class="so-amt">' + formatMoney(entry.amount_display || entry.amount) + '</td>'
+      + editCell;
+    tr.querySelector('.so-desc').textContent = entry.description;
+    return tr;
+  }
+
+  function upsertRow(entry, isNew) {
+    ensureEmptyState();
+    var existing = tbody.querySelector('tr[data-entry-id="' + entry.id + '"]');
+    if (existing) {
+      existing.querySelector('.so-date').textContent = entry.date;
+      existing.querySelector('.so-desc').textContent = entry.description;
+      existing.querySelector('.so-amt').textContent = formatMoney(entry.amount_display || entry.amount);
+      var btn = existing.querySelector('.so-edit-btn');
+      if (btn) {
+        btn.setAttribute('data-date', entry.date_iso);
+        btn.setAttribute('data-description', entry.description);
+        btn.setAttribute('data-amount', entry.amount);
+      }
+      existing.classList.remove('so-row-enter');
+      void existing.offsetWidth;
+      existing.classList.add('so-row-enter');
+    } else {
+      var empty = tbody.querySelector('.so-empty-row');
+      if (empty) empty.remove();
+      tbody.appendChild(buildRow(entry, true));
+    }
+    renumber();
+  }
+
+  function removeRow(id) {
+    var row = tbody.querySelector('tr[data-entry-id="' + id + '"]');
+    if (!row) return;
+    row.classList.add('so-row-exit');
+    setTimeout(function() {
+      row.remove();
+      renumber();
+      ensureEmptyState();
+    }, 250);
+  }
+
+  if (!canEdit) return;
+
+  var modalEl = document.getElementById('offenceModal');
+  var form = document.getElementById('offenceForm');
+  var deleteBtn = document.getElementById('offence-delete-btn');
+  var modalTitle = document.getElementById('offenceModalLabel');
+  var saveBtn = document.getElementById('offence-save-btn');
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  function resetForm() {
+    form.reset();
+    document.getElementById('offence-entry-id').value = '';
+    modalTitle.textContent = 'Add Offence';
+    deleteBtn.style.display = 'none';
+    document.getElementById('offenceFormErrors').style.display = 'none';
+    document.getElementById('id_date').value = new Date().toISOString().slice(0, 10);
+  }
+
+  document.getElementById('so-add-btn').addEventListener('click', function() {
+    resetForm();
+    modal.show();
+  });
+
+  tbody.addEventListener('click', function(e) {
+    var btn = e.target.closest('.so-edit-btn');
+    if (!btn) return;
+    document.getElementById('offence-entry-id').value = btn.getAttribute('data-id');
+    document.getElementById('id_date').value = btn.getAttribute('data-date');
+    document.getElementById('id_description').value = btn.getAttribute('data-description');
+    document.getElementById('id_amount').value = btn.getAttribute('data-amount');
+    modalTitle.textContent = 'Edit Offence';
+    deleteBtn.style.display = 'inline-block';
+    document.getElementById('offenceFormErrors').style.display = 'none';
+    modal.show();
+  });
+
+  deleteBtn.addEventListener('click', function() {
+    var id = document.getElementById('offence-entry-id').value;
+    if (!id || !confirm('Delete this offence entry?')) return;
+    deleteBtn.disabled = true;
+    fetch(deleteUrlTpl.replace('999999', id), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(res) {
+        deleteBtn.disabled = false;
+        if (!res.ok || !res.data.success) {
+          toast(res.data.error || 'Could not delete.');
+          return;
+        }
+        modal.hide();
+        removeRow(id);
+        updateTotals(res.data.offence_count, res.data.monthly_total_display || res.data.monthly_total);
+        toast('Offence deleted');
+        try { window.dispatchEvent(new CustomEvent('notifications-changed')); } catch (e) {}
+      }).catch(function() {
+        deleteBtn.disabled = false;
+        toast('Network error');
+      });
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var entryId = document.getElementById('offence-entry-id').value;
+    var url = entryId ? editUrlTpl.replace('999999', entryId) : createUrl;
+    var fd = new FormData(form);
+    saveBtn.disabled = true;
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd,
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(res) {
+        saveBtn.disabled = false;
+        if (!res.ok || !res.data.success) {
+          var errEl = document.getElementById('offenceFormErrors');
+          var msg = 'Could not save offence.';
+          if (res.data && res.data.errors) {
+            msg = Object.keys(res.data.errors).map(function(k) {
+              return res.data.errors[k].join(' ');
+            }).join('; ');
+          } else if (res.data && res.data.error) {
+            msg = res.data.error;
+          }
+          errEl.textContent = msg;
+          errEl.style.display = 'block';
+          return;
+        }
+        modal.hide();
+        upsertRow(res.data.entry, !entryId);
+        updateTotals(res.data.offence_count, res.data.monthly_total_display || res.data.monthly_total);
+        toast(entryId ? 'Offence updated' : 'Offence added');
+        try { window.dispatchEvent(new CustomEvent('notifications-changed')); } catch (e) {}
+      }).catch(function() {
+        saveBtn.disabled = false;
+        var errEl = document.getElementById('offenceFormErrors');
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+      });
+  });
+})();
+</script>
+{% endblock %}

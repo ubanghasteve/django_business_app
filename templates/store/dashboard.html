@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% load static humanize store_extras %}
+{% block title %}Store - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <div class="d-flex align-items-center">
+                        <h6 class="mb-0">Store Management System</h6>
+                        <div class="ms-auto">
+                            {% if perms.store.add_store %}
+                            <a href="{% url 'store:create' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus text-sm me-1"></i>New Record
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'store:list' %}" class="btn btn-outline-primary btn-sm ms-1">
+                                <i class="fas fa-list me-1"></i>List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">Comprehensive view of your product store.</p>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-dark text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Products" data-card-count="{{ total_products|default:0 }}" data-card-href="{% url 'store:list' %}" data-card-desc="Total number of store records.">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Total Products</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_products|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Quantity In" data-card-count="{{ total_quantity_in|default:0 }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of all quantity received into store.">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Total Quantity In</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_quantity_in|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-danger text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Quantity Out" data-card-count="{{ total_quantity_out|default:0 }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of all quantity taken out of store.">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Total Quantity Out</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_quantity_out|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mt-3 mt-md-0">
+                            <div class="card text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Stock Value Remaining" data-card-key="total_stock_value_remaining" data-card-format="currency" data-currency-symbol="{{ user_currency_symbol|default:'₦' }}" data-card-count="{{ total_stock_value_remaining|default:0 }}" data-card-href="{% url 'store:list' %}" data-card-desc="Sum of Rem. Qty × Unit Price across all records (value of remaining stock)." style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Stock Value Remaining</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ user_currency_symbol|default:"₦" }}{{ total_stock_value_remaining|floatformat:2|intcomma }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-2 mt-4">Stock & Waste</p>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Total Waste" data-card-key="total_waste" data-card-count="{{ total_waste|default:0 }}" data-card-href="{% url 'store:waste_list' %}" data-card-desc="Total waste recorded across all store items." style="background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Total Waste</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ total_waste|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-2 mt-4">Approval status</p>
+                    <div class="row">
+                        <div class="col-6 col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-secondary text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Draft" data-card-count="{{ approval_counts.draft|default:0 }}" data-card-href="{% url 'store:list' %}?approval_status=draft" data-card-desc="Records not yet submitted for approval.">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Draft</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.draft|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-warning text-dark dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Pending" data-card-count="{{ approval_counts.pending|default:0 }}" data-card-href="{% url 'store:list' %}?approval_status=pending" data-card-desc="Records awaiting approval.">
+                                <div class="card-body">
+                                    <p class="small mb-0 opacity-75">Pending</p>
+                                    <h4 class="mb-0 text-dark fw-bold dashboard-card-count">{{ approval_counts.pending|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-success text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Approved" data-card-count="{{ approval_counts.approved|default:0 }}" data-card-href="{% url 'store:list' %}?approval_status=approved" data-card-desc="Records that have been approved.">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Approved</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.approved|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-danger text-white dashboard-card cursor-pointer" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#dashboardCardModal" data-card-title="Rejected" data-card-count="{{ approval_counts.rejected|default:0 }}" data-card-href="{% url 'store:list' %}?approval_status=rejected" data-card-desc="Records that were rejected.">
+                                <div class="card-body">
+                                    <p class="text-white-50 small mb-0">Rejected</p>
+                                    <h4 class="mb-0 text-white fw-bold dashboard-card-count">{{ approval_counts.rejected|default:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reusable modal for dashboard cards -->
+<div class="modal fade" id="dashboardCardModal" tabindex="-1" aria-labelledby="dashboardCardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dashboardCardModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2"><strong class="display-6 text-primary" id="dashboardCardModalCount"></strong></p>
+                <p class="text-muted small mb-0" id="dashboardCardModalDesc"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="dashboardCardModalLink"><i class="fas fa-list me-1"></i>View in list</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-card.cursor-pointer { cursor: pointer; }
+.dashboard-card:hover { opacity: 0.92; }
+.dashboard-card .dashboard-card-count {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    min-height: 1.5rem;
+    visibility: visible;
+    opacity: 1;
+}
+</style>
+
+<script>
+(function() {
+    var modal = document.getElementById('dashboardCardModal');
+    if (!modal) return;
+    var statsUrl = "{% url 'store:dashboard_stats_json' %}";
+    var listUrl = "{% url 'store:list' %}";
+    var titleToKey = {
+        'Total Products': 'total_products',
+        'Total Quantity In': 'total_quantity_in',
+        'Total Quantity Out': 'total_quantity_out',
+        'Stock Value Remaining': 'total_stock_value_remaining',
+        'Draft': 'approval_counts.draft',
+        'Pending': 'approval_counts.pending',
+        'Approved': 'approval_counts.approved',
+        'Rejected': 'approval_counts.rejected'
+    };
+    function formatCardDisplay(card, value) {
+        if (card.getAttribute('data-card-format') === 'currency') {
+            var sym = card.getAttribute('data-currency-symbol') || '';
+            var n = parseFloat(String(value).replace(/,/g, ''));
+            return sym + (isNaN(n) ? '0.00' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        }
+        return value;
+    }
+    var titleToApprovalParam = {
+        'Draft': 'draft',
+        'Pending': 'pending',
+        'Approved': 'approved',
+        'Rejected': 'rejected'
+    };
+    function buildViewListHref(title) {
+        var param = titleToApprovalParam[title];
+        if (param) return listUrl + (listUrl.indexOf('?') >= 0 ? '&' : '?') + 'approval_status=' + encodeURIComponent(param);
+        return listUrl;
+    }
+    modal.addEventListener('show.bs.modal', function(e) {
+        var trigger = e.relatedTarget;
+        if (!trigger || !trigger.closest) return;
+        var card = trigger.closest('.dashboard-card');
+        if (!card) return;
+        var title = card.getAttribute('data-card-title') || '';
+        var count = card.getAttribute('data-card-count') || '0';
+        var desc = card.getAttribute('data-card-desc') || '';
+        document.getElementById('dashboardCardModalLabel').textContent = title;
+        document.getElementById('dashboardCardModalCount').textContent = count;
+        document.getElementById('dashboardCardModalDesc').textContent = desc;
+        var linkEl = document.getElementById('dashboardCardModalLink');
+        linkEl.setAttribute('href', buildViewListHref(title));
+        var countEl = document.getElementById('dashboardCardModalCount');
+        var key = titleToKey[title];
+        if (key && statsUrl) {
+            fetch(statsUrl, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (!data) return;
+                    var freshCount = key.indexOf('.') >= 0
+                        ? (data.approval_counts && data.approval_counts[key.split('.')[1]])
+                        : data[key];
+                    if (freshCount !== undefined && freshCount !== null) {
+                        var formatted = formatCardDisplay(card, freshCount);
+                        countEl.textContent = formatted;
+                        var cardCount = card.querySelector('h4');
+                        if (cardCount) cardCount.textContent = formatted;
+                        card.setAttribute('data-card-count', String(freshCount));
+                    }
+                })
+                .catch(function() {});
+        }
+    });
+})();
+</script>
+{% endblock %}

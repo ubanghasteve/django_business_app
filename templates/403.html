@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Access Denied – Business App</title>
+  <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=6">
+  <link rel="shortcut icon" href="/favicon.ico?v=6">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#ff6600">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+  <link href="{% static 'css/nucleo-icons.css' %}" rel="stylesheet">
+  <link href="{% static 'css/material-dashboard.min.css' %}?v=3.0.0" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font-family: "Roboto", Helvetica, Arial, sans-serif; font-size: 1rem; color: #7b809a; background-color: #f0f2f5; -webkit-font-smoothing: antialiased; }
+    .modal-backdrop-403 { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1040; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-backdrop-403:focus { outline: none; }
+    .modal-dialog-403 { background: #fff; border-radius: 0.75rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-width: 440px; width: 100%; padding: 1.5rem; }
+    .modal-dialog-403:focus { outline: none; }
+    .modal-icon-403 { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(195deg, #ea0606 0%, #c20505 100%); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 1.5rem; }
+    .modal-title-403 { font-size: 1.25rem; font-weight: 700; color: #344767; margin-bottom: 0.5rem; text-align: center; }
+    .modal-body-403 { font-size: 0.9375rem; color: #67748e; text-align: center; margin-bottom: 1.5rem; line-height: 1.5; }
+    .modal-buttons-403 { display: flex; flex-direction: column; gap: 0.75rem; }
+    .modal-buttons-403 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600; text-decoration: none; border-radius: 0.5rem; border: none; cursor: pointer; transition: opacity 0.15s; text-align: center; }
+    .modal-buttons-403 .btn:hover { opacity: 0.9; color: inherit; }
+    .btn-whatsapp-403 { background: #25D366; color: #fff !important; }
+    .btn-email-403 { background: #344767; color: #fff !important; }
+    .btn-dashboard-403 { background: #e9ecef; color: #344767 !important; border: 1px solid #dee2e6; }
+    .btn-dashboard-403:hover { background: #dee2e6 !important; color: #344767 !important; }
+    .modal-note-403 { font-size: 0.8125rem; color: #67748e; margin-top: 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="modal-backdrop-403" id="modalBackdrop403" role="dialog" aria-modal="true" aria-labelledby="modalTitle403" tabindex="-1">
+    <div class="modal-dialog-403" role="document">
+      <div class="modal-icon-403" aria-hidden="true">
+        <i class="fas fa-lock"></i>
+      </div>
+      <h2 class="modal-title-403" id="modalTitle403">{% if is_record_unauthorized %}Access Denied{% else %}Account Not Yet Activated{% endif %}</h2>
+      <p class="modal-body-403">
+        {% if is_record_unauthorized %}
+        You don't have permission to view this resource, or it may not exist.
+        {% elif is_company_team_member or request.session.sub_user_id %}
+        Your account needs activation to access this page. Please contact the company admin to give you full access.
+        {% else %}
+        Your account needs activation to access this page. Please contact the developer for full access.
+        {% endif %}
+      </p>
+      <div class="modal-buttons-403">
+        {% if not is_record_unauthorized and not is_company_team_member and not request.session.sub_user_id %}
+        <a href="https://wa.me/2347014676188?text=Hello%2C%20I%20just%20registered%20on%20the%20Business%20App%20and%20would%20like%20my%20account%20activated%20for%20full%20access." class="btn btn-whatsapp-403" target="_blank" rel="noopener noreferrer" title="WhatsApp: +2347014676188 or +2348143180213">
+          <i class="fab fa-whatsapp" aria-hidden="true"></i> WhatsApp
+        </a>
+        <a href="mailto:info.abgpaulas@gmail.com?subject=Account%20Activation%20Request&body=Hello%2C%20I%20just%20registered%20on%20the%20Business%20App%20and%20would%20like%20my%20account%20activated%20for%20full%20access." class="btn btn-email-403" target="_blank" rel="noopener noreferrer">
+          <i class="fas fa-envelope" aria-hidden="true"></i> Email
+        </a>
+        {% endif %}
+        <a href="{% url 'core:dashboard' %}" class="btn btn-dashboard-403">
+          <i class="fas fa-tachometer-alt" aria-hidden="true"></i> Back to Dashboard
+        </a>
+      </div>
+      {% if not is_record_unauthorized and not is_company_team_member and not request.session.sub_user_id %}
+      <p class="modal-note-403">
+        WhatsApp: +2347014676188 or +2348143180213
+      </p>
+      {% endif %}
+    </div>
+  </div>
+  <script>
+    (function() {
+      var backdrop = document.getElementById('modalBackdrop403');
+      if (backdrop) {
+        backdrop.style.display = 'flex';
+        backdrop.focus();
+        backdrop.addEventListener('click', function(e) {
+          if (e.target === backdrop) e.preventDefault();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

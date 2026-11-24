@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load humanize store_extras %}
+{% block title %}Product Ledger - {{ product.product_name }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">Product Ledger / Report: {{ product.product_name }}</h5>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="report-refresh-btn" title="Refresh to show latest data from store"><i class="fas fa-sync-alt me-1"></i><span id="report-refresh-label">Refresh</span></button>
+                <a href="{% url 'store:list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to list</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">
+                Movement history for this store record.
+                Each row shows <strong>one change</strong>: how much stock came in or went out,
+                what the remaining quantity became, and the value of that remaining stock.
+                Totals always reflect the live store row.
+            </p>
+
+            <style>
+            .ledger-filters {
+                border: 1px solid #cbd3da;
+                border-radius: 10px;
+                padding: 12px 14px;
+                margin-bottom: 1rem;
+                background-color: #ffffff;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            }
+            .ledger-filters .form-control,
+            .ledger-filters .form-select {
+                border-radius: 6px;
+                border: 1px solid #adb5bd;
+                background-color: #ffffff;
+            }
+            .ledger-filters .form-control::placeholder {
+                color: #6c757d;
+                opacity: 1;
+            }
+            .report-current-row-box {
+                background-color: #f8f9fa;
+                border-color: #dee2e6 !important;
+                border-radius: 8px;
+            }
+            .report-current-row-box .text-body-secondary { color: #495057 !important; }
+            </style>
+
+            <form method="get" class="mb-3 ledger-filters" id="productReportFilterForm">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="Search remark, user…">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" placeholder="From date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" placeholder="To date">
+                    </div>
+                </div>
+                <div class="row g-2 mt-2">
+                    <div class="col-md-2">
+                        <input type="text" name="min_quantity" value="{{ min_quantity }}" class="form-control form-control-sm" placeholder="Min rem. qty">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="max_quantity" value="{{ max_quantity }}" class="form-control form-control-sm" placeholder="Max rem. qty">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                        <a href="?" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="report-current-row-box border mb-3 py-3 px-3">
+                <h6 class="mb-2 text-dark fw-semibold">This report matches this store row (same as main store table)</h6>
+                <div class="row g-3 small text-dark">
+                    <div class="col-md-2"><strong class="text-dark">Opening Stock</strong><br><span class="text-primary fw-semibold" id="report-current-opening-stock">{% firstof product.opening_stock_input product.opening_stock %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Received (Input)</strong><br><span class="text-success fw-semibold" id="report-current-qty-in">{% firstof product.quantity_in_input product.quantity_in %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Output</strong><br><span class="text-danger fw-semibold" id="report-current-qty-out">{% firstof product.quantity_out_input product.quantity_out %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Waste</strong><br><span class="text-warning fw-semibold" id="report-current-waste">{% if product.waste_input %}{{ product.waste_input }}{% elif product.waste > 0 %}{{ product.waste|format_number }}{% else %}—{% endif %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Total Stock</strong><br><span class="fw-bold text-dark" id="report-current-total-stock">{% firstof product.opening_stock_input product.balance_quantity %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Date</strong><br><span class="text-dark" id="report-current-date">{{ product.date|date:"M d, Y"|default:"—" }}</span></div>
+                </div>
+                <p class="mb-0 mt-2 small text-body-secondary">Each row below is a snapshot of this store row at the time of a change (same columns as main table).</p>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover store-ledger-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>S/N</th>
+                            <th>Date</th>
+                            <th>Opening Stock</th>
+                            <th>Received (Input)</th>
+                            <th>Output</th>
+                            <th>Waste</th>
+                            <th>Total Stock</th>
+                            <th>User</th>
+                            <th>Remark</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-ledger-tbody">
+                        {% include 'store/product_report_rows_partial.html' %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj %}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                {% include 'store/store_list_pagination_partial.html' %}
+            </div>
+            {% endif %}
+
+            <div class="row mt-4">
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Opening Stock</small>
+                            <div class="fw-bold" id="card-opening-stock">{% firstof product.opening_stock_input product.opening_stock %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Received</small>
+                            <div class="fw-bold text-success" id="card-total-qty-in">{% firstof product.quantity_in_input product.quantity_in %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Output</small>
+                            <div class="fw-bold text-danger" id="card-total-qty-out">{% firstof product.quantity_out_input product.quantity_out %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Current Stock (Total Stock)</small>
+                            <div class="fw-bold" id="card-current-stock">{% firstof product.opening_stock_input product.balance_quantity %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Created By</small>
+                            <div class="fw-bold">{{ product.created_by.get_full_name|default:product.created_by.email|default:"—" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Date</small>
+                            <div class="fw-bold">{{ product.date|date:"M d, Y"|default:"—" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var tbody = document.getElementById('product-ledger-tbody');
+    var cardOpening = document.getElementById('card-opening-stock');
+    var cardIn = document.getElementById('card-total-qty-in');
+    var cardOut = document.getElementById('card-total-qty-out');
+    var cardStock = document.getElementById('card-current-stock');
+    var headerOpening = document.getElementById('report-current-opening-stock');
+    var headerQtyIn = document.getElementById('report-current-qty-in');
+    var headerQtyOut = document.getElementById('report-current-qty-out');
+    var headerWaste = document.getElementById('report-current-waste');
+    var headerTotalStock = document.getElementById('report-current-total-stock');
+    var headerDate = document.getElementById('report-current-date');
+    if (!tbody) return;
+
+    function getRefreshUrl() {
+        var params = new URLSearchParams(window.location.search);
+        params.set('format', 'json');
+        return window.location.pathname + '?' + params.toString();
+    }
+    function formatNumber(val) {
+        var n = parseFloat(String(val).replace(/,/g, ''));
+        if (isNaN(n)) return '0.00';
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    var refreshInProgress = false;
+    function refreshLedger() {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        fetch(getRefreshUrl(), {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            cache: 'no-store',
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function(data) {
+            if (data.rows_html) {
+                tbody.innerHTML = data.rows_html;
+            }
+            if (cardOpening && data.opening_stock !== undefined) {
+                cardOpening.textContent = (data.opening_stock_input && String(data.opening_stock_input).trim() !== '')
+                    ? String(data.opening_stock_input)
+                    : formatNumber(data.opening_stock);
+            }
+            if (cardIn && data.total_qty_in !== undefined) {
+                cardIn.textContent = (data.quantity_in_input && String(data.quantity_in_input).trim() !== '')
+                    ? String(data.quantity_in_input)
+                    : formatNumber(data.total_qty_in);
+            }
+            if (cardOut && data.total_qty_out !== undefined) {
+                cardOut.textContent = (data.quantity_out_input && String(data.quantity_out_input).trim() !== '')
+                    ? String(data.quantity_out_input)
+                    : formatNumber(data.total_qty_out);
+            }
+            if (cardStock && data.current_stock !== undefined) {
+                cardStock.textContent = (data.opening_stock_input && String(data.opening_stock_input).trim() !== '')
+                    ? String(data.opening_stock_input)
+                    : formatNumber(data.current_stock);
+            }
+            if (headerOpening && (data.opening_stock !== undefined || data.opening_stock_input !== undefined)) {
+                headerOpening.textContent = (data.opening_stock_input && String(data.opening_stock_input).trim() !== '')
+                    ? String(data.opening_stock_input)
+                    : formatNumber(data.opening_stock);
+            }
+            if (headerQtyIn && (data.total_qty_in !== undefined || data.quantity_in_input !== undefined)) {
+                headerQtyIn.textContent = (data.quantity_in_input && String(data.quantity_in_input).trim() !== '')
+                    ? String(data.quantity_in_input)
+                    : formatNumber(data.total_qty_in);
+            }
+            if (headerQtyOut && (data.total_qty_out !== undefined || data.quantity_out_input !== undefined)) {
+                headerQtyOut.textContent = (data.quantity_out_input && String(data.quantity_out_input).trim() !== '')
+                    ? String(data.quantity_out_input)
+                    : formatNumber(data.total_qty_out);
+            }
+            if (headerWaste && data.waste !== undefined) {
+                var wasteRaw = data.waste_input && String(data.waste_input).trim() !== '';
+                headerWaste.textContent = wasteRaw
+                    ? String(data.waste_input)
+                    : (parseFloat(data.waste) > 0 ? formatNumber(data.waste) : '—');
+            }
+            if (headerTotalStock && data.current_stock !== undefined) {
+                headerTotalStock.textContent = (data.opening_stock_input && String(data.opening_stock_input).trim() !== '')
+                    ? String(data.opening_stock_input)
+                    : formatNumber(data.current_stock);
+            }
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone();
+        }).catch(function() {
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone(true);
+        }).finally(function() {
+            refreshInProgress = false;
+        });
+    }
+    var POLL_FAST_MS = 2000;
+    var POLL_SLOW_MS = 10000;
+    var firstRefreshMs = 500;
+    var pollTimer = null;
+    function scheduleNext(intervalMs) {
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(function run() {
+            refreshLedger();
+            pollTimer = setTimeout(run, document.hidden ? POLL_SLOW_MS : POLL_FAST_MS);
+        }, intervalMs);
+    }
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = setTimeout(function run() {
+                refreshLedger();
+                pollTimer = setTimeout(run, POLL_SLOW_MS);
+            }, POLL_SLOW_MS);
+        } else {
+            refreshLedger();
+            scheduleNext(POLL_FAST_MS);
+        }
+    });
+    scheduleNext(firstRefreshMs);
+    var refreshBtn = document.getElementById('report-refresh-btn');
+    var refreshLabel = document.getElementById('report-refresh-label');
+    window._reportRefreshDone = function(isError) {
+        if (refreshLabel) refreshLabel.textContent = isError ? 'Try again' : 'Updated';
+        setTimeout(function() {
+            if (refreshLabel) refreshLabel.textContent = 'Refresh';
+        }, 1500);
+    };
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (refreshInProgress) return;
+            if (refreshLabel) refreshLabel.textContent = 'Refreshing…';
+            refreshLedger();
+        });
+    }
+})();
+</script>
+{% endblock %}

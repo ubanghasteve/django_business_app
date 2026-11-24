@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <h2>Payroll Summary - {{ period }}</h2>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Gross</th>
+        <th>Total Deductions</th>
+        <th>Net</th>
+      </tr>
+    </thead>
+    <tbody id="payroll-summary-body">
+      {% for item in items %}
+      <tr>
+        <td>{{ item.employee.full_name }}</td>
+        <td>{{ item.gross_salary }}</td>
+        <td>{{ item.pension|add:item.nhf|add:item.tax|add:item.loan_deduction|add:item.salary_advance|add:item.other_deductions }}</td>
+        <td>{{ item.net_salary }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">No payroll items.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><strong>Total Cost:</strong> <span id="payroll-total-cost-text">{{ total_cost }}</span></p>
+  <p><strong>Total Deductions:</strong> <span id="payroll-total-deductions-text">{{ total_deductions }}</span></p>
+  <p><strong>Total Net:</strong> <span id="payroll-total-net-text">{{ total_net }}</span></p>
+</div>
+<script>
+  (function () {
+    const periodId = {{ period.id }};
+    const endpoint = "{% url 'payroll-period-items' 0 %}".replace("/0/", "/" + periodId + "/");
+
+    function renderSummary(data) {
+      const tbody = document.getElementById("payroll-summary-body");
+      if (!tbody) return;
+      const items = data.items || [];
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="4">No payroll items.</td></tr>';
+      } else {
+        tbody.innerHTML = items.map(function (it) {
+          return (
+            "<tr>" +
+            "<td>" + it.employee + "</td>" +
+            "<td>" + it.gross_salary + "</td>" +
+            "<td>" + it.total_deductions + "</td>" +
+            "<td>" + it.net_salary + "</td>" +
+            "</tr>"
+          );
+        }).join("");
+      }
+      var costEl = document.getElementById("payroll-total-cost-text");
+      var dedEl = document.getElementById("payroll-total-deductions-text");
+      var netEl = document.getElementById("payroll-total-net-text");
+      if (costEl) costEl.textContent = data.total_cost;
+      if (dedEl) dedEl.textContent = data.total_deductions;
+      if (netEl) netEl.textContent = data.total_net;
+    }
+
+    function fetchSummary() {
+      fetch(endpoint, {
+        method: "GET",
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("Network error");
+          return resp.json();
+        })
+        .then(function (data) {
+          renderSummary(data);
+        })
+        .catch(function () {
+          // ignore; next poll retries
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      fetchSummary();
+      setInterval(fetchSummary, 15000);
+    });
+  })();
+</script>
+{% endblock %}
+

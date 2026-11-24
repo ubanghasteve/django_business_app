@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if conversation %}Chat - {{ conversation.name|default:conversation.id }}{% else %}Messaging - Inbox{% endif %}{% endblock %}
+{% block page_title %}Messaging{% endblock %}
+{% block breadcrumb %}{% if conversation %}<a href="{% url 'messaging:inbox' %}">Inbox</a> / Chat{% else %}Inbox{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="{% static 'css/messaging.css' %}">
+<style>
+/* Clearly visible border + padding for conversation search input */
+#conversationSearch.form-control {
+  border: 1px solid #4a5568 !important;
+  background-color: #ffffff;
+  border-radius: 6px;
+  padding: 0.375rem 0.75rem;
+  box-shadow: none;
+  font-size: 0.85rem;
+}
+
+#conversationSearch::placeholder {
+  color: #a0aec0;
+}
+
+#conversationSearch:focus {
+  border-color: #3182ce !important;
+  box-shadow: 0 0 0 0.12rem rgba(49, 130, 206, 0.2);
+  outline: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<div class="container-fluid py-4">
+  <div class="chat-app" id="chatApp" data-initial-conversation-id="{% if conversation %}{{ conversation.id }}{% else %}0{% endif %}" data-current-user-id="{{ request.user.id|default:0 }}">
+    <aside class="chat-sidebar">
+      <div class="messaging-list-header">
+        <h6 class="mb-0">Conversations</h6>
+        <div class="d-flex gap-1">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btnNewGroup" title="New group" aria-label="New group"><i class="fas fa-users"></i></button>
+          <button type="button" class="btn btn-sm btn-primary" id="btnNewChat" title="New chat" aria-label="New chat"><i class="fas fa-plus"></i></button>
+        </div>
+      </div>
+      <div class="px-2 pb-2">
+        <input type="text" class="form-control form-control-sm" id="conversationSearch" placeholder="Search conversations…" autocomplete="off" aria-label="Search conversations">
+      </div>
+      <div class="messaging-list-items" id="conversationList">
+        <div class="text-muted text-center py-4">Loading…</div>
+      </div>
+    </aside>
+    <main class="chat-main">
+      <div class="messaging-pane-empty" id="paneEmpty">
+        Select a conversation or start a new chat.
+      </div>
+      <div id="paneChat" style="display: none; flex: 1; flex-direction: column; min-height: 0;">
+        <div class="messaging-pane-header chat-header">
+          <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary chat-back-btn" id="btnBackChat" title="Back to conversations" aria-label="Back to conversations"><i class="fas fa-arrow-left"></i></button>
+            <strong id="chatTitle">Chat</strong>
+            <span class="presence ms-2" id="chatPresence"></span>
+            <span class="typing-indicator ms-2 small text-muted" id="typingIndicator" style="display: none;"></span>
+          </div>
+          <div class="d-flex align-items-center gap-1 flex-wrap" id="chatHeaderActions">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnStartCall" title="Start call"><i class="fas fa-phone"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="btnEndCall" title="End call" style="display: none;"><i class="fas fa-phone-slash"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRenameConv" title="Rename group" style="display: none;"><i class="fas fa-edit"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddMember" title="Add member" style="display: none;"><i class="fas fa-user-plus"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMembers" title="Members" style="display: none;"><i class="fas fa-users"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnLeaveConv" title="Leave conversation"><i class="fas fa-sign-out-alt"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnSearchMessages" title="Search in chat"><i class="fas fa-search"></i></button>
+          </div>
+        </div>
+        <div class="messaging-messages-wrap">
+          <div class="messaging-messages" id="messageList">
+            <div id="loadOlderWrap" class="text-center py-2" style="display: none;">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="btnLoadOlder">Load older</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="msg-back-to-bottom" id="btnBackToBottom" title="Back to bottom" aria-label="Back to bottom"><i class="fas fa-chevron-down"></i></button>
+        <div class="reply-bar" id="replyBar" style="display: none;">
+          <span id="replyPreview"></span>
+          <button type="button" class="btn btn-sm btn-link p-0" id="cancelReply">Cancel</button>
+        </div>
+        <div class="messaging-input-row">
+          <div class="emoji-picker-wrap">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnEmoji" title="Emoji" aria-label="Insert emoji">😀</button>
+          </div>
+          <input type="file" id="fileInput" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt,.csv" aria-label="Attach file">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAttach" title="Attach file" aria-label="Attach file"><i class="fas fa-paperclip"></i></button>
+          <textarea id="messageInput" placeholder="Type a message…" rows="1" aria-label="Message input" autocomplete="off"></textarea>
+          <button type="button" class="btn btn-primary btn-send" id="btnSend" title="Send" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- New chat modal: simple dropdown to pick user -->
+<div class="modal fade" id="modalNewChat" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New chat</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Select a team member</label>
+        <select class="form-select" id="newChatUser"></select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalNewChatStart">Start chat</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New group modal: name + multi-select members -->
+<div class="modal fade" id="modalNewGroup" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New group</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Group name</label>
+          <input type="text" class="form-control" id="newGroupName" placeholder="Group name" maxlength="255">
+        </div>
+        <div class="mb-0">
+          <label class="form-label">Add members</label>
+          <select class="form-select" id="newGroupMembers" multiple size="6"></select>
+          <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalNewGroupCreate">Create group</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Incoming call / call in progress overlay -->
+<div id="callOverlay" class="messaging-call-overlay" style="display: none;">
+  <div class="messaging-call-box">
+    <p id="callOverlayText">Incoming call…</p>
+    <div id="callOverlayActions">
+      <button type="button" class="btn btn-danger me-2" id="callReject">Reject</button>
+      <button type="button" class="btn btn-success" id="callAccept">Accept</button>
+    </div>
+    <div id="callInProgressActions" style="display: none;">
+      <button type="button" class="btn btn-danger" id="callEnd">End call</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename group modal -->
+<div class="modal fade" id="modalRenameGroup" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Rename group</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Group name</label>
+        <input type="text" class="form-control" id="renameGroupName" maxlength="255">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalRenameGroupSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add member modal -->
+<div class="modal fade" id="modalAddMember" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Select a team member</label>
+        <select class="form-select" id="addMemberUser"></select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalAddMemberConfirm">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Members modal (group: list with Remove) -->
+<div class="modal fade" id="modalMembers" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Members</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ul id="membersList" class="list-group list-group-flush"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search messages modal -->
+<div class="modal fade" id="modalSearchMessages" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Search in conversation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="form-control mb-2" id="searchMessagesQuery" placeholder="Search messages…">
+        <div id="searchMessagesResults" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete message options modal (no fade = instant close) -->
+<div class="modal" id="modalDeleteMessage" tabindex="-1" aria-labelledby="modalDeleteMessageTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDeleteMessageTitle">Delete message</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">How would you like to delete this message?</p>
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="btn btn-outline-danger text-start" id="deleteForMeBtn">
+            <strong>Delete for me</strong><br>
+            <small class="text-muted">Remove this message from your view only. Others will still see it.</small>
+          </button>
+          <button type="button" class="btn btn-outline-danger text-start" id="deleteForAllBtn" style="display: none;">
+            <strong>Delete for everyone</strong><br>
+            <small class="text-muted">Remove this message for all participants. This cannot be undone.</small>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Emoji picker modal (WhatsApp-style with tabs) -->
+<div class="modal fade emoji-modal" id="modalEmoji" tabindex="-1" aria-labelledby="modalEmojiTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered emoji-modal-dialog">
+    <div class="modal-content emoji-modal-content">
+      <div class="modal-header emoji-modal-header">
+        <h5 class="modal-title" id="modalEmojiTitle">Emoji</h5>
+        <button type="button" class="btn-close" id="modalEmojiClose" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="emoji-modal-tabs-wrap">
+        <div class="emoji-modal-tabs" id="emojiModalTabs" role="tablist"></div>
+      </div>
+      <div class="emoji-modal-body">
+        <div class="emoji-modal-panels" id="emojiModalPanels"></div>
+      </div>
+      <div class="emoji-modal-footer">
+        <button type="button" class="btn btn-primary btn-done" id="modalEmojiDone" aria-label="Done">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.MESSAGING_CONFIG = {
+    inboxUrl: "{% url 'messaging:inbox' %}",
+    apiCsrf: "{% url 'messaging:api_csrf_token' %}",
+    apiConversations: "{% url 'messaging:api_conversation_list' %}",
+    apiConversationDetail: "{% url 'messaging:api_conversation_detail' 0 %}".replace('/0/', '/'),
+    apiMessages: "{% url 'messaging:api_fetch_messages' 0 %}".replace('/0/', '/'),
+    apiSend: "{% url 'messaging:api_send_message' 0 %}".replace('/0/', '/'),
+    apiUpload: "{% url 'messaging:api_upload_file' 0 %}".replace('/0/', '/'),
+    apiCallStart: "{% url 'messaging:api_start_call' 0 %}".replace('/0/', '/'),
+    apiCallStatus: "{% url 'messaging:api_poll_call_status' 0 %}".replace('/0/', '/'),
+    apiCallEnd: "{% url 'messaging:api_end_call' 0 %}".replace('/0/', '/'),
+    apiRemoveMember: "{% url 'messaging:api_remove_member' 0 %}".replace('/0/', '/'),
+    apiLeave: "{% url 'messaging:api_leave_conversation' 0 %}".replace('/0/', '/'),
+    apiRejoin: "{% url 'messaging:api_rejoin_conversation' 0 %}".replace('/0/', '/'),
+    apiAddMember: "{% url 'messaging:api_add_member' 0 %}".replace('/0/', '/'),
+    apiDeleteMessage: "{% url 'messaging:api_delete_message' 0 %}".replace('/0/', '/'),
+    apiDeletedIdsSince: "{% url 'messaging:api_deleted_ids_since' 0 %}".replace('/0/', '/'),
+    apiMarkRead: "{% url 'messaging:api_mark_read' 0 %}".replace('/0/', '/'),
+    apiRename: "{% url 'messaging:api_rename_conversation' 0 %}".replace('/0/', '/'),
+    apiTypingStart: "{% url 'messaging:api_typing_start' 0 %}".replace('/0/', '/'),
+    apiTypingStop: "{% url 'messaging:api_typing_stop' 0 %}".replace('/0/', '/'),
+    apiTypingList: "{% url 'messaging:api_typing_list' 0 %}".replace('/0/', '/'),
+    apiPresence: "{% url 'messaging:api_update_presence' %}",
+    apiPresenceOffline: "{% url 'messaging:api_presence_offline' %}",
+    apiPresenceList: "{% url 'messaging:api_presence_list' %}",
+    apiAccountUsers: "{% url 'messaging:api_account_users' %}",
+    apiCreateConversation: "{% url 'messaging:api_create_conversation' %}",
+    apiServeFile: "{% url 'messaging:api_serve_message_file' 0 %}".replace('/0/', '/'),
+    csrfToken: "{{ csrf_token|escapejs }}"
+  };
+  (function () {
+    var el = document.getElementById('chatApp');
+    if (el) {
+      window.MESSAGING_CONFIG.initialConversationId = parseInt(el.getAttribute('data-initial-conversation-id') || '0', 10);
+      window.MESSAGING_CONFIG.currentUserId = parseInt(el.getAttribute('data-current-user-id') || '0', 10);
+    }
+  })();
+</script>
+<script src="{% static 'js/messaging.js' %}"></script>
+{% endblock %}

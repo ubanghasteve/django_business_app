@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <h2>Employee Payroll</h2>
+  <p><strong>Employee:</strong> {{ item.employee.full_name }} ({{ item.employee.employee_id }})</p>
+  <p><strong>Period:</strong> {{ item.payroll_run.period }}</p>
+  <table class="table table-bordered">
+    <tbody>
+      <tr><th>Basic Salary</th><td>{{ item.basic_salary }}</td></tr>
+      <tr><th>Allowances</th><td>{{ item.allowances }}</td></tr>
+      <tr><th>Bonuses</th><td>{{ item.bonuses }}</td></tr>
+      <tr><th>Overtime</th><td>{{ item.overtime }}</td></tr>
+      <tr><th>Gross Salary</th><td>{{ item.gross_salary }}</td></tr>
+      <tr><th>Pension</th><td>{{ item.pension }}</td></tr>
+      <tr><th>NHF</th><td>{{ item.nhf }}</td></tr>
+      <tr><th>PAYE Tax</th><td>{{ item.tax }}</td></tr>
+      <tr><th>Loan Deduction</th><td>{{ item.loan_deduction }}</td></tr>
+      <tr><th>Salary Advance</th><td>{{ item.salary_advance }}</td></tr>
+      <tr><th>Other Deductions</th><td>{{ item.other_deductions }}</td></tr>
+      <tr><th>Net Salary</th><td>{{ item.net_salary }}</td></tr>
+    </tbody>
+  </table>
+  <a href="{% url 'payroll:payslip' item.id %}" class="btn btn-primary">Download Payslip PDF</a>
+</div>
+{% endblock %}
+

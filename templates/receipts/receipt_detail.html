@@ -1,0 +1,907 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency_filters %}
+{% block title %}Receipt {{ receipt.receipt_no }}{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{% url 'receipts:list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Receipts
+        </a>
+    </div>
+    <div>
+        {% if is_company_admin or perms.receipts.print_receipt %}
+        <a href="{% url 'receipts:print' receipt.id %}" class="btn btn-primary btn-sm" target="_blank">
+            <i class="fas fa-print"></i> Print Receipt
+        </a>
+        {% endif %}
+        {% if is_company_admin or perms.receipts.download_receipt %}
+        <a href="{% url 'receipts:print' receipt.id %}" class="btn btn-outline-primary btn-sm" target="_blank">
+            <i class="fas fa-file-pdf"></i> Download PDF
+        </a>
+        {% endif %}
+        {% if perms.receipts.add_receipt %}
+        <a href="{% url 'receipts:create' %}" class="btn btn-success btn-sm">
+            <i class="fas fa-plus"></i> Create New Receipt
+        </a>
+        {% endif %}
+        {% if is_company_admin or perms.receipts.change_receipt %}
+        <a href="{% url 'receipts:edit' receipt.id %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% endif %}
+        {% if is_company_admin or perms.receipts.delete_receipt %}
+        <a href="{% url 'receipts:delete' receipt.id %}" class="btn btn-outline-danger btn-sm">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% if is_company_admin %}
+<p class="text-muted small mb-2">Created by {% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.email }} on {{ receipt.created_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</p>
+{% endif %}
+
+
+<style>
+    /* Theme colors from Company Profile - Applied globally */
+    :root {
+        --receipt-blue: #1a237e;
+        --receipt-primary: {{ theme_primary_color|default:"#1976d2" }};
+        --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+        --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+        --text-color: {{ theme_text_color|default:"#333333" }};
+        --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+    }
+
+    /* Receipt Design Styles */
+    .receipt-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
+        scrollbar-width: thin; /* Firefox */
+        position: relative;
+    }
+    
+    /* Custom scrollbar for webkit browsers */
+    .receipt-wrapper::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .receipt-wrapper::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .receipt-wrapper::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .receipt-wrapper::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    .receipt-container {
+        min-width: 800px; /* Ensure minimum width for proper layout */
+        max-width: 900px;
+        margin: 20px auto;
+        background: #f5f5f5;
+        padding: 30px;
+        padding-bottom: 60px;
+        font-family: 'Roboto', sans-serif;
+    }
+    
+    .receipt-paper {
+        background: #ffffff;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: visible;
+        padding-bottom: 40px;
+    }
+    
+    /* Mobile scroll hint */
+    .scroll-hint {
+        display: none;
+        text-align: center;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 13px;
+        border-radius: 20px;
+        margin: 0 auto 15px;
+        width: fit-content;
+        animation: pulse 2s infinite;
+    }
+    
+    .scroll-hint i {
+        margin-right: 6px;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* Mobile/Tablet styles */
+    @media (max-width: 900px) {
+        .scroll-hint {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .scroll-hint-container {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .receipt-wrapper {
+            margin: 0 -12px;
+            padding: 0 12px 15px;
+            background: linear-gradient(to right, 
+                rgba(0,0,0,0.02) 0%, 
+                transparent 5%, 
+                transparent 95%, 
+                rgba(0,0,0,0.02) 100%);
+        }
+    }
+    
+    /* Extra small devices (phones) */
+    @media (max-width: 576px) {
+        .scroll-hint {
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        
+        .receipt-container {
+            padding: 15px;
+            margin: 10px auto;
+        }
+    }
+    
+    /* Header Section with Diagonal Split */
+    .receipt-header {
+        display: grid;
+        grid-template-columns: 1fr 1.5fr 1.5fr;
+        min-height: 180px;
+        position: relative;
+    }
+    
+    .header-left {
+        background: #e0e0e0;
+        color: var(--receipt-primary);
+        padding: 20px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        z-index: 2;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .header-left * {
+        color: var(--receipt-primary) !important;
+    }
+    
+    .header-left::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: -30px;
+        width: 0;
+        height: 0;
+        border-top: 180px solid #e0e0e0;
+        border-left: 30px solid transparent;
+        z-index: 1;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .header-center {
+        background: var(--receipt-primary);
+        color: white;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        z-index: 0;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .header-center * {
+        color: white !important;
+    }
+    
+    .header-right {
+        background: var(--receipt-primary);
+        color: white;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: flex-end;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .header-right * {
+        color: white !important;
+    }
+    
+    .logo-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .logo-placeholder {
+        width: 60px;
+        height: 60px;
+        background: #f0f4f8;
+        border: 2px solid var(--receipt-primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--receipt-primary);
+        font-weight: bold;
+        font-size: 24px;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .logo-text {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .logo-text .logo-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--receipt-primary) !important;
+    }
+    
+    .logo-text .tagline {
+        font-size: 10px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        color: var(--receipt-primary) !important;
+    }
+    
+    .receipt-number {
+        font-size: 14px;
+        font-weight: 700;
+        margin-top: 15px;
+        color: var(--receipt-primary) !important;
+        background: #f8f9fa;
+        padding: 10px 15px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        letter-spacing: 0.5px;
+        min-width: fit-content;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+    
+    .receipt-number * {
+        color: var(--receipt-primary) !important;
+    }
+    
+    .receipt-number-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .receipt-number-line {
+        line-height: 1.3;
+        display: block;
+        color: var(--receipt-primary) !important;
+        font-weight: 700;
+    }
+    
+    .receipt-title {
+        font-size: 32px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: white;
+        margin-bottom: 15px;
+        letter-spacing: 2px;
+    }
+    
+    .contact-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+        color: white;
+    }
+    
+    .contact-info div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .contact-info i {
+        width: 16px;
+        text-align: center;
+    }
+    
+    .company-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 10px;
+    }
+    
+    .company-address {
+        font-size: 12px;
+        color: white;
+        text-align: right;
+        line-height: 1.6;
+        margin-bottom: 15px;
+    }
+    
+    .receipt-date {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--receipt-blue) !important;
+        background: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+    }
+    
+    .header-divider {
+        height: 3px;
+        background: var(--receipt-primary);
+        width: 100%;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Main Body Section */
+    .receipt-body {
+        padding: 30px;
+        background: white;
+        min-height: 400px;
+    }
+    
+    .body-field {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: baseline;
+    }
+    
+    .body-field label {
+        font-weight: 600;
+        color: var(--receipt-blue);
+        min-width: 180px;
+        font-size: 14px;
+    }
+    
+    .body-field .field-value {
+        flex: 1;
+        border-bottom: 2px dotted #ccc;
+        padding-bottom: 3px;
+        margin-left: 10px;
+        color: #333;
+        font-size: 14px;
+    }
+    
+    .body-field-right {
+        justify-content: space-between;
+        margin-left: 0;
+    }
+    
+    .body-field-right label {
+        flex: 0 0 auto;
+    }
+    
+    .body-field-right .field-value {
+        flex: 0 0 200px;
+        text-align: right;
+    }
+    
+    .amount-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 30px;
+        margin-left: 190px;
+    }
+    
+    .amount-box-label {
+        font-weight: 600;
+        color: var(--receipt-blue);
+        font-size: 14px;
+    }
+    
+    .amount-box-value {
+        border: 2px solid var(--receipt-blue);
+        padding: 8px 15px;
+        min-width: 150px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--receipt-blue);
+        border-radius: 4px;
+    }
+    
+    .acct-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .acct-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .acct-field label {
+        font-weight: 600;
+        color: var(--receipt-blue);
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+    
+    .acct-field .field-value {
+        border-bottom: 2px dotted #ccc;
+        padding-bottom: 3px;
+        color: #333;
+        font-size: 14px;
+    }
+    
+    /* Footer Section */
+    .receipt-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        min-height: 100px;
+        position: relative;
+    }
+    
+    .footer-left {
+        background: var(--receipt-primary);
+        color: white;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .footer-right {
+        background: #e0e0e0;
+        color: var(--receipt-primary);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: flex-end;
+        position: relative;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .footer-right::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: -30px;
+        width: 0;
+        height: 0;
+        border-bottom: 100px solid #e0e0e0;
+        border-right: 30px solid transparent;
+        z-index: 1;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .footer-left {
+        position: relative;
+        z-index: 0;
+    }
+    
+    .footer-field {
+        margin-top: 10px;
+    }
+    
+    .footer-field label {
+        font-weight: 600;
+        font-size: 13px;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .footer-field .field-value {
+        border-bottom: 2px dotted rgba(255,255,255,0.5);
+        padding-bottom: 3px;
+        min-width: 200px;
+        color: white;
+    }
+    
+    .footer-left .footer-field label {
+        color: white !important;
+    }
+    
+    .footer-left .footer-field .field-value {
+        border-bottom-color: rgba(255,255,255,0.5);
+        color: white !important;
+    }
+    
+    .footer-right .footer-field label {
+        color: var(--receipt-primary) !important;
+    }
+    
+    .footer-right .footer-field .field-value {
+        border-bottom-color: #ccc;
+        color: var(--receipt-primary) !important;
+    }
+    
+    .signature-image {
+        max-height: 90px;
+        max-width: 220px;
+        margin-top: 10px;
+        background: #ffffff;
+        padding: 10px 12px;
+        border-radius: 4px;
+        display: block;
+        filter: none;
+        opacity: 1;
+        border: 1px solid rgba(0,0,0,0.25);
+        object-fit: contain;
+    }
+    
+    .signature-placeholder {
+        min-height: 60px;
+        width: 200px;
+        border-bottom: 2px dotted rgba(255,255,255,0.5);
+        padding-bottom: 3px;
+    }
+    
+    .footer-right .signature-placeholder {
+        border-bottom-color: #ccc;
+    }
+    
+    @media print {
+        .receipt-container {
+            margin: 0;
+            padding: 0;
+            background: white;
+        }
+        .receipt-paper {
+            box-shadow: none;
+        }
+        /* Force backgrounds/colors when printing from detail page (e.g. Windows print) */
+        .header-left,
+        .header-center,
+        .header-right,
+        .footer-left,
+        .footer-right {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+        .header-left {
+            background: #e0e0e0 !important;
+        }
+        .header-left::after {
+            border-top-color: #e0e0e0 !important;
+        }
+        .footer-right {
+            background: #e0e0e0 !important;
+        }
+        .footer-right::before {
+            border-bottom-color: #e0e0e0 !important;
+        }
+    }
+</style>
+
+
+
+
+<!-- Mobile scroll hint -->
+<div class="scroll-hint-container">
+    <div class="scroll-hint" id="scrollHint">
+        <i class="fas fa-arrows-left-right"></i> Swipe left/right to view full receipt
+    </div>
+</div>
+
+<div class="receipt-wrapper" id="receiptWrapper">
+<div class="receipt-container">
+    <div class="receipt-paper">
+        <!-- Header -->
+        <div class="receipt-header">
+            <div class="header-left">
+                <div class="logo-section">
+                    {% if company_logo %}
+                        <img src="{{ company_logo }}" alt="Logo" style="width: 60px; height: 60px; object-fit: contain; background: white; padding: 5px; border-radius: 4px;">
+                        {% if not company_profile.company_name %}
+                        <div class="logo-text">
+                            <div class="logo-label">LOGO HERE</div>
+                            <div class="tagline">TAGLINE</div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="logo-placeholder">Z</div>
+                        <div class="logo-text">
+                            <div class="logo-label">LOGO HERE</div>
+                            <div class="tagline">TAGLINE</div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="receipt-number-wrapper">
+                    <div class="receipt-number" id="receipt-number-{{ receipt.id }}">
+                        <span class="receipt-number-line">NO: {{ receipt.receipt_no }}</span>
+                    </div>
+                </div>
+                <script>
+                (function() {
+                    var receiptNo = '{{ receipt.receipt_no }}';
+                    var container = document.getElementById('receipt-number-{{ receipt.id }}');
+                    if (container && receiptNo.includes('-')) {
+                        var parts = receiptNo.split('-');
+                        if (parts.length >= 3) {
+                            var firstLine = 'NO: ' + parts[0] + '-' + parts[1] + '-';
+                            var secondLine = parts.slice(2).join('-');
+                            container.innerHTML = '<span class="receipt-number-line">' + firstLine + '</span><span class="receipt-number-line">' + secondLine + '</span>';
+                        }
+                    }
+                })();
+                </script>
+            </div>
+            
+            <div class="header-center">
+                <div class="receipt-title">RECEIPT</div>
+                <div class="contact-info">
+                    {% if company_profile.phone %}
+                    <div>
+                        <i class="fas fa-phone"></i>
+                        <span>{{ company_profile.phone }}</span>
+                    </div>
+                    {% endif %}
+                    {% if company_profile.email %}
+                    <div>
+                        <i class="fas fa-envelope"></i>
+                        <span>{{ company_profile.email }}</span>
+                    </div>
+                    {% endif %}
+                    {% if company_profile.website %}
+                    <div>
+                        <i class="fas fa-globe"></i>
+                        <span>{{ company_profile.website }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="company-name">{{ company_profile.company_name|default:"Company Name Here" }}</div>
+                <div class="company-address">
+                    {{ company_profile.address|default:"Your Business Address 0000 Main Street, Unit 000C FEL, 0000" }}
+                </div>
+                <div class="receipt-date">Date: {{ receipt.date_received|date:"d/m/Y" }}</div>
+            </div>
+        </div>
+        
+        <div class="header-divider"></div>
+        
+        <!-- Main Body -->
+        <div class="receipt-body">
+            <div class="body-field">
+                <label>Received with thanks from</label>
+                <div class="field-value">{{ receipt.client_name }}</div>
+            </div>
+            
+            <div class="body-field">
+                <label>Amount</label>
+                <div class="field-value">{{ user_currency_symbol }}{{ receipt.amount_received|floatformat:2|intcomma }}</div>
+            </div>
+            
+            {% if receipt.balance_after_payment is not None %}
+            <div class="body-field">
+                <label>Balance After Payment</label>
+                <div class="field-value">
+                    {% if receipt.balance_after_payment > 0 %}
+                    <span class="text-danger">{{ user_currency_symbol }}{{ receipt.balance_after_payment|floatformat:2|intcomma }}</span>
+                    {% elif receipt.balance_after_payment < 0 %}
+                    <span class="text-danger">OVERPAID {{ user_currency_symbol }}{{ receipt.balance_after_payment|floatformat:2|intcomma|cut:"-" }}</span>
+                    {% else %}
+                    <span class="text-success">{{ user_currency_symbol }}0.00</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if receipt.payment_type %}
+            <div class="body-field">
+                <label>Payment Type</label>
+                <div class="field-value">
+                    {% if receipt.payment_type == 'full' %}
+                    <span class="badge bg-success">Full Payment</span>
+                    {% elif receipt.payment_type == 'partial' %}
+                    <span class="badge bg-warning">Partial Payment</span>
+                    {% elif receipt.payment_type == 'over' %}
+                    <span class="badge bg-danger">Over Payment</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if receipt.refund_due and receipt.refund_due > 0 %}
+            <div class="body-field">
+                <label>Refund Due to Customer</label>
+                <div class="field-value text-danger">{{ user_currency_symbol }}{{ receipt.refund_due|floatformat:2|intcomma }}</div>
+            </div>
+            {% endif %}
+            
+            <div class="body-field">
+                <label>In word</label>
+                <div class="field-value">{{ receipt.amount_in_words }}</div>
+            </div>
+            
+            <div class="body-field">
+                <label>Client Phone</label>
+                <div class="field-value">{{ receipt.client_phone|default:receipt.invoice.client_phone|default:"-" }}</div>
+            </div>
+            
+            <div class="body-field">
+                <label>Client Address</label>
+                <div class="field-value">{{ receipt.client_address|default:receipt.invoice.client_address|default:"-" }}</div>
+            </div>
+            
+            <div class="body-field">
+                <label>Payment Method</label>
+                <div class="field-value">{{ receipt.get_payment_method_display }}</div>
+            </div>
+            
+            {% if receipt.transaction_id %}
+            <div class="body-field">
+                <label>Transaction ID</label>
+                <div class="field-value">{{ receipt.transaction_id }}</div>
+            </div>
+            {% endif %}
+            
+            <!-- Notes section is displayed further down -->
+            
+            <div class="acct-row">
+                <div class="acct-field">
+                    <label>INVOICE TOTAL</label>
+                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.grand_total|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="acct-field">
+                    <label>THIS RECEIPT</label>
+                    <div class="field-value text-success">{{ user_currency_symbol }}{{ receipt.amount_received|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="acct-field">
+                    <label>BALANCE AFTER</label>
+                    <div class="field-value {% if receipt.balance_after_payment > 0 or receipt.balance_after_payment < 0 %}text-danger{% else %}text-success{% endif %}">
+                        {% if receipt.balance_after_payment > 0 %}
+                            {{ user_currency_symbol }}{{ receipt.balance_after_payment|floatformat:2|intcomma }}
+                        {% elif receipt.balance_after_payment < 0 %}
+                            OVERPAID
+                        {% else %}
+                            PAID IN FULL
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="amount-box">
+                <span class="amount-box-label">Amount=</span>
+                <div class="amount-box-value">{{ user_currency_symbol }}{{ receipt.amount_received|floatformat:2|intcomma }}</div>
+            </div>
+            
+            {% if receipt.notes %}
+            <div class="body-field" style="margin-top: 20px;">
+                <label>Notes</label>
+                <div class="field-value">{{ receipt.notes }}</div>
+            </div>
+            {% endif %}
+            
+            {% if bank_accounts and receipt.show_bank_details %}
+            <div class="body-field" style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--primary-color, #1976d2);">
+                <label style="font-weight: 600; margin-bottom: 12px; display: block;">Bank Details</label>
+                {% for account in bank_accounts %}
+                <div style="margin-bottom: {% if not forloop.last %}16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0;{% else %}0;{% endif %}">
+                    <div class="field-value"><strong>Bank:</strong> {{ account.bank_name }}</div>
+                    <div class="field-value"><strong>Account No:</strong> {{ account.account_number }}</div>
+                    <div class="field-value"><strong>Account Name:</strong> {{ account.account_name }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="receipt-footer">
+            <div class="footer-left">
+                <div class="footer-field">
+                    <label>Received by</label>
+                    <div class="field-value">{{ receipt.received_by }}</div>
+                </div>
+            </div>
+            
+            <div class="footer-right">
+                <div class="footer-field">
+                    <label>Authorized Signature</label>
+                    {% if company_signature and receipt.show_signature %}
+                        <img src="{{ company_signature }}" alt="Signature" class="signature-image" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';">
+                        <div class="signature-placeholder" style="display: none;">&nbsp;</div>
+                    {% else %}
+                        <div class="signature-placeholder">&nbsp;</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var scrollHint = document.getElementById('scrollHint');
+    var receiptWrapper = document.getElementById('receiptWrapper');
+    
+    if (scrollHint && receiptWrapper) {
+        // Hide hint after user scrolls
+        var scrolled = false;
+        receiptWrapper.addEventListener('scroll', function() {
+            if (!scrolled) {
+                scrolled = true;
+                scrollHint.style.opacity = '0';
+                scrollHint.style.transition = 'opacity 0.3s ease';
+                setTimeout(function() {
+                    scrollHint.style.display = 'none';
+                }, 300);
+            }
+        });
+        
+        // Also hide hint after 5 seconds
+        setTimeout(function() {
+            if (!scrolled && scrollHint) {
+                scrollHint.style.opacity = '0';
+                scrollHint.style.transition = 'opacity 0.3s ease';
+                setTimeout(function() {
+                    scrollHint.style.display = 'none';
+                }, 300);
+            }
+        }, 5000);
+        
+        // Hide on desktop (no need for hint)
+        if (window.innerWidth > 900) {
+            scrollHint.style.display = 'none';
+        }
+    }
+});
+</script>
+{% endblock %}

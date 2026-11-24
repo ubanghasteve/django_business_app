@@ -1,0 +1,618 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Theme colors */
+    :root {
+        --profile-primary: {{ theme_primary_color|default:"#e91e63" }};
+        --profile-secondary: {{ theme_secondary_color|default:"#f8f9fa" }};
+    }
+    
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes fadeInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+    
+    @keyframes shimmer {
+        0% {
+            background-position: -200% 0;
+        }
+        100% {
+            background-position: 200% 0;
+        }
+    }
+    
+    .profile-container {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    .profile-card {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .profile-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+    
+    .profile-header {
+        background: linear-gradient(135deg, var(--profile-primary) 0%, color-mix(in srgb, var(--profile-primary) 70%, #000) 100%);
+        padding: 2rem 1.5rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+        background-size: 200% 100%;
+        animation: shimmer 3s infinite;
+    }
+    
+    .profile-avatar-wrapper {
+        position: relative;
+        display: inline-block;
+        animation: scaleIn 0.5s ease-out 0.2s both;
+    }
+    
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    
+    .profile-avatar:hover {
+        transform: scale(1.05);
+    }
+    
+    .profile-avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        border: 4px solid rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease;
+    }
+    
+    .profile-avatar-placeholder:hover {
+        transform: scale(1.05);
+    }
+    
+    .profile-avatar-placeholder i {
+        font-size: 3rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .status-badge {
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 3px solid white;
+        animation: pulse 2s infinite;
+    }
+    
+    .status-badge.active {
+        background: #4caf50;
+    }
+    
+    .status-badge.inactive {
+        background: #f44336;
+    }
+    
+    .profile-name {
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 1rem 0 0.25rem;
+        animation: fadeInUp 0.5s ease-out 0.3s both;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    .profile-email {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.95rem;
+        animation: fadeInUp 0.5s ease-out 0.4s both;
+    }
+    
+    .profile-contact {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        animation: fadeInUp 0.5s ease-out 0.5s both;
+    }
+    
+    .profile-body {
+        padding: 0;
+    }
+    
+    .info-section {
+        padding: 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .info-section:last-child {
+        border-bottom: none;
+    }
+    
+    .info-section.personal {
+        animation: fadeInLeft 0.5s ease-out 0.3s both;
+    }
+    
+    .info-section.account {
+        animation: fadeInRight 0.5s ease-out 0.4s both;
+    }
+    
+    .info-section.bio {
+        animation: fadeInUp 0.5s ease-out 0.5s both;
+    }
+    
+    .section-title {
+        color: var(--profile-primary);
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-title i {
+        font-size: 1.1rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        gap: 0.75rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .info-item:hover {
+        background: #f0f0f0;
+        transform: translateX(5px);
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 0.95rem;
+        color: #333;
+        font-weight: 500;
+        word-break: break-word;
+    }
+    
+    .info-value a {
+        color: var(--profile-primary);
+        text-decoration: none;
+    }
+    
+    .info-value a:hover {
+        text-decoration: underline;
+    }
+    
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-active {
+        background: linear-gradient(135deg, #4caf50, #81c784);
+        color: white;
+    }
+    
+    .badge-inactive {
+        background: linear-gradient(135deg, #f44336, #e57373);
+        color: white;
+    }
+    
+    .badge-staff {
+        background: linear-gradient(135deg, #2196f3, #64b5f6);
+        color: white;
+    }
+    
+    .badge-regular {
+        background: linear-gradient(135deg, #607d8b, #90a4ae);
+        color: white;
+    }
+    
+    .badge-super {
+        background: linear-gradient(135deg, #ff9800, #ffb74d);
+        color: white;
+    }
+    
+    .profile-actions {
+        padding: 1.5rem;
+        background: #fafafa;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+        animation: fadeInUp 0.5s ease-out 0.6s both;
+    }
+    
+    .btn-profile {
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        text-decoration: none;
+    }
+    
+    .btn-profile-primary {
+        background: linear-gradient(135deg, var(--profile-primary), color-mix(in srgb, var(--profile-primary) 80%, #000));
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-profile-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        color: white;
+    }
+    
+    .btn-profile-secondary {
+        background: linear-gradient(135deg, #607d8b, #78909c);
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-profile-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+    
+    /* Responsive Design */
+    @media (min-width: 768px) {
+        .profile-header {
+            padding: 2.5rem 2rem;
+        }
+        
+        .profile-avatar, .profile-avatar-placeholder {
+            width: 140px;
+            height: 140px;
+        }
+        
+        .profile-name {
+            font-size: 1.75rem;
+        }
+        
+        .info-sections-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .info-section.personal {
+            border-right: 1px solid #f0f0f0;
+            border-bottom: none;
+        }
+        
+        .info-section.account {
+            border-bottom: none;
+        }
+        
+        .info-section.bio {
+            grid-column: 1 / -1;
+            border-top: 1px solid #f0f0f0;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .profile-card {
+            border-radius: 15px;
+            margin: 0 -0.5rem;
+        }
+        
+        .profile-header {
+            padding: 1.5rem 1rem;
+        }
+        
+        .profile-avatar, .profile-avatar-placeholder {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .profile-avatar-placeholder i {
+            font-size: 2.5rem;
+        }
+        
+        .profile-name {
+            font-size: 1.25rem;
+        }
+        
+        .profile-email {
+            font-size: 0.85rem;
+        }
+        
+        .info-section {
+            padding: 1rem;
+        }
+        
+        .section-title {
+            font-size: 0.9rem;
+        }
+        
+        .info-item {
+            padding: 0.6rem;
+        }
+        
+        .info-label {
+            font-size: 0.7rem;
+        }
+        
+        .info-value {
+            font-size: 0.85rem;
+        }
+        
+        .profile-actions {
+            padding: 1rem;
+            flex-direction: column;
+        }
+        
+        .btn-profile {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    
+    /* Bio section */
+    .bio-content {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        color: #555;
+        line-height: 1.6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 profile-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card profile-card">
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <div class="profile-avatar-wrapper">
+                        {% if user.profile_picture %}
+                            <img src="{{ user.profile_picture.url }}" alt="Profile Picture" class="profile-avatar">
+                        {% else %}
+                            <div class="profile-avatar-placeholder">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                        <span class="status-badge {% if user.is_active %}active{% else %}inactive{% endif %}"></span>
+                    </div>
+                    <h2 class="profile-name">{{ user.get_full_name|default:user.email }}</h2>
+                    <p class="profile-email">{{ user.email }}</p>
+                    {% if user.phone %}
+                        <p class="profile-contact">
+                            <i class="fas fa-phone-alt"></i> {{ user.phone }}
+                        </p>
+                    {% else %}
+                        <p class="profile-contact">
+                            <i class="fas fa-phone-slash"></i> No phone number
+                        </p>
+                    {% endif %}
+                    <a href="{% url 'accounts:profile_edit' %}" class="btn btn-light btn-sm mt-3 d-inline-flex align-items-center shadow-sm" style="border-radius: 999px;">
+                        <i class="fas fa-edit me-2"></i>Edit my profile
+                    </a>
+                </div>
+                
+                <!-- Profile Body -->
+                <div class="profile-body">
+                    <div class="info-sections-wrapper">
+                        <!-- Personal Information -->
+                        <div class="info-section personal">
+                            <h3 class="section-title">
+                                <i class="fas fa-user-circle"></i> Personal Information
+                            </h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">First Name</span>
+                                    <span class="info-value">{{ user.first_name|default:"Not provided" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Last Name</span>
+                                    <span class="info-value">{{ user.last_name|default:"Not provided" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Email Address</span>
+                                    <span class="info-value">{{ user.email }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Phone Number</span>
+                                    <span class="info-value">{{ user.phone|default:"Not provided" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Location</span>
+                                    <span class="info-value">{{ user.location|default:"Not provided" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Website</span>
+                                    <span class="info-value">
+                                        {% if user.website %}
+                                            <a href="{{ user.website }}" target="_blank">{{ user.website }}</a>
+                                        {% else %}
+                                            Not provided
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Birth Date</span>
+                                    <span class="info-value">{{ user.birth_date|date:"F d, Y"|default:"Not provided" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Account Information -->
+                        <div class="info-section account">
+                            <h3 class="section-title">
+                                <i class="fas fa-shield-alt"></i> Account Information
+                            </h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Member Since</span>
+                                    <span class="info-value">{{ user.date_joined|date:"F d, Y" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Account Status</span>
+                                    <span class="info-value">
+                                        {% if user.is_active %}
+                                            <span class="badge-status badge-active">
+                                                <i class="fas fa-check-circle"></i> Active
+                                            </span>
+                                        {% else %}
+                                            <span class="badge-status badge-inactive">
+                                                <i class="fas fa-times-circle"></i> Inactive
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Access</span>
+                                    <span class="info-value">
+                                        <span class="badge-status badge-regular">
+                                            <i class="fas fa-key"></i>
+                                            {% if user.is_superuser %}
+                                                Superuser{% if user_role_names %}, {{ user_role_names|join:", " }}{% endif %}
+                                            {% elif user_role_names %}
+                                                {{ user_role_names|join:", " }}
+                                            {% else %}
+                                                From assigned roles and permissions
+                                            {% endif %}
+                                        </span>
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Last Login</span>
+                                    <span class="info-value">{{ user.last_login|date:"F d, Y H:i"|default:"Never" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bio Section -->
+                        {% if user.bio %}
+                        <div class="info-section bio">
+                            <h3 class="section-title">
+                                <i class="fas fa-info-circle"></i> About Me
+                            </h3>
+                            <div class="bio-content">
+                                {{ user.bio }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons (any logged-in user can edit their own profile) -->
+                    <div class="profile-actions">
+                        <a href="{% url 'accounts:profile_edit' %}" class="btn-profile btn-profile-primary">
+                            <i class="fas fa-edit"></i> Edit Profile
+                        </a>
+                        <a href="{% url 'core:dashboard' %}" class="btn-profile btn-profile-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

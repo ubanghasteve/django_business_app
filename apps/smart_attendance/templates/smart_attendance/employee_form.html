@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ action }} Employee - Attendance{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <a href="{% url 'smart_attendance:employees' %}" class="btn btn-outline-secondary btn-sm mb-3">
+    <i class="fas fa-arrow-left me-1"></i> Back to Employees
+  </a>
+  
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h4 class="mb-0">{{ action }} Employee</h4>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" data-sync-model="attendance_employees" data-sync-redirect="{% url 'smart_attendance:employees' %}">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.employee_id|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.biometric_uid|as_crispy_field }}
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.first_name|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.last_name|as_crispy_field }}
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.email|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.phone|as_crispy_field }}
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.department|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.position|as_crispy_field }}
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.profile_photo|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.is_active|as_crispy_field }}
+              </div>
+            </div>
+            
+            <div class="mt-3">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> {{ action }} Employee
+              </button>
+              <a href="{% url 'smart_attendance:employees' %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0">Help</h5>
+        </div>
+        <div class="card-body">
+          <h6>Employee ID</h6>
+          <p class="small text-muted">Unique identifier for the employee (e.g., EMP001, Staff ID).</p>
+          
+          <h6>Biometric UID</h6>
+          <p class="small text-muted">The UID from the biometric device. When an employee clocks in, the system uses this UID to match the attendance record to the employee.</p>
+          
+          <h6>Email & Phone</h6>
+          <p class="small text-muted">Contact details for notifications and records.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

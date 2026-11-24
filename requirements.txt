@@ -1,0 +1,65 @@
+# Core
+Django==4.2.7
+python-decouple==3.8
+
+# WebSockets / ASGI (real-time messaging)
+channels==4.0.0
+daphne==4.1.0
+
+# API & CORS
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Forms & UI
+django-crispy-forms==2.1
+crispy-bootstrap5==0.7
+django-widget-tweaks==1.5.0
+django-filter==23.4
+
+# Database (PyMySQL: use >=1.1.0 for compatibility; 1.1.0 may be unavailable on some indexes)
+PyMySQL>=1.1.0
+
+# Media & files
+Pillow==10.1.0
+
+# PDF & documents
+reportlab==4.0.8
+xhtml2pdf==0.2.16
+# CV/Document text extraction
+pdfplumber>=0.10.0
+pytesseract>=0.3.10
+python-docx>=1.1.0
+pdf2image>=1.16.0
+python-pptx>=0.6.23
+openpyxl>=3.1.0
+# Optional: spaCy for better NLP (pip install spacy && python -m spacy download en_core_web_sm)
+# spacy>=3.7.0
+
+# Scanned PDF support: when a PDF has no text layer, we render pages and run OCR (install for bank statements)
+pymupdf>=1.23.0
+
+# Optional: Smart extraction (handwriting + layout) – install one and set env vars (see DOCUMENT_SMART_APIS.md)
+# google-cloud-documentai>=2.20.0
+# azure-ai-documentintelligence>=1.0.0
+
+# Excel & data
+openpyxl==3.1.2
+pandas==2.3.1
+
+# SMS (Bulk Mailing)
+twilio>=8.0.0
+
+# ZKTeco biometric pull (optional; for zk_pull_sync)
+pyzk>=0.9
+
+# Utilities
+requests==2.31.0
+num2words==0.5.12
+django-extensions==3.2.3
+
+# Static files & deployment
+whitenoise==6.6.0
+gunicorn==21.2.0
+
+# Optional (uncomment for production WebSocket scaling across workers):
+# channels-redis==4.2.0

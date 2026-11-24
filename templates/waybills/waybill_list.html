@@ -1,0 +1,1772 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block title %}Waybills - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Waybills{% endblock %}
+{% block breadcrumb %}Waybills{% endblock %}
+
+{% block content %}
+<style>
+/* Responsive Stats Cards with tap-to-view modal */
+
+/* Make stat cards clickable - Mobile friendly */
+.stats-row .card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.stats-row .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.stats-row .card:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+/* Medium screens - 2x2 grid */
+@media (max-width: 1199px) {
+    .row.px-3.mb-3.waybill-stats-row > div[class*="col-"]:not(#pendingJobsCard) {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+    }
+
+    #pendingJobsCard {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .card-header .icon {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    .card-header .icon i {
+        font-size: 18px !important;
+    }
+    
+    .card-header .text-end h4 {
+        font-size: 0.95rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .card-header .text-end p {
+        font-size: 0.65rem !important;
+    }
+}
+
+/* Pending Jobs by Customer - dedicated responsive behavior */
+#pendingJobsCard .pending-jobs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+#pendingJobsCard .pending-jobs-title {
+    margin: 0;
+    min-width: 0;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+#pendingJobsCard .pending-jobs-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+#pendingJobsCard #pendingJobsUnitFilter {
+    min-width: 170px !important;
+}
+
+#pendingJobsCard .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#pendingJobsCard table {
+    min-width: 620px;
+}
+
+@media (max-width: 767px) {
+    #pendingJobsCard .pending-jobs-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #pendingJobsCard .pending-jobs-controls {
+        width: 100%;
+    }
+
+    #pendingJobsCard #pendingJobsUnitFilter {
+        min-width: 0 !important;
+        width: 100%;
+    }
+}
+
+/* Small screens - tap to view full amount */
+@media (max-width: 767px) {
+    .card-header .icon {
+        width: 35px !important;
+        height: 35px !important;
+    }
+    
+    .card-header .icon i {
+        font-size: 16px !important;
+    }
+    
+    .card-header .text-end h4 {
+        font-size: 0.8rem !important;
+    }
+    
+    .card-header .text-end p {
+        font-size: 0.55rem !important;
+    }
+    
+    .card-header .text-end::after {
+        content: 'Tap to view';
+        display: block;
+        font-size: 0.45rem;
+        color: #a0aec0;
+        margin-top: 2px;
+    }
+}
+
+/* Waybill header: two-row layout so title is never covered by buttons */
+.waybill-list-header-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.waybill-list-header-bar .header-title-row {
+    flex-shrink: 0;
+}
+.waybill-list-header-bar .header-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+/* Push stat cards down so icons (mt-n4) don't overlap header or block button clicks */
+.waybill-stats-row {
+    margin-top: 3.5rem;
+}
+
+/* Waybills table scroll area - reliable mouse wheel and touch */
+.waybill-table-scroll-wrapper {
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+.waybill-table-scroll-wrapper .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Stat Detail Modal - Mobile Friendly */
+.stat-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.stat-modal-overlay.active {
+    display: flex;
+}
+
+.stat-modal {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 300px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+    animation: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.85) translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.stat-modal-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 32px;
+    color: white;
+}
+
+.stat-modal-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 8px;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+.stat-modal-label {
+    font-size: 1rem;
+    color: #718096;
+    margin-bottom: 24px;
+    font-weight: 500;
+}
+
+.stat-modal-close {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 14px 40px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-height: 48px;
+}
+
+.stat-modal-close:hover,
+.stat-modal-close:active {
+    transform: scale(0.98);
+    opacity: 0.95;
+}
+
+/* Mobile specific modal adjustments */
+@media (max-width: 480px) {
+    .stat-modal {
+        max-width: 280px;
+        padding: 24px 20px;
+        border-radius: 16px;
+    }
+    
+    .stat-modal-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+        margin-bottom: 16px;
+    }
+    
+    .stat-modal-number {
+        font-size: 1.5rem;
+    }
+    
+    .stat-modal-label {
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+    
+    .stat-modal-close {
+        padding: 12px 36px;
+        font-size: 0.95rem;
+    }
+}
+
+/* Clearly visible borders + padding for waybill search/filter fields */
+.waybill-filter-form .form-control,
+.waybill-filter-form .form-select {
+    border: 1px solid #4a5568 !important; /* darker, more visible border */
+    background-color: #ffffff;
+    border-radius: 6px;
+    padding: 0.375rem 0.75rem;
+    box-shadow: none;
+    min-height: 40px;
+    font-size: 0.85rem;
+}
+
+.waybill-filter-form .form-control::placeholder {
+    color: #a0aec0;
+}
+
+.waybill-filter-form .form-control:focus,
+.waybill-filter-form .form-select:focus {
+    border-color: #1976d2 !important;
+    box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+    outline: none;
+}
+</style>
+
+<!-- CSRF token for AJAX (delete, update-status) -->
+{% csrf_token %}
+<div id="waybill-table-meta" data-colspan="{% if show_created_by %}15{% else %}14{% endif %}" class="d-none" aria-hidden="true"></div>
+<script>
+(function() {
+  var el = document.getElementById('waybill-table-meta');
+  window.WAYBILL_TABLE_COLSPAN = el ? (parseInt(el.getAttribute('data-colspan'), 10) || 12) : 12;
+})();
+</script>
+
+<div class="row">
+  <div class="col-12">
+    <div class="card my-4">
+      <div class="card-header p-0 mt-n4 mx-3">
+        <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-4 px-3">
+          <div class="waybill-list-header-bar">
+            <div class="header-title-row">
+              <h6 class="text-white text-capitalize mb-0">Waybill Management</h6>
+            </div>
+            <div class="header-actions-row">
+              {% if can_create_waybill %}
+              <a href="{% url 'waybills:create_original' %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-plus text-sm"></i> Create Waybill
+              </a>
+              <span class="text-white-50 d-none d-sm-inline">|</span>
+              {% endif %}
+              {% if can_export_waybill %}
+              <a href="{% url 'waybills:export_excel' %}" class="btn btn-success btn-sm mb-0">
+                <i class="fas fa-table text-sm"></i> Export as Excel
+              </a>
+              <a href="{% url 'waybills:export_pdf' %}" class="btn btn-danger btn-sm mb-0" target="_blank">
+                <i class="fas fa-file-pdf text-sm"></i> Export as PDF
+              </a>
+              <button type="button" class="btn btn-info btn-sm mb-0" id="accuracyAuditBtn">
+                <i class="fas fa-clipboard-check text-sm"></i> Accuracy Audit
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-body px-0 pb-2">
+        <!-- Stats Cards -->
+        <div class="row px-3 mb-3 stats-row waybill-stats-row">
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card" data-full-value="{{ total_waybills }}" data-label="Total Waybills" data-color="bg-gradient-info">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-info shadow-info text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-truck opacity-10"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Total Waybills</p>
+                  <h4 class="mb-0">{{ total_waybills }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card" data-full-value="{{ pending_count }}" data-label="Pending" data-color="bg-gradient-warning">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-warning shadow-warning text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-clock opacity-10"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Pending</p>
+                  <h4 class="mb-0">{{ pending_count }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card" data-full-value="{{ in_transit_count }}" data-label="In Transit" data-color="bg-gradient-primary">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-primary shadow-primary text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-shuttle-van opacity-10"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">In Transit</p>
+                  <h4 class="mb-0">{{ in_transit_count }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6">
+            <div class="card" data-full-value="{{ delivered_count }}" data-label="Delivered" data-color="bg-gradient-success">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-success shadow-success text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-check-circle opacity-10"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Delivered</p>
+                  <h4 class="mb-0">{{ delivered_count }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-12 mt-3" id="pendingJobsCard" style="{% if not pending_by_customer %}display:none;{% endif %}">
+            <div class="card border border-warning shadow-sm">
+              <div class="card-header bg-gradient-warning text-white py-2">
+                <div class="pending-jobs-header">
+                  <h6 class="pending-jobs-title text-white"><i class="fas fa-people-carry me-2"></i>Pending Jobs by Customer (<span id="pendingJobsTotal">{% if total_pending_remaining %}{{ total_pending_remaining }}{% else %}0{% endif %}</span> remaining | <span id="pendingJobsExcess">{% if total_pending_excess %}{{ total_pending_excess }}{% else %}0{% endif %}</span> excess)</h6>
+                  <div class="pending-jobs-controls">
+                    <select id="pendingJobsUnitFilter" class="form-select form-select-sm" style="min-width: 150px;">
+                      <option value="">All Categories</option>
+                      {% for cat in pending_unit_categories %}
+                      <option value="{{ cat.unit_key }}">{{ cat.unit|default:"(No Unit)" }}</option>
+                      {% endfor %}
+                    </select>
+                    <button class="btn btn-sm btn-light mb-0" type="button" data-bs-toggle="collapse" data-bs-target="#pendingByCustomerCollapse">
+                      <i class="fas fa-chevron-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="collapse" id="pendingByCustomerCollapse">
+                <div class="card-body p-2">
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                      <thead class="table-light">
+                        <tr>
+                          <th class="text-uppercase text-xxs font-weight-bolder">Customer</th>
+                          <th class="text-uppercase text-xxs font-weight-bolder text-center">Jobs</th>
+                          <th class="text-uppercase text-xxs font-weight-bolder text-end">Remaining Qty (By Category)</th>
+                          <th class="text-uppercase text-xxs font-weight-bolder text-end">Excess Qty (By Category)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="pendingJobsTableBody">
+                        {% for item in pending_by_customer %}
+                        <tr data-customer="{{ item.customer_name }}">
+                          <td class="text-xs">{{ item.customer_name }}</td>
+                          <td class="text-xs text-center">{{ item.waybill_count }}</td>
+                          <td class="text-xs text-end fw-bold text-warning">{{ item.total_remaining_display }}</td>
+                          <td class="text-xs text-end fw-bold text-danger">{{ item.total_excess_display|default:"0" }}</td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                      <tfoot class="table-secondary">
+                        <tr>
+                          <td class="text-xs fw-bold">TOTAL</td>
+                          <td class="text-xs text-center fw-bold" id="pendingJobsCount">{% if pending_by_customer %}{{ pending_by_customer|length }}{% else %}0{% endif %}</td>
+                          <td class="text-xs text-end fw-bold text-warning" id="pendingJobsTotalFoot">{% if total_pending_remaining %}{{ total_pending_remaining }}{% else %}0{% endif %}</td>
+                          <td class="text-xs text-end fw-bold text-danger" id="pendingJobsExcessFoot">{% if total_pending_excess %}{{ total_pending_excess }}{% else %}0{% endif %}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Stat Detail Modal -->
+          <div class="stat-modal-overlay" id="statModal">
+            <div class="stat-modal">
+              <div class="stat-modal-icon" id="modalIcon"></div>
+              <div class="stat-modal-number" id="modalNumber">0</div>
+              <div class="stat-modal-label" id="modalLabel">Label</div>
+              <button class="stat-modal-close" onclick="closeStatModal()">Close</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Filter Form -->
+        <div class="row px-3 mb-3">
+          <div class="col-12">
+            <form method="get" class="row g-3 waybill-filter-form">
+              <div class="col-md-4">
+                {{ filter_form.search }}
+              </div>
+              <div class="col-md-2">
+                {{ filter_form.status }}
+              </div>
+              <div class="col-md-2">
+                {{ filter_form.date_from }}
+              </div>
+              <div class="col-md-2">
+                {{ filter_form.date_to }}
+              </div>
+              {% if show_created_by %}
+              <div class="col-md-2">
+                <label class="form-label small text-muted">Created by</label>
+                {{ filter_form.created_by }}
+              </div>
+              {% endif %}
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-primary mb-0">Filter</button>
+                <a href="{% url 'waybills:list' %}" class="btn btn-outline-secondary mb-0">Clear</a>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <!-- Waybills Table -->
+        <div class="waybill-table-scroll-wrapper">
+        <div class="table-responsive p-0">
+          <table class="table align-items-center mb-0">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="width: 5%;">S/N</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Waybill</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Receiver's Name</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Sender's Name</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Delivery Date</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+                {% if show_created_by %}<th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Created by</th>{% endif %}
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Total Qty</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Delivered</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Remaining</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Over&nbsp;Delivered</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Approval</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Delivery&nbsp;Details</th>
+                <th class="text-secondary opacity-7">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for waybill in page_obj %}
+              {% with ds=delivery_summaries|get_item:waybill.pk %}
+              <tr data-waybill-uuid="{{ waybill.uuid|default:'' }}">
+                <td class="serial-number">
+                  <div class="d-flex px-2 py-1 justify-content-center">
+                    <span class="text-secondary text-xs font-weight-bold">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex px-2 py-1">
+                    <div class="d-flex flex-column justify-content-center">
+                      <h6 class="mb-0 text-sm">{{ waybill.waybill_number }}</h6>
+                      <p class="text-xs text-secondary mb-0">
+                        {% with wld=waybill_list_data|get_item:waybill.pk %}
+                        {% if wld.receiver_name and wld.receiver_name != '-' %}To: {{ wld.receiver_name }}{% endif %}
+                        {% endwith %}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <p class="text-xs font-weight-bold mb-0">
+                    {% with wld=waybill_list_data|get_item:waybill.pk %}
+                    {{ wld.receiver_name|default:"-" }}
+                    {% endwith %}
+                  </p>
+                </td>
+                <td>
+                  <p class="text-xs font-weight-bold mb-0">
+                    {% with wld=waybill_list_data|get_item:waybill.pk %}
+                    {{ wld.sender_name|default:"-" }}
+                    {% endwith %}
+                  </p>
+                </td>
+                <td class="align-middle text-center text-sm">
+                  <span class="text-secondary text-xs font-weight-bold">{{ waybill.waybill_date|date:"M d, Y" }}</span>
+                </td>
+                <td class="align-middle text-center text-sm">
+                  <span class="text-secondary text-xs font-weight-bold">
+                    {% if waybill.delivery_date %}{{ waybill.delivery_date|date:"M d, Y" }}{% else %}-{% endif %}
+                  </span>
+                </td>
+                <td class="align-middle text-center text-sm">
+                  {% if is_company_admin or perms.waybills.change_waybill %}
+                  <select class="form-select form-select-sm status-select" 
+                          data-waybill-id="{{ waybill.pk }}" 
+                          data-waybill-uuid="{{ waybill.uuid|default:'' }}"
+                          data-current-status="{{ waybill.status }}"
+                          onchange="updateWaybillStatus(this)"
+                          style="width: auto; min-width: 120px;">
+                    <option value="delivered" {% if waybill.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="pending" {% if waybill.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="processing" {% if waybill.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="dispatched" {% if waybill.status == 'dispatched' %}selected{% endif %}>Dispatched / In Transit</option>
+                    <option value="not_delivered" {% if waybill.status == 'not_delivered' %}selected{% endif %}>Not Delivered</option>
+                    <option value="returned" {% if waybill.status == 'returned' %}selected{% endif %}>Returned</option>
+                    <option value="cancelled" {% if waybill.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="on_hold" {% if waybill.status == 'on_hold' %}selected{% endif %}>On Hold</option>
+                    <option value="awaiting_pickup" {% if waybill.status == 'awaiting_pickup' %}selected{% endif %}>Awaiting Pickup</option>
+                  </select>
+                  {% else %}
+                  <span class="badge bg-secondary text-sm">{{ waybill.get_status_display }}</span>
+                  {% endif %}
+                  <!-- Debug info -->
+                  <div style="font-size: 10px; color: #666; margin-top: 2px;">
+                    DB: "{{ waybill.status }}" | ID: {{ waybill.pk }}
+                  </div>
+                </td>
+                {% if show_created_by %}
+                <td class="align-middle text-sm">
+                  {% if waybill.created_by %}{{ waybill.created_by.get_full_name|default:waybill.created_by.email }}{% if waybill.created_at %} <span class="text-muted">({{ waybill.created_at|date:"M d, Y" }})</span>{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                {% endif %}
+                <td class="align-middle text-center text-xs waybill-total-qty" data-waybill-id="{{ waybill.pk }}">
+                  {{ ds.total_display|default:waybill.total_quantity_input|default:"—" }}
+                </td>
+                <td class="align-middle text-center text-xs waybill-delivered-qty" data-waybill-id="{{ waybill.pk }}">
+                  {{ ds.delivered_display|default:waybill.delivered_quantity_input|default:"—" }}
+                </td>
+                <td class="align-middle text-center text-xs waybill-remaining-qty" data-waybill-id="{{ waybill.pk }}">
+                  {% if ds.remaining_display %}
+                    {{ ds.remaining_display }}
+                  {% else %}
+                    {{ waybill.remaining_quantity_value|floatformat:0 }}
+                  {% endif %}
+                </td>
+                <td class="align-middle text-center text-xs waybill-over-qty" data-waybill-id="{{ waybill.pk }}">
+                  {% if ds.over_display %}
+                    <span class="text-danger fw-bold">{{ ds.over_display }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="align-middle text-center waybill-approval-cell" data-waybill-id="{{ waybill.pk }}">
+                  <div class="delivery-progress-thin" title="{% if waybill.total_quantity_value > 0 %}{{ waybill.delivered_quantity_value|floatformat:0 }} / {{ waybill.total_quantity_value|floatformat:0 }} ({{ ds.percent|floatformat:0 }}%){% else %}Not set{% endif %}">
+                    <div class="progress" style="height: 6px; min-width: 40px; max-width: 60px; margin: 0 auto 4px;">
+                      <div class="progress-bar progress-bar-striped" role="progressbar" data-percent="{{ ds.percent }}" data-status-color="{{ ds.status_color }}" style="transition: width 0.3s ease;"></div>
+                    </div>
+                  </div>
+                  <span class="badge waybill-approval-badge text-xxs" data-status-color="{{ ds.status_color }}">{{ ds.status_label }}</span>
+                </td>
+                <td class="align-middle text-center delivery-details-cell">
+                  {% if ds.rows %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 delivery-toggle-btn" 
+                          data-waybill-id="{{ waybill.pk }}" 
+                          data-bs-toggle="collapse" 
+                          data-bs-target="#delivery-details-{{ waybill.pk }}"
+                          aria-expanded="false"
+                          title="{% if ds.rows|length > 1 %}Show {{ ds.rows|length }} delivery items{% else %}Show delivery details{% endif %}">
+                    <i class="fas fa-chevron-down text-xs"></i> {{ ds.rows|length }} item{{ ds.rows|length|pluralize:"s" }}
+                  </button>
+                  {% else %}
+                  <span class="text-muted text-xxs">—</span>
+                  {% endif %}
+                </td>
+                <td class="align-middle">
+                  <div class="d-flex gap-1">
+                    <!-- View Button -->
+                    <a href="{% url 'waybills:detail' waybill.pk %}" 
+                       class="btn btn-sm btn-outline-info mb-0" 
+                       title="View Waybill Details"
+                       data-bs-toggle="tooltip">
+                      <i class="fas fa-eye text-sm"></i>
+                    </a>
+                    
+                    <!-- Edit Button (company admin or permission) -->
+                    {% if is_company_admin or perms.waybills.change_waybill %}
+                    <a href="{% url 'waybills:edit' waybill.pk %}" 
+                       class="btn btn-sm btn-outline-warning mb-0" 
+                       title="Edit Waybill"
+                       data-bs-toggle="tooltip">
+                      <i class="fas fa-edit text-sm"></i>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Report Button -->
+                    <a href="{% url 'waybills:report' waybill.pk %}" 
+                       class="btn btn-sm btn-outline-primary mb-0" 
+                       title="View Movement History / Report"
+                       data-bs-toggle="tooltip">
+                      <i class="fas fa-chart-line text-sm"></i>
+                    </a>
+                    
+                    <!-- More Actions Dropdown -->
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-outline-secondary mb-0" 
+                              type="button" 
+                              data-bs-toggle="dropdown"
+                              title="More Actions">
+                        <i class="fas fa-ellipsis-v text-sm"></i>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                          <h6 class="dropdown-header">Export Options</h6>
+                        </li>
+                        {% if is_company_admin or perms.waybills.print_waybill %}
+                        <li>
+                          <a class="dropdown-item" href="{% url 'waybills:print' waybill.pk %}" target="_blank">
+                            <i class="fas fa-print text-sm me-2"></i>
+                            Print Waybill
+                          </a>
+                        </li>
+                        {% endif %}
+                        {% if is_company_admin or perms.waybills.can_approve_waybill %}
+                        <li>
+                          <a class="dropdown-item waybill-qty-edit-btn" href="#" data-waybill-id="{{ waybill.pk }}" data-total="{{ ds.total_display|default:waybill.total_quantity_input|default:'' }}" data-delivered="{{ ds.delivered_display|default:waybill.delivered_quantity_input|default:'' }}">
+                            <i class="fas fa-calculator text-sm me-2"></i>
+                            Update quantity
+                          </a>
+                        </li>
+                        {% endif %}
+                        {% if is_company_admin or perms.waybills.delete_waybill %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <a class="dropdown-item text-danger waybill-delete-link" 
+                             href="#" 
+                             data-waybill-number="{{ waybill.waybill_number }}"
+                             data-waybill-pk="{{ waybill.pk }}"
+                             data-waybill-uuid="{{ waybill.uuid|default:'' }}"
+                             onclick="confirmDeleteAjaxFromLink(this); return false;">
+                            <i class="fas fa-trash text-sm me-2"></i>
+                            Delete Waybill
+                          </a>
+                        </li>
+                        {% endif %}
+                      </ul>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% if ds.rows %}
+              <tr class="delivery-details-row collapse" id="delivery-details-{{ waybill.pk }}">
+                <td colspan="{% if show_created_by %}15{% else %}14{% endif %}" class="p-0 border-0 bg-light">
+                  <div class="p-2">
+                    <table class="table table-sm table-bordered mb-0" style="font-size: 0.75rem;">
+                      <thead><tr><th>Product</th><th>Total</th><th>Delivered</th><th>Remaining</th><th>Excess</th><th>Status</th></tr></thead>
+                      <tbody>
+                        {% for row in ds.rows %}
+                        <tr>
+                          <td>{{ row.product }}</td>
+                          <td>{{ row.total_input }}</td>
+                          <td>{{ row.delivered_input }}</td>
+                          <td>{{ row.remaining_display }}</td>
+                          <td>{% if row.over_display %}<span class="text-danger fw-bold">{{ row.over_display }}</span>{% else %}—{% endif %}</td>
+                          <td><span class="badge bg-{% if row.row_status == 'over_delivered' %}warning{% elif row.row_status == 'fully_delivered' %}success{% elif row.row_status == 'not_delivered' %}danger{% else %}info{% endif %} text-dark">{{ row.row_status|title }}</span></td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
+              {% endwith %}
+              {% empty %}
+              <tr>
+                <td colspan="{% if show_created_by %}15{% else %}14{% endif %}" class="text-center py-4">
+                  <p class="text-secondary mb-0">No waybills found.</p>
+                  {% if perms.waybills.add_waybill %}
+                  <a href="{% url 'waybills:create_original' %}" class="btn btn-primary btn-sm mt-2">Create your first waybill</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        </div>
+
+        <!-- Accuracy audit modal -->
+        <div class="modal fade" id="accuracyAuditModal" tabindex="-1" aria-labelledby="accuracyAuditModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="accuracyAuditModalLabel">Waybill Accuracy Audit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="small text-muted" id="accuracyAuditSummary">Loading...</div>
+                  <button type="button" class="btn btn-sm btn-outline-primary" id="accuracyAuditRefreshBtn">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                  </button>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Waybill</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Computed</th>
+                        <th>Total</th>
+                        <th>Delivered</th>
+                        <th>Remaining</th>
+                        <th>Excess</th>
+                        <th>Reason(s)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="accuracyAuditTableBody">
+                      <tr><td colspan="9" class="text-center text-muted">Loading audit...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quantity update modal (realtime, no refresh) -->
+        <div class="modal fade" id="waybillQuantityModal" tabindex="-1" aria-labelledby="waybillQuantityModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="waybillQuantityModalLabel">Delivery quantity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" id="qtyModalWaybillId" value="">
+                <div class="mb-3">
+                  <label class="form-label">Total quantity</label>
+                  <input type="text" id="qtyModalTotal" class="form-control" placeholder="e.g. 500kg, 300 bags">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Delivered quantity</label>
+                  <input type="text" id="qtyModalDelivered" class="form-control" placeholder="e.g. 300kg">
+                </div>
+                <div class="mb-0">
+                  <label class="form-label">Remaining (auto)</label>
+                  <input type="text" id="qtyModalRemaining" class="form-control" readonly placeholder="Calculated on save">
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="qtyModalSaveBtn">Save (no refresh)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-center mt-3">
+          <nav aria-label="Page navigation">
+            <ul class="pagination">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+              {% endif %}
+              
+              {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                  <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                  <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+              {% endfor %}
+              
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Custom styles for action buttons */
+.d-flex.gap-1 {
+    gap: 0.25rem !important;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.dropdown-menu .dropdown-header {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #67748e;
+    padding: 0.5rem 1rem 0.25rem;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+}
+
+.dropdown-item i {
+    opacity: 0.8;
+}
+
+.dropdown-item:hover i {
+    opacity: 1;
+}
+
+/* Tooltip customization */
+.tooltip {
+    font-size: 0.75rem;
+}
+
+/* Serial number styling */
+.serial-number {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.serial-number span {
+    font-weight: 600;
+    color: #67748e;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Stat Modal Functions
+function openStatModal(fullValue, label, colorClass) {
+    const modal = document.getElementById('statModal');
+    const modalNumber = document.getElementById('modalNumber');
+    const modalLabel = document.getElementById('modalLabel');
+    const modalIcon = document.getElementById('modalIcon');
+    
+    modalNumber.textContent = fullValue;
+    modalLabel.textContent = label;
+    modalIcon.className = 'stat-modal-icon ' + colorClass;
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeStatModal() {
+    const modal = document.getElementById('statModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Fix mouse wheel scrolling in table area when parent uses Perfect Scrollbar (e.g. on Windows)
+function setupWaybillTableWheelFix() {
+    var wrapper = document.querySelector('.waybill-table-scroll-wrapper');
+    if (!wrapper) return;
+    wrapper.addEventListener('wheel', function(ev) {
+        var delta = ev.deltaY;
+        var scrollTop = wrapper.scrollTop;
+        var maxScroll = wrapper.scrollHeight - wrapper.clientHeight;
+        if (maxScroll <= 0) return;
+        var canScrollDown = delta > 0 && scrollTop < maxScroll;
+        var canScrollUp = delta < 0 && scrollTop > 0;
+        if (canScrollDown || canScrollUp) {
+            wrapper.scrollTop = scrollTop + delta;
+            ev.preventDefault();
+            ev.stopPropagation();
+        }
+    }, { passive: false });
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    setupWaybillTableWheelFix();
+
+    // Add click handlers to stat cards
+    const statCards = document.querySelectorAll('.stats-row .card[data-full-value]');
+    statCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const fullValue = this.dataset.fullValue;
+            const label = this.dataset.label;
+            const color = this.dataset.color;
+            openStatModal(fullValue, label, color);
+        });
+    });
+    
+    // Close modal when clicking overlay
+    const modalOverlay = document.getElementById('statModal');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeStatModal();
+            }
+        });
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeStatModal();
+        }
+    });
+    
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Delivery details collapse: rotate chevron when expanded
+    document.querySelectorAll('.delivery-toggle-btn[data-bs-toggle="collapse"]').forEach(function(btn) {
+        var targetId = btn.getAttribute('data-bs-target');
+        if (targetId) {
+            var target = document.querySelector(targetId);
+            if (target) {
+                target.addEventListener('show.bs.collapse', function() {
+                    btn.querySelector('i').classList.remove('fa-chevron-down');
+                    btn.querySelector('i').classList.add('fa-chevron-up');
+                });
+                target.addEventListener('hide.bs.collapse', function() {
+                    btn.querySelector('i').classList.remove('fa-chevron-up');
+                    btn.querySelector('i').classList.add('fa-chevron-down');
+                });
+            }
+        }
+    });
+
+    [].forEach.call(document.querySelectorAll('.progress-bar[data-percent]'), function (el) {
+        var pct = el.getAttribute('data-percent');
+        var color = el.getAttribute('data-status-color');
+        if (pct != null) el.style.width = pct + '%';
+        if (color) el.classList.add('bg-' + color);
+    });
+    [].forEach.call(document.querySelectorAll('.waybill-approval-badge[data-status-color]'), function (el) {
+        var color = el.getAttribute('data-status-color');
+        if (color) el.classList.add('bg-' + color);
+    });
+});
+
+function confirmDeleteAjaxFromLink(linkEl) {
+    var num = linkEl.getAttribute('data-waybill-number') || '';
+    var pk = linkEl.getAttribute('data-waybill-pk');
+    var uuid = linkEl.getAttribute('data-waybill-uuid') || '';
+    confirmDeleteAjax(num, pk ? parseInt(pk, 10) : 0, uuid);
+}
+
+// AJAX delete function with smooth row removal
+function confirmDeleteAjax(waybillNumber, waybillId, waybillUuid) {
+    if (!confirm(`Are you sure you want to delete waybill ${waybillNumber}? This action cannot be undone.`)) return;
+    const deleteButton = event.target.closest('a');
+    const tableRow = deleteButton.closest('tr');
+    const originalText = deleteButton.innerHTML;
+    deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin text-sm me-2"></i>Deleting...';
+    deleteButton.classList.add('disabled');
+
+    // Offline: queue delete via wrapDelete and remove row
+    if (!navigator.onLine && waybillUuid && window.OfflineSync && typeof window.OfflineSync.wrapDelete === 'function') {
+        var tenantId = (window.OfflineSync.getTenantId && window.OfflineSync.getTenantId()) || '';
+        var attemptAjax = function() {
+            fetch(`/waybills/${waybillId}/delete-ajax/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRFToken(), 'Content-Type': 'application/json' },
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) { tableRow.remove(); recalculateSerialNumbers(); updateStatsAfterDelete(); }
+            });
+        };
+        window.OfflineSync.wrapDelete('waybills', waybillUuid, tenantId, attemptAjax).then(function() {
+            tableRow.style.opacity = '0';
+            setTimeout(function() {
+                tableRow.remove();
+                recalculateSerialNumbers();
+                var tbody = document.querySelector('tbody');
+                if (tbody && tbody.children.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="' + (typeof WAYBILL_TABLE_COLSPAN !== 'undefined' ? WAYBILL_TABLE_COLSPAN : 7) + '" class="text-center py-4"><p class="text-secondary mb-0">No waybills found.</p></td></tr>';
+                }
+                updateStatsAfterDelete();
+            }, 300);
+        }).catch(function() {
+            deleteButton.innerHTML = originalText;
+            deleteButton.classList.remove('disabled');
+        });
+        return;
+    }
+
+    // Make AJAX request to delete
+    fetch(`/waybills/${waybillId}/delete-ajax/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showNotification(data.message, 'success');
+                
+                // Simple and effective approach: Quick fade then immediate removal
+                tableRow.style.transition = 'opacity 0.3s ease-out';
+                tableRow.style.opacity = '0';
+                
+                // Remove immediately after fade to prevent layout issues
+                setTimeout(() => {
+                    // Remove the row completely
+                    tableRow.remove();
+                    
+                    // Recalculate serial numbers for remaining rows
+                    recalculateSerialNumbers();
+                    
+                    // Check if table is empty and show empty state
+                    const tbody = document.querySelector('tbody');
+                    if (tbody.children.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="${typeof WAYBILL_TABLE_COLSPAN !== 'undefined' ? WAYBILL_TABLE_COLSPAN : 7}" class="text-center py-4">
+                                    <p class="text-secondary mb-0">No waybills found.</p>
+                                    <a href="{% url 'waybills:create_original' %}" class="btn btn-primary btn-sm mt-2">Create your first waybill</a>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                    
+                    // Update stats immediately
+                    updateStatsAfterDelete();
+                }, 300);
+            } else {
+                showNotification('Error deleting waybill: ' + (data.error || 'Unknown error'), 'error');
+                // Restore button
+                deleteButton.innerHTML = originalText;
+                deleteButton.classList.remove('disabled');
+            }
+        })
+        .catch(error => {
+            showNotification('Error deleting waybill: ' + error.message, 'error');
+            // Restore button
+            deleteButton.innerHTML = originalText;
+            deleteButton.classList.remove('disabled');
+        });
+}
+
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Get CSRF token for AJAX: hidden input, then meta (when CSRF_USE_SESSIONS=True), then cookie
+function getCSRFToken() {
+    const input = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (input && input.value) return input.value;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+    return getCookie('csrftoken') || '';
+}
+
+// Quick actions keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Alt + N: New Waybill
+    if (e.altKey && e.key === 'n') {
+        e.preventDefault();
+        window.location.href = '{% url "waybills:create_original" %}';
+    }
+});
+
+// Recalculate serial numbers after deletion
+function recalculateSerialNumbers() {
+    const serialCells = document.querySelectorAll('.serial-number span');
+    
+    // Get current page info from URL or pagination
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentPage = parseInt(urlParams.get('page')) || 1;
+    
+    // Django pagination is set to 25 items per page
+    const itemsPerPage = 25;
+    const startIndex = (currentPage - 1) * itemsPerPage + 1;
+    
+    serialCells.forEach((cell, index) => {
+        cell.textContent = startIndex + index;
+    });
+}
+
+// Show notification function
+function showNotification(message, type = 'success') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Update stats after delete (in-place only — no reload, to avoid cached page showing old data)
+function updateStatsAfterDelete() {
+    const statCards = document.querySelectorAll('.stats-row .card-header .text-end h4');
+    if (statCards.length > 0) {
+        const totalWaybillsEl = statCards[0];
+        const currentCount = parseInt(totalWaybillsEl.textContent, 10);
+        if (!isNaN(currentCount) && currentCount > 0) {
+            totalWaybillsEl.textContent = currentCount - 1;
+        }
+    }
+    // Other stats stay as-is until user refreshes. No reload — avoids cached page reappearing.
+}
+
+// Add keyboard shortcut hints to page
+document.addEventListener('DOMContentLoaded', function() {
+    const shortcutHint = document.createElement('div');
+    shortcutHint.innerHTML = `
+        <small class="text-muted">
+            <i class="fas fa-keyboard text-xs"></i>
+            Shortcuts: Alt+N (New Waybill)
+        </small>
+    `;
+    shortcutHint.className = 'text-center mt-2';
+    document.querySelector('.card-body').appendChild(shortcutHint);
+});
+
+// --- Delivery quantity: realtime update without refresh ---
+function extractNumericValue(text) {
+    if (text == null || text === '') return 0;
+    // Normalize commas used as thousands separators so "5,000kg" or "1,234.56 bags"
+    // are parsed as 5000 and 1234.56 respectively.
+    var s = String(text).replace(/,/g, '').trim();
+    if (!s) return 0;
+    var m = s.match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : 0;
+}
+
+function extractUnitValue(text) {
+    if (text == null) return '';
+    // Remove commas before stripping out the numeric part so that the remaining
+    // text is a clean unit/label (e.g. "kg", "bags").
+    var s = String(text).replace(/,/g, '');
+    return s.replace(/-?\d+(\.\d+)?/, '').trim();
+}
+
+function refreshQtyModalRemaining() {
+    var totalStr = document.getElementById('qtyModalTotal').value;
+    var deliveredStr = document.getElementById('qtyModalDelivered').value;
+    var total = extractNumericValue(totalStr);
+    var delivered = extractNumericValue(deliveredStr);
+    var unit = extractUnitValue(totalStr) || extractUnitValue(deliveredStr);
+    var remaining = Math.max(0, total - delivered);
+    function formatNumberWithCommas(num) {
+        if (!isFinite(num)) return '0';
+        return num.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    }
+    var formattedRemaining = formatNumberWithCommas(remaining);
+    document.getElementById('qtyModalRemaining').value = remaining > 0 && unit ? (formattedRemaining + unit) : formattedRemaining;
+}
+
+function updateWaybillQuantityRow(waybillId, data) {
+    var cell = document.querySelector('.waybill-total-qty[data-waybill-id="' + waybillId + '"]');
+    if (!cell) return;
+    var row = cell.closest('tr');
+    if (!row) return;
+    var totalDisp = data.total_quantity_input || '—';
+    var delivDisp = data.delivered_quantity_input || '—';
+    row.querySelector('.waybill-total-qty').textContent = totalDisp;
+    row.querySelector('.waybill-delivered-qty').textContent = delivDisp;
+    row.querySelector('.waybill-remaining-qty').textContent = (data.remaining_display != null && data.remaining_display !== '') ? data.remaining_display : (data.remaining_quantity_value != null ? data.remaining_quantity_value : '—');
+    var overCell = row.querySelector('.waybill-over-qty');
+    if (overCell) {
+        if (data.over_display && data.over_display !== '—') {
+            overCell.innerHTML = '<span class="text-danger fw-bold">' + escapeHtml(data.over_display) + '</span>';
+        } else {
+            overCell.innerHTML = '<span class="text-muted">—</span>';
+        }
+    }
+    var approvalCell = row.querySelector('.waybill-approval-cell');
+    if (approvalCell) {
+        var progressWrap = approvalCell.querySelector('.delivery-progress-thin');
+        if (progressWrap) {
+            var totalVal = data.total_quantity_value;
+            var delivVal = data.delivered_quantity_value;
+            progressWrap.title = (totalVal != null && totalVal > 0) ? (delivVal + ' / ' + totalVal + ' (' + (data.progress_percent || 0) + '%)') : 'Not set';
+        }
+        var progressBar = approvalCell.querySelector('.progress-bar');
+        var badge = approvalCell.querySelector('.waybill-approval-badge');
+        if (progressBar) {
+            progressBar.style.width = (data.progress_percent != null ? data.progress_percent : 0) + '%';
+            progressBar.className = 'progress-bar progress-bar-striped bg-' + (data.approval_status_color || 'secondary');
+        }
+        if (badge) {
+            badge.className = 'badge bg-' + (data.approval_status_color || 'secondary') + ' waybill-approval-badge text-xxs';
+            badge.textContent = data.approval_status_label || 'Not set';
+        }
+    }
+    // Update delivery details expandable section when API returns rows
+    if (data.delivery_quantities_rows && data.delivery_quantities_rows.length > 0) {
+        var rows = data.delivery_quantities_rows;
+        var statusClass = function(s) {
+            if (s === 'over_delivered') return 'warning';
+            if (s === 'fully_delivered') return 'success';
+            if (s === 'not_delivered') return 'danger';
+            return 'info';
+        };
+        var statusLabel = function(s) {
+            var map = { over_delivered: 'Over-delivered', fully_delivered: 'Fully Delivered', not_delivered: 'Not Delivered', partial: 'Partial' };
+            return map[s] || (s || '').replace(/_/g, ' ');
+        };
+        var detailsRow = document.getElementById('delivery-details-' + waybillId);
+        if (detailsRow) {
+            var tbody = '<tbody>';
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                tbody += '<tr><td>' + escapeHtml(r.product || '—') + '</td><td>' + escapeHtml(r.total_input || '—') + '</td><td>' + escapeHtml(r.delivered_input || '—') + '</td><td>' + escapeHtml(r.remaining_display || '—') + '</td><td>' + (r.over_display && r.over_display !== '—' ? '<span class="text-danger fw-bold">' + escapeHtml(r.over_display) + '</span>' : '—') + '</td><td><span class="badge bg-' + statusClass(r.row_status) + ' text-dark">' + escapeHtml(statusLabel(r.row_status)) + '</span></td></tr>';
+            }
+            tbody += '</tbody>';
+            var innerTable = detailsRow.querySelector('table tbody');
+            if (innerTable) innerTable.outerHTML = tbody;
+        } else {
+            var deliveryCell = row.querySelector('.delivery-details-cell');
+            if (deliveryCell && deliveryCell.querySelector('.text-muted')) {
+                var colspan = typeof WAYBILL_TABLE_COLSPAN !== 'undefined' ? WAYBILL_TABLE_COLSPAN : 14;
+                var btnHtml = '<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 delivery-toggle-btn" data-waybill-id="' + waybillId + '" data-bs-toggle="collapse" data-bs-target="#delivery-details-' + waybillId + '" aria-expanded="false"><i class="fas fa-chevron-down text-xs"></i> ' + rows.length + ' item' + (rows.length !== 1 ? 's' : '') + '</button>';
+                deliveryCell.innerHTML = btnHtml;
+                var tableHtml = '<table class="table table-sm table-bordered mb-0" style="font-size: 0.75rem;"><thead><tr><th>Product</th><th>Total</th><th>Delivered</th><th>Remaining</th><th>Excess</th><th>Status</th></tr></thead><tbody>';
+                for (var j = 0; j < rows.length; j++) {
+                    var r = rows[j];
+                    tableHtml += '<tr><td>' + escapeHtml(r.product || '—') + '</td><td>' + escapeHtml(r.total_input || '—') + '</td><td>' + escapeHtml(r.delivered_input || '—') + '</td><td>' + escapeHtml(r.remaining_display || '—') + '</td><td>' + (r.over_display && r.over_display !== '—' ? '<span class="text-danger fw-bold">' + escapeHtml(r.over_display) + '</span>' : '—') + '</td><td><span class="badge bg-' + statusClass(r.row_status) + ' text-dark">' + escapeHtml(statusLabel(r.row_status)) + '</span></td></tr>';
+                }
+                tableHtml += '</tbody></table>';
+                var expandTr = document.createElement('tr');
+                expandTr.className = 'delivery-details-row collapse';
+                expandTr.id = 'delivery-details-' + waybillId;
+                expandTr.innerHTML = '<td colspan="' + colspan + '" class="p-0 border-0 bg-light"><div class="p-2">' + tableHtml + '</div></td>';
+                row.parentNode.insertBefore(expandTr, row.nextSibling);
+            }
+        }
+        var btn = row.querySelector('.delivery-toggle-btn');
+        if (!btn) btn = document.querySelector('.delivery-toggle-btn[data-waybill-id="' + waybillId + '"]');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-chevron-down text-xs"></i> ' + rows.length + ' item' + (rows.length !== 1 ? 's' : '');
+        }
+    }
+    var editBtn = document.querySelector('.waybill-qty-edit-btn[data-waybill-id="' + waybillId + '"]');
+    if (editBtn) {
+        editBtn.setAttribute('data-total', data.total_quantity_input || '');
+        editBtn.setAttribute('data-delivered', data.delivered_quantity_input || '');
+    }
+}
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var qtyModal = document.getElementById('waybillQuantityModal');
+    if (qtyModal) {
+        document.querySelectorAll('.waybill-qty-edit-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var id = this.getAttribute('data-waybill-id');
+                document.getElementById('qtyModalWaybillId').value = id;
+                document.getElementById('qtyModalTotal').value = this.getAttribute('data-total') || '';
+                document.getElementById('qtyModalDelivered').value = this.getAttribute('data-delivered') || '';
+                refreshQtyModalRemaining();
+                var modal = new bootstrap.Modal(qtyModal);
+                modal.show();
+            });
+        });
+        document.getElementById('qtyModalTotal').addEventListener('input', refreshQtyModalRemaining);
+        document.getElementById('qtyModalDelivered').addEventListener('input', refreshQtyModalRemaining);
+        document.getElementById('qtyModalSaveBtn').addEventListener('click', function() {
+            var waybillId = document.getElementById('qtyModalWaybillId').value;
+            if (!waybillId) return;
+            var total = document.getElementById('qtyModalTotal').value;
+            var delivered = document.getElementById('qtyModalDelivered').value;
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            fetch('/waybills/' + waybillId + '/update-quantity/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRFToken(), 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ total_quantity_input: total, delivered_quantity_input: delivered })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) {
+                    updateWaybillQuantityRow(waybillId, data);
+                    showNotification('Quantity updated');
+                    bootstrap.Modal.getInstance(qtyModal).hide();
+                    var editBtn = document.querySelector('.waybill-qty-edit-btn[data-waybill-id="' + waybillId + '"]');
+                    if (editBtn) {
+                        editBtn.setAttribute('data-total', data.total_quantity_input || '');
+                        editBtn.setAttribute('data-delivered', data.delivered_quantity_input || '');
+                    }
+                } else {
+                    showNotification('Error: ' + (data.error || 'Unknown'), 'error');
+                }
+            }).catch(function(err) {
+                showNotification('Error: ' + err.message, 'error');
+            }).finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Save (no refresh)';
+            });
+        });
+    }
+});
+
+// Update waybill status function
+function updateWaybillStatus(selectElement) {
+    const waybillId = selectElement.getAttribute('data-waybill-id');
+    const waybillUuid = selectElement.getAttribute('data-waybill-uuid');
+    const newStatus = selectElement.value;
+    const currentStatus = selectElement.getAttribute('data-current-status');
+    
+    if (newStatus === currentStatus) return;
+    
+    selectElement.disabled = true;
+    selectElement.style.opacity = '0.6';
+    const debugDiv = selectElement.parentNode.querySelector('div');
+    if (debugDiv) {
+        debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${waybillId} | <span style="color: orange;">UPDATING...</span>`;
+    }
+
+    var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId) ? window.OfflineSync.getTenantId() : '';
+    var payload = { uuid: waybillUuid, updated_at: new Date().toISOString(), is_deleted: false, status: newStatus };
+    var attemptAjax = function() {
+        return fetch(`/waybills/${waybillId}/update-status/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ 'status': newStatus })
+        }).then(function(r) {
+            return r.json()
+                .catch(function() {
+                    // Fallback if response is not JSON (e.g. default 403 HTML)
+                    return { success: false, error: 'Invalid server response', _httpStatus: r.status };
+                })
+                .then(function(data) {
+                    data = data || {};
+                    if (typeof data._httpStatus === 'undefined') {
+                        data._httpStatus = r.status;
+                    }
+                    return data;
+                });
+        });
+    };
+    var requestPromise = (waybillUuid && window.OfflineSync && typeof window.OfflineSync.wrapSubmit === 'function')
+        ? window.OfflineSync.wrapSubmit('waybills', payload, tenantId, function() { return attemptAjax(); })
+        : attemptAjax();
+    requestPromise.then(function(data) {
+        if (data && data.success) {
+            selectElement.setAttribute('data-current-status', data.new_status);
+            if (debugDiv) {
+                debugDiv.innerHTML = `DB: "${data.new_status}" | ID: ${waybillId} | <span style="color: green;">UPDATED ✓</span>`;
+                setTimeout(function() { debugDiv.innerHTML = `DB: "${data.new_status}" | ID: ${waybillId}`; }, 2000);
+            }
+            selectElement.style.background = '#d4edda';
+            setTimeout(function() { selectElement.style.background = ''; }, 1000);
+            try { window.dispatchEvent(new CustomEvent('notifications-changed')); setTimeout(function(){ if (window.refreshNotifications) window.refreshNotifications(); }, 500); } catch (e) {}
+        } else if (data && data.savedOffline) {
+            selectElement.setAttribute('data-current-status', newStatus);
+            if (debugDiv) {
+                debugDiv.innerHTML = `DB: "${newStatus}" | ID: ${waybillId} | <span style="color: green;">Queued ✓</span>`;
+                setTimeout(function() { debugDiv.innerHTML = `DB: "${newStatus}" | ID: ${waybillId}`; }, 2000);
+            }
+            selectElement.style.background = '#d4edda';
+            setTimeout(function() { selectElement.style.background = ''; }, 1000);
+        } else if (data && data._httpStatus === 403) {
+            var msg = data.message || data.error || 'You do not have permission to update this waybill.';
+            alert(msg);
+            selectElement.value = currentStatus;
+            if (debugDiv) {
+                debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${waybillId} | <span style="color: red;">NO PERMISSION ✗</span>`;
+            }
+        } else if (data && data.error) {
+            alert('Error updating waybill status: ' + (data.error || 'Unknown error'));
+            selectElement.value = currentStatus;
+            if (debugDiv) debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${waybillId} | <span style="color: red;">FAILED ✗</span>`;
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        alert('Error updating waybill status: ' + error.message);
+        // Restore original status
+        selectElement.value = currentStatus;
+        
+        // Update debug display
+        const debugDiv = selectElement.parentNode.querySelector('div');
+        if (debugDiv) {
+            debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${waybillId} | <span style="color: red;">ERROR ✗</span>`;
+        }
+    })
+    .finally(() => {
+        // Re-enable select
+        selectElement.disabled = false;
+        selectElement.style.opacity = '1';
+    });
+}
+</script>
+<script>
+// Silent auto-refresh for pending jobs card (every 3 seconds)
+(function() {
+    const API_URL = '/waybills/api/pending-jobs/';
+    const REFRESH_INTERVAL = 3000; // 3 seconds
+    let latestPendingData = null;
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function normalizeUnitKey(text) {
+        if (text == null || text === '') return '__unitless__';
+        return String(text).toLowerCase().trim().replace(/[\s\-_]+/g, '') || '__unitless__';
+    }
+
+    function formatNumber(value) {
+        const n = Number(value || 0);
+        if (!isFinite(n)) return '0';
+        return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    }
+
+    function findBreakdownAmount(item, which, selectedUnitKey) {
+        const breakdown = which === 'remaining' ? (item.remaining_breakdown || []) : (item.excess_breakdown || []);
+        if (!selectedUnitKey) {
+            return which === 'remaining' ? (item.total_remaining_display || '0') : (item.total_excess_display || '0');
+        }
+        for (let i = 0; i < breakdown.length; i++) {
+            if (normalizeUnitKey(breakdown[i].unit_key || breakdown[i].unit) === selectedUnitKey) {
+                return breakdown[i].amount_display || '0';
+            }
+        }
+        return '0';
+    }
+
+    function updateUnitFilterOptions(categories) {
+        const filterSelect = document.getElementById('pendingJobsUnitFilter');
+        if (!filterSelect) return;
+        const previousValue = filterSelect.value || '';
+        let html = '<option value="">All Categories</option>';
+        (categories || []).forEach(function(cat) {
+            const key = normalizeUnitKey(cat.unit_key || cat.unit);
+            const label = cat.unit && String(cat.unit).trim() ? cat.unit : '(No Unit)';
+            html += '<option value="' + escapeHtml(key) + '">' + escapeHtml(label) + '</option>';
+        });
+        filterSelect.innerHTML = html;
+        if (previousValue && filterSelect.querySelector('option[value="' + previousValue + '"]')) {
+            filterSelect.value = previousValue;
+        }
+    }
+
+    function applyPendingUnitFilter() {
+        const data = latestPendingData;
+        if (!data) return;
+
+        const filterSelect = document.getElementById('pendingJobsUnitFilter');
+        const selectedRaw = (filterSelect && filterSelect.value) ? filterSelect.value : '';
+        const selectedUnit = selectedRaw ? normalizeUnitKey(selectedRaw) : '';
+        const selectedIsAll = !selectedUnit;
+
+        const tableBody = document.getElementById('pendingJobsTableBody');
+        const totalSpan = document.getElementById('pendingJobsTotal');
+        const totalFoot = document.getElementById('pendingJobsTotalFoot');
+        const countSpan = document.getElementById('pendingJobsCount');
+        const excessSpan = document.getElementById('pendingJobsExcess');
+        const excessFoot = document.getElementById('pendingJobsExcessFoot');
+        if (!tableBody) return;
+
+        const rows = [];
+        let customerCount = 0;
+        let totalRemainingNum = 0;
+        let totalExcessNum = 0;
+
+        (data.pending_by_customer || []).forEach(function(item) {
+            const remDisplay = findBreakdownAmount(item, 'remaining', selectedIsAll ? '' : selectedUnit);
+            const exDisplay = findBreakdownAmount(item, 'excess', selectedIsAll ? '' : selectedUnit);
+
+            let remNum = 0;
+            let exNum = 0;
+            if (selectedIsAll) {
+                (item.remaining_breakdown || []).forEach(function(r) { remNum += Number(r.amount || 0); });
+                (item.excess_breakdown || []).forEach(function(e) { exNum += Number(e.amount || 0); });
+            } else {
+                (item.remaining_breakdown || []).forEach(function(r) {
+                    if (normalizeUnitKey(r.unit_key || r.unit) === selectedUnit) remNum += Number(r.amount || 0);
+                });
+                (item.excess_breakdown || []).forEach(function(e) {
+                    if (normalizeUnitKey(e.unit_key || e.unit) === selectedUnit) exNum += Number(e.amount || 0);
+                });
+            }
+
+            if (!selectedIsAll && remNum <= 0) return;
+
+            customerCount += 1;
+            totalRemainingNum += remNum;
+            totalExcessNum += exNum;
+
+            rows.push(
+                '<tr data-customer="' + escapeHtml(item.customer_name || 'Unknown Customer') + '">' +
+                '<td class="text-xs">' + escapeHtml(item.customer_name || 'Unknown Customer') + '</td>' +
+                '<td class="text-xs text-center">' + Number(item.waybill_count || 0) + '</td>' +
+                '<td class="text-xs text-end fw-bold text-warning">' + escapeHtml(remDisplay || '0') + '</td>' +
+                '<td class="text-xs text-end fw-bold text-danger">' + escapeHtml(exDisplay || '0') + '</td>' +
+                '</tr>'
+            );
+        });
+
+        if (!rows.length) {
+            rows.push('<tr><td colspan="4" class="text-center text-muted text-xs">No pending jobs for selected category.</td></tr>');
+        }
+
+        tableBody.innerHTML = rows.join('');
+        if (countSpan) countSpan.textContent = String(customerCount);
+
+        if (selectedIsAll) {
+            if (totalSpan) totalSpan.textContent = data.total_pending_remaining || '0';
+            if (totalFoot) totalFoot.textContent = data.total_pending_remaining || '0';
+            if (excessSpan) excessSpan.textContent = data.total_pending_excess || '0';
+            if (excessFoot) excessFoot.textContent = data.total_pending_excess || '0';
+        } else {
+            const selectedUnitObj = (data.unit_categories || []).find(function(c) {
+                return normalizeUnitKey(c.unit_key || c.unit) === selectedUnit;
+            });
+            const label = selectedUnitObj && selectedUnitObj.unit ? selectedUnitObj.unit : '';
+            const remTotalDisplay = formatNumber(totalRemainingNum) + (label || '');
+            const exTotalDisplay = formatNumber(totalExcessNum) + (label || '');
+            if (totalSpan) totalSpan.textContent = remTotalDisplay;
+            if (totalFoot) totalFoot.textContent = remTotalDisplay;
+            if (excessSpan) excessSpan.textContent = exTotalDisplay;
+            if (excessFoot) excessFoot.textContent = exTotalDisplay;
+        }
+    }
+    
+    function updatePendingJobsCard(data) {
+        if (!data) return;
+        latestPendingData = data;
+        
+        const card = document.getElementById('pendingJobsCard');
+        updateUnitFilterOptions(data.unit_categories || []);
+        
+        // Show/hide card based on data
+        if (card) {
+            if (data.has_data) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+                return;
+            }
+        }
+
+        applyPendingUnitFilter();
+    }
+    
+    function fetchPendingJobs() {
+        fetch(API_URL, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache'
+            }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) { updatePendingJobsCard(data); })
+        .catch(function() { /* Silent fail - no visible error */ });
+    }
+    
+    // Start auto-refresh
+    if (document.getElementById('pendingJobsCard')) {
+        setInterval(fetchPendingJobs, REFRESH_INTERVAL);
+        const unitFilter = document.getElementById('pendingJobsUnitFilter');
+        if (unitFilter) {
+            unitFilter.addEventListener('change', applyPendingUnitFilter);
+        }
+    }
+})();
+</script>
+<script>
+(function() {
+    const auditBtn = document.getElementById('accuracyAuditBtn');
+    const refreshBtn = document.getElementById('accuracyAuditRefreshBtn');
+    const summaryEl = document.getElementById('accuracyAuditSummary');
+    const bodyEl = document.getElementById('accuracyAuditTableBody');
+    const modalEl = document.getElementById('accuracyAuditModal');
+    if (!auditBtn || !summaryEl || !bodyEl || !modalEl) return;
+
+    function fmtNum(v) {
+        const n = Number(v || 0);
+        if (!isFinite(n)) return '0';
+        return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    }
+
+    function toTitle(s) {
+        return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    }
+
+    function renderAudit(data) {
+        if (!data || data.success === false) {
+            summaryEl.textContent = 'Failed to load audit.';
+            bodyEl.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Could not load accuracy audit.</td></tr>';
+            return;
+        }
+        const summary = data.summary || {};
+        const conflicts = data.conflicts || [];
+        summaryEl.textContent = 'Scanned: ' + (summary.waybills_scanned || 0) + ' | Conflicts: ' + (summary.conflicts || 0);
+
+        if (!conflicts.length) {
+            bodyEl.innerHTML = '<tr><td colspan="9" class="text-center text-success">No status/quantity conflicts found.</td></tr>';
+            return;
+        }
+
+        bodyEl.innerHTML = conflicts.map(function(row) {
+            const reasons = (row.reasons || []).map(escapeHtml).join('<br>');
+            return (
+                '<tr>' +
+                    '<td><a href="' + escapeHtml(row.detail_url || '#') + '" class="text-primary fw-bold">' + escapeHtml(row.waybill_number || '-') + '</a></td>' +
+                    '<td>' + escapeHtml(row.receiver_name || '-') + '</td>' +
+                    '<td><span class="badge bg-secondary">' + escapeHtml(toTitle(row.status)) + '</span></td>' +
+                    '<td><span class="badge bg-info text-dark">' + escapeHtml(toTitle(row.computed_state)) + '</span></td>' +
+                    '<td>' + fmtNum(row.total) + '</td>' +
+                    '<td>' + fmtNum(row.delivered) + '</td>' +
+                    '<td class="text-warning fw-bold">' + fmtNum(row.remaining) + '</td>' +
+                    '<td class="text-danger fw-bold">' + fmtNum(row.excess) + '</td>' +
+                    '<td class="small">' + reasons + '</td>' +
+                '</tr>'
+            );
+        }).join('');
+    }
+
+    function loadAudit() {
+        summaryEl.textContent = 'Loading...';
+        bodyEl.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Running audit...</td></tr>';
+        fetch('/waybills/api/accuracy-audit/', {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) { return response.json(); })
+        .then(renderAudit)
+        .catch(function() { renderAudit({ success: false }); });
+    }
+
+    auditBtn.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        loadAudit();
+    });
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadAudit);
+    }
+})();
+</script>
+{% endblock %}

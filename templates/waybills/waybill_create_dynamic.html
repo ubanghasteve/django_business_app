@@ -1,0 +1,461 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Edit Waybill{% endblock %}
+{% block page_title %}Edit Waybill{% endblock %}
+{% block breadcrumb %}Edit Waybill{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-waybill-container { max-width: 900px; margin: 0 auto; padding: 30px 0; }
+    .edit-waybill-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 32px; }
+    .form-label { font-weight: 500; color: #344767; margin-bottom: 4px; }
+    .form-section-title { font-size: 1.1em; font-weight: 600; margin-top: 24px; margin-bottom: 12px; color: #FF5900; }
+    .item-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; }
+    .item-row input, .item-row textarea { min-width: 80px; }
+    .remove-item-btn { color: #dc3545; background: none; border: none; font-size: 1.2em; cursor: pointer; }
+    .add-item-btn { margin-top: 10px; }
+    .delivery-qty-row { border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 15px; margin: 10px 0; background: #f8f9fa; position: relative; }
+    .remove-delivery-qty { color: #dc3545; cursor: pointer; position: absolute; top: 8px; right: 10px; font-size: 1.2em; background: none; border: none; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; }
+    .actions .btn { min-width: 120px; }
+    /* Add visible border to all form fields */
+    .edit-waybill-card input.form-control,
+    .edit-waybill-card textarea.form-control,
+    .edit-waybill-card select.form-control {
+        border: 2px solid #FF5900 !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        background: #fff !important;
+        transition: border-color 0.2s;
+    }
+    .edit-waybill-card input.form-control:focus,
+    .edit-waybill-card textarea.form-control:focus,
+    .edit-waybill-card select.form-control:focus {
+        border-color: #344767 !important;
+        outline: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ form_data|json_script:'waybill-form-data' }}
+{{ existing_items|json_script:'waybill-items-data' }}
+<div class="edit-waybill-container">
+    <div class="edit-waybill-card">
+        <h3 class="mb-4">Edit Waybill</h3>
+        <form id="waybill-edit-form" method="post" action="{% url 'waybills:edit' waybill.pk %}" autocomplete="off" data-sync-model="waybills" data-sync-redirect="{% url 'waybills:list' %}" {% if waybill %}data-record-uuid="{{ waybill.uuid }}"{% endif %}>
+            {% csrf_token %}
+            <div class="form-section-title">Sender Information</div>
+            <div class="mb-3">
+                <label class="form-label">Sender Name</label>
+                <input type="text" id="sender_name" name="sender_name" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Sender Phone</label>
+                <input type="text" id="sender_phone" name="sender_phone" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Sender Address</label>
+                <textarea id="sender_address" name="sender_address" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Receiver Information</div>
+            <div class="mb-3">
+                <label class="form-label">Receiver Name</label>
+                <input type="text" id="receiver_name" name="receiver_name" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Receiver Phone</label>
+                <input type="text" id="receiver_phone" name="receiver_phone" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Receiver Address</label>
+                <textarea id="receiver_address" name="receiver_address" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Shipment Details</div>
+            <div class="mb-3">
+                <label class="form-label">Destination</label>
+                <input type="text" id="destination" name="destination" class="form-control" placeholder="e.g. Lagos, Abuja">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Driver Name</label>
+                <input type="text" id="driver_name" name="driver_name" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Driver Phone</label>
+                <input type="text" id="driver_phone" name="driver_phone" class="form-control" placeholder="e.g. +234...">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Vehicle Number</label>
+                <input type="text" id="vehicle_number" name="vehicle_number" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Remark</label>
+                <textarea id="remark" name="remark" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Waybill Details</div>
+            <div class="mb-3">
+                <label class="form-label">Waybill Number</label>
+                <input type="text" id="waybill_number" name="waybill_number" class="form-control" readonly>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Waybill Date</label>
+                <input type="date" id="waybill_date" name="waybill_date" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Delivery Date</label>
+                <input type="date" id="delivery_date" name="delivery_date" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Status</label>
+                <select id="status" name="status" class="form-control">
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="dispatched">Dispatched / In Transit</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="not_delivered">Not Delivered</option>
+                    <option value="returned">Returned</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="awaiting_pickup">Awaiting Pickup</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea id="notes" name="notes" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Delivery quantity</div>
+            <p class="text-muted small mb-2">Add one row per product or delivery. Remaining balance is calculated automatically.</p>
+            <div id="delivery-quantities-container"></div>
+            <button type="button" class="btn btn-outline-success btn-sm mt-2" id="add-delivery-qty-btn">Add Delivery Quantity</button>
+            <div class="form-section-title">Display Settings</div>
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="show-company-details" name="show-company-details">
+                    <label class="form-check-label" for="show-company-details">Show company details</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="show-bank-details" name="show-bank-details">
+                    <label class="form-check-label" for="show-bank-details">Show bank details</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="show-signature" name="show-signature">
+                    <label class="form-check-label" for="show-signature">Show authorized signature</label>
+                </div>
+            </div>
+            <input type="hidden" name="display_settings_submitted" value="1">
+            <div class="form-section-title">Line Items</div>
+            <div id="items-list"></div>
+            <button type="button" class="btn btn-outline-success add-item-btn" id="add-item-btn">Add Item</button>
+            <div class="actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="{% url 'waybills:list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getInitialData() {
+    let formData = {};
+    let items = [];
+    try {
+        formData = JSON.parse(document.getElementById('waybill-form-data').textContent);
+        items = JSON.parse(document.getElementById('waybill-items-data').textContent);
+    } catch (e) {
+        console.error('[DEBUG] Failed to load formData/items from json_script:', e);
+    }
+    return { formData, items };
+}
+
+function escapeAttr(val) {
+    if (val == null) return '';
+    return String(val).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function renderItems(items) {
+    const itemsList = document.getElementById('items-list');
+    itemsList.innerHTML = '';
+    if (!items || !items.length) items = [{}];
+    items.forEach(function(itemObj, idx) {
+        const item = itemObj.item_data || itemObj || {};
+        var product = item.product_service || item.product || '';
+        var desc = item.description || item.item_description || '';
+        var qty = item.quantity || '';
+        var wt = item.weight || '';
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = '<input type="text" name="items[' + idx + '][product_service]" class="form-control" placeholder="Product/Service" value="' + escapeAttr(product) + '">' +
+            '<input type="text" name="items[' + idx + '][description]" class="form-control" placeholder="Description" value="' + escapeAttr(desc) + '">' +
+            '<input type="text" name="items[' + idx + '][quantity]" class="form-control" placeholder="Quantity" value="' + escapeAttr(qty) + '">' +
+            '<input type="text" name="items[' + idx + '][weight]" class="form-control" placeholder="Weight" value="' + escapeAttr(wt) + '">' +
+            '<button type="button" class="remove-item-btn" title="Remove" onclick="removeItem(this)">&times;</button>';
+        itemsList.appendChild(row);
+    });
+}
+
+function removeItem(btn) {
+    btn.parentElement.remove();
+    // Re-index all item rows
+    const itemsList = document.getElementById('items-list');
+    Array.from(itemsList.children).forEach((row, idx) => {
+        Array.from(row.querySelectorAll('input, textarea')).forEach(input => {
+            if (input.name.includes('product_service')) input.name = `items[${idx}][product_service]`;
+            if (input.name.includes('description')) input.name = `items[${idx}][description]`;
+            if (input.name.includes('quantity')) input.name = `items[${idx}][quantity]`;
+            if (input.name.includes('weight')) input.name = `items[${idx}][weight]`;
+        });
+    });
+}
+
+function addItemRow() {
+    const itemsList = document.getElementById('items-list');
+    const idx = itemsList.children.length;
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+        <input type="text" name="items[${idx}][product_service]" class="form-control" placeholder="Product/Service">
+        <input type="text" name="items[${idx}][description]" class="form-control" placeholder="Description">
+        <input type="text" name="items[${idx}][quantity]" class="form-control" placeholder="Quantity">
+        <input type="text" name="items[${idx}][weight]" class="form-control" placeholder="Weight">
+        <button type="button" class="remove-item-btn" title="Remove" onclick="removeItem(this)">&times;</button>
+    `;
+    itemsList.appendChild(row);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const { formData, items } = getInitialData();
+    let errorLog = [];
+    function logError(msg) {
+        errorLog.push(msg);
+        const logDiv = document.getElementById('js-error-log');
+        if (logDiv) {
+            logDiv.style.display = '';
+            logDiv.innerHTML = '<b>JS Error Log:</b><br>' + errorLog.map(function(e) { return '<div>' + String(e).replace(/</g, '&lt;') + '</div>'; }).join('');
+        }
+    }
+    // Pre-fill form fields
+    try {
+        if (formData) {
+            if (document.getElementById('waybill_number')) document.getElementById('waybill_number').value = formData.waybill_number || '';
+            else logError('waybill_number field not found');
+            if (document.getElementById('waybill_date')) document.getElementById('waybill_date').value = formData.waybill_date || '';
+            else logError('waybill_date field not found');
+            if (document.getElementById('delivery_date')) document.getElementById('delivery_date').value = formData.delivery_date || '';
+            else logError('delivery_date field not found');
+            if (document.getElementById('status')) document.getElementById('status').value = formData.status || 'pending';
+            else logError('status field not found');
+            if (document.getElementById('notes')) document.getElementById('notes').value = formData.notes || '';
+            else logError('notes field not found');
+            // Delivery quantities loaded via renderDeliveryQuantities below
+            if (formData.custom_data) {
+                const cd = formData.custom_data;
+                var si = cd.sender_info || {};
+                if (document.getElementById('sender_name')) document.getElementById('sender_name').value = si.sender_name || '';
+                if (document.getElementById('sender_phone')) document.getElementById('sender_phone').value = si.sender_phone || '';
+                if (document.getElementById('sender_address')) document.getElementById('sender_address').value = si.sender_address || '';
+                var ri = cd.receiver_info || {};
+                if (document.getElementById('receiver_name')) document.getElementById('receiver_name').value = ri.receiver_name || '';
+                if (document.getElementById('receiver_phone')) document.getElementById('receiver_phone').value = ri.receiver_phone || '';
+                if (document.getElementById('receiver_address')) document.getElementById('receiver_address').value = ri.receiver_address || '';
+                var shipInfo = cd.shipment_info || {};
+                if (document.getElementById('destination')) document.getElementById('destination').value = shipInfo.destination || '';
+                if (document.getElementById('driver_name')) document.getElementById('driver_name').value = shipInfo.driver_name || '';
+                if (document.getElementById('driver_phone')) document.getElementById('driver_phone').value = shipInfo.driver_phone || '';
+                if (document.getElementById('vehicle_number')) document.getElementById('vehicle_number').value = shipInfo.vehicle_number || '';
+                if (document.getElementById('remark')) document.getElementById('remark').value = shipInfo.remark || '';
+                if (cd.user_preferences) {
+                    const up = cd.user_preferences;
+                    const companyEl = document.getElementById('show-company-details');
+                    const bankEl = document.getElementById('show-bank-details');
+                    const sigEl = document.getElementById('show-signature');
+                    if (companyEl) companyEl.checked = up.show_company_details !== false;
+                    if (bankEl) bankEl.checked = up.show_bank_details !== false;
+                    if (sigEl) sigEl.checked = up.show_signature !== false;
+                } else {
+                    const companyEl = document.getElementById('show-company-details');
+                    const bankEl = document.getElementById('show-bank-details');
+                    const sigEl = document.getElementById('show-signature');
+                    if (companyEl) companyEl.checked = true;
+                    if (bankEl) bankEl.checked = true;
+                    if (sigEl) sigEl.checked = true;
+                }
+            }
+        } else {
+            logError('formData is empty');
+        }
+    } catch (e) {
+        logError('Exception during pre-fill: ' + e);
+    }
+    try {
+        renderItems(items);
+    } catch (e) {
+        logError('Exception during renderItems: ' + e);
+    }
+    document.getElementById('add-item-btn').addEventListener('click', addItemRow);
+    
+    // Delivery quantities: render from formData
+    var dqList = (formData && formData.delivery_quantities) ? formData.delivery_quantities : [];
+    if (!dqList || !dqList.length) {
+        dqList = [{ product: '', total_quantity_input: '', delivered_quantity_input: '' }];
+    }
+    renderDeliveryQuantities(dqList);
+    document.getElementById('add-delivery-qty-btn').addEventListener('click', addDeliveryQuantityRow);
+    var dqContainer = document.getElementById('delivery-quantities-container');
+    if (dqContainer) {
+        dqContainer.addEventListener('input', function(ev) {
+            if (ev.target.classList.contains('dq-total-input') || ev.target.classList.contains('dq-delivered-input')) {
+                var r = ev.target.closest('.delivery-qty-row');
+                if (r) refreshDeliveryRemainingForRow(r);
+            }
+        });
+        dqContainer.addEventListener('change', function(ev) {
+            if (ev.target.classList.contains('dq-total-input') || ev.target.classList.contains('dq-delivered-input')) {
+                var r = ev.target.closest('.delivery-qty-row');
+                if (r) refreshDeliveryRemainingForRow(r);
+            }
+        });
+    }
+    
+    document.getElementById('waybill-edit-form').addEventListener('submit', function(e) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'delivery_quantities_data';
+        inp.value = JSON.stringify(getDeliveryQuantitiesData());
+        e.target.appendChild(inp);
+    });
+});
+
+function extractNum(s) {
+    if (s == null || s === '') return 0;
+    // Normalize commas used as thousands separators so "5,000kg" or "1,234.56 bags"
+    // are parsed as 5000 and 1234.56 respectively.
+    var normalized = String(s).replace(/,/g, '').trim();
+    if (!normalized) return 0;
+    var m = normalized.match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : 0;
+}
+function extractUnit(s) {
+    if (s == null) return '';
+    // Remove commas before stripping out the numeric part so that the remaining
+    // text is a clean unit/label (e.g. "kg", "bags").
+    return String(s).replace(/,/g, '').replace(/-?\d+(\.\d+)?/, '').trim();
+}
+var deliveryQtyCounter = 1;
+function renderDeliveryQuantities(dqList) {
+    var container = document.getElementById('delivery-quantities-container');
+    if (!container) return;
+    container.innerHTML = '';
+    deliveryQtyCounter = 1;
+    (dqList || []).forEach(function(dq) {
+        addDeliveryQuantityRowEl(container, dq);
+    });
+    updateDeliveryQtyRemoveButtons();
+}
+function addDeliveryQuantityRowEl(container, data) {
+    data = data || {};
+    var idx = deliveryQtyCounter++;
+    var row = document.createElement('div');
+    row.className = 'delivery-qty-row';
+    row.setAttribute('data-dq-index', idx);
+    row.innerHTML = '<button type="button" class="remove-delivery-qty" title="Remove">&times;</button>' +
+        '<div class="mb-2"><label class="form-label small">Product / Description (optional)</label>' +
+        '<input type="text" name="delivery_quantities[' + idx + '][product]" class="form-control dq-product-input" placeholder="e.g. Rice, Cement bags" value="' + (data.product || '').replace(/"/g, '&quot;') + '"></div>' +
+        '<div class="row g-2"><div class="col-md-4"><label class="form-label small">Total quantity</label>' +
+        '<input type="text" name="delivery_quantities[' + idx + '][total_quantity_input]" class="form-control dq-total-input" placeholder="e.g. 500kg" value="' + (data.total_quantity_input || '').replace(/"/g, '&quot;') + '"></div>' +
+        '<div class="col-md-4"><label class="form-label small">Delivered quantity</label>' +
+        '<input type="text" name="delivery_quantities[' + idx + '][delivered_quantity_input]" class="form-control dq-delivered-input" placeholder="e.g. 300kg" value="' + (data.delivered_quantity_input || '').replace(/"/g, '&quot;') + '"></div>' +
+        '<div class="col-md-4"><label class="form-label small">Remaining (auto)</label>' +
+        '<input type="text" class="form-control dq-remaining-display" readonly placeholder="0"></div></div>' +
+        '<small class="dq-status-hint text-muted small mt-1 d-block">Enter total and delivered quantities. Balance will update automatically.</small>';
+    row.querySelector('.remove-delivery-qty').onclick = function() { removeDeliveryQuantityRow(row); };
+    container.appendChild(row);
+    refreshDeliveryRemainingForRow(row);
+}
+function addDeliveryQuantityRow() {
+    var container = document.getElementById('delivery-quantities-container');
+    if (container) addDeliveryQuantityRowEl(container, {});
+    updateDeliveryQtyRemoveButtons();
+}
+function removeDeliveryQuantityRow(rowEl) {
+    var container = document.getElementById('delivery-quantities-container');
+    if (container && container.querySelectorAll('.delivery-qty-row').length > 1) {
+        rowEl.remove();
+        updateDeliveryQtyRemoveButtons();
+    }
+}
+function updateDeliveryQtyRemoveButtons() {
+    var rows = document.querySelectorAll('.delivery-qty-row');
+    document.querySelectorAll('.remove-delivery-qty').forEach(function(btn) {
+        btn.style.display = rows.length > 1 ? 'block' : 'none';
+    });
+}
+function refreshDeliveryRemainingForRow(rowEl) {
+    if (!rowEl) return;
+    var t = rowEl.querySelector('.dq-total-input');
+    var d = rowEl.querySelector('.dq-delivered-input');
+    var r = rowEl.querySelector('.dq-remaining-display');
+    var hint = rowEl.querySelector('.dq-status-hint');
+    if (!t || !d || !r) return;
+    var total = extractNum(t.value);
+    var delivered = extractNum(d.value);
+    var unit = extractUnit(t.value) || extractUnit(d.value);
+    var diff = total - delivered;
+    var remaining = diff >= 0 ? diff : 0;
+    var overDelivered = diff < 0 ? Math.abs(diff) : 0;
+
+    function formatNumberWithCommas(num) {
+        if (!isFinite(num)) return '0';
+        return num.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    }
+
+    if (overDelivered > 0) {
+        r.value = '0' + (unit ? ' ' + unit : '') + ' (+' + formatNumberWithCommas(overDelivered) + (unit ? ' ' + unit : '') + ' excess)';
+    } else {
+        r.value = formatNumberWithCommas(remaining || 0) + (unit && (remaining > 0 || (remaining === 0 && diff >= 0)) ? unit : '');
+    }
+    r.style.backgroundColor = '';
+    if (total > 0 || delivered > 0) {
+        if (overDelivered > 0) r.style.backgroundColor = '#fff3cd';
+        else if (remaining <= 0 && delivered > 0) r.style.backgroundColor = '#d4edda';
+        else if (delivered <= 0) r.style.backgroundColor = '#f8d7da';
+        else r.style.backgroundColor = '#fff3cd';
+    }
+    if (hint) {
+        if (!total && !delivered) {
+            hint.textContent = 'Enter total and delivered quantities. Balance will update automatically.';
+            hint.className = 'dq-status-hint text-muted small mt-1 d-block';
+        } else if (!total && delivered) {
+            hint.textContent = 'Enter the total quantity to calculate remaining balance.';
+            hint.className = 'dq-status-hint text-warning small mt-1 d-block';
+        } else if (overDelivered > 0) {
+            hint.textContent = 'Excess delivery: You have delivered ' + formatNumberWithCommas(overDelivered) + (unit ? ' ' + unit : '') + ' more than the total. The customer received ' + formatNumberWithCommas(delivered) + (unit ? ' ' + unit : '') + ' against an order of ' + formatNumberWithCommas(total) + (unit ? ' ' + unit : '') + '.';
+            hint.className = 'dq-status-hint text-warning small mt-1 d-block fw-medium';
+        } else if (remaining === 0 && total > 0) {
+            hint.textContent = 'Complete: Full quantity delivered. Remaining balance is zero.';
+            hint.className = 'dq-status-hint text-success small mt-1 d-block';
+        } else {
+            hint.textContent = 'Remaining: ' + formatNumberWithCommas(remaining) + (unit ? ' ' + unit : '') + ' still to be delivered out of ' + formatNumberWithCommas(total) + (unit ? ' ' + unit : '') + ' total.';
+            hint.className = 'dq-status-hint text-info small mt-1 d-block';
+        }
+    }
+}
+function getDeliveryQuantitiesData() {
+    var rows = [];
+    document.querySelectorAll('.delivery-qty-row').forEach(function(row) {
+        var product = (row.querySelector('.dq-product-input') || {}).value || '';
+        var total = (row.querySelector('.dq-total-input') || {}).value || '';
+        var delivered = (row.querySelector('.dq-delivered-input') || {}).value || '';
+        if (product || total || delivered) {
+            rows.push({ product: product.trim(), total_quantity_input: total.trim(), delivered_quantity_input: delivered.trim() });
+        }
+    });
+    return rows.length ? rows : [{ product: '', total_quantity_input: '', delivered_quantity_input: '' }];
+}
+</script>
+{% endblock %}

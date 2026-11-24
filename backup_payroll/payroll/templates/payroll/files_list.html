@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static humanize payroll_tags %}
+{% block title %}Payroll Files - Manage{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}File Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Files</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">Payroll Files</h4>
+            <p class="text-muted mb-0 small">
+                {{ total_files|intcomma }} file(s) &middot; {{ total_size|friendly_size|default:total_size|intcomma }} bytes
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm" onclick="toggleFilters()">
+                <i class="fas fa-filter"></i> Filters
+            </button>
+            <a href="{% url 'payroll:files_upload' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-upload"></i> Upload Files
+            </a>
+        </div>
+    </div>
+
+    <form method="get" id="filterForm" class="card border-0 shadow-sm rounded-3 mb-3 {% if not query and not selected_category and not selected_type and not selected_year %}d-none{% endif %}">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Search</label>
+                    <input type="text" name="q" class="form-control form-control-sm" 
+                           placeholder="Search files..." value="{{ query }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Category</label>
+                    <select name="category" class="form-select form-select-sm">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if cat.id == selected_category|add:"0" %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">File Type</label>
+                    <select name="type" class="form-select form-select-sm">
+                        <option value="">All Types</option>
+                        <option value="pdf" {% if selected_type == 'pdf' %}selected{% endif %}>PDF</option>
+                        <option value="excel" {% if selected_type == 'excel' %}selected{% endif %}>Excel</option>
+                        <option value="image" {% if selected_type == 'image' %}selected{% endif %}>Image</option>
+                        <option value="word" {% if selected_type == 'word' %}selected{% endif %}>Word</option>
+                        <option value="csv" {% if selected_type == 'csv' %}selected{% endif %}>CSV</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Year</label>
+                    <select name="year" class="form-select form-select-sm">
+                        <option value="">All Years</option>
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == selected_year|add:"0" %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Archived</label>
+                    <select name="archived" class="form-select form-select-sm">
+                        <option value="false" {% if show_archived == 'false' or not show_archived %}selected{% endif %}>No</option>
+                        <option value="true" {% if show_archived == 'true' %}selected{% endif %}>Yes</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-body p-0">
+            {% if files %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>File</th>
+                            <th>Category</th>
+                            <th>Employee</th>
+                            <th>Period</th>
+                            <th>Size</th>
+                            <th>Uploaded</th>
+                            <th style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in files %}
+                        <tr id="file-row-{{ file.id }}" class="{% if file.is_starred %}table-warning{% endif %}">
+                            <td class="text-center">
+                                <i class="{{ file.file_type|file_icon }} fa-lg" style="color: {{ file.file_type|file_color }};"></i>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ file.title|truncatechars:40 }}</div>
+                                <small class="text-muted">{{ file.original_filename|truncatechars:50 }}</small>
+                                {% if file.tags %}
+                                <div class="mt-1">
+                                    {% for tag in file.tags|split:"," %}
+                                    <span class="badge bg-secondary bg-opacity-25 text-secondary small">{{ tag|strip }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file.category %}
+                                <span class="badge rounded-pill" style="background-color: {{ file.category.color }}20; color: {{ file.category.color }};">
+                                    {{ file.category.name }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file.employee %}
+                                {{ file.employee.full_name }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file.year and file.month %}
+                                {{ file|file_period }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ file.file_size_display }}</td>
+                            <td class="small text-muted">{{ file.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'payroll:file_download' file.id %}" class="btn btn-outline-secondary" title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <a href="{% url 'payroll:file_detail' file.id %}" class="btn btn-outline-primary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button class="btn btn-outline-warning btn-toggle-star" data-file-id="{{ file.id }}" title="Toggle Star">
+                                        <i class="fas {% if file.is_starred %}fa-star{% else %}fa-star-half-alt{% endif %}"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-4x text-muted opacity-25 mb-3"></i>
+                <h6 class="text-muted">No files found</h6>
+                <p class="small text-muted mb-3">
+                    {% if query or selected_category or selected_type or selected_year %}
+                    Try adjusting your filters or 
+                    {% endif %}
+                    Upload your first payroll file
+                </p>
+                <a href="{% url 'payroll:files_upload' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-upload"></i> Upload Files
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.file-type-icon { font-size: 1.25rem; }
+.table td { vertical-align: middle; }
+.btn-toggle-star { border: none; }
+.btn-toggle-star.starred { color: #ffc107; }
+</style>
+
+<script>
+function toggleFilters() {
+    const form = document.getElementById('filterForm');
+    form.classList.toggle('d-none');
+}
+
+document.querySelectorAll('.btn-toggle-star').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const fileId = this.dataset.fileId;
+        fetch('/payroll/files/' + fileId + '/toggle-star/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            const icon = this.querySelector('i');
+            if (data.is_starred) {
+                icon.classList.remove('fa-star-half-alt');
+                icon.classList.add('fa-star');
+                this.classList.add('starred');
+                document.getElementById('file-row-' + fileId).classList.add('table-warning');
+            } else {
+                icon.classList.remove('fa-star');
+                icon.classList.add('fa-star-half-alt');
+                this.classList.remove('starred');
+                document.getElementById('file-row-' + fileId).classList.remove('table-warning');
+            }
+        });
+    });
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

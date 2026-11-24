@@ -1,0 +1,11 @@
+{% load inventory_extras %}
+<button type="button"
+        class="btn btn-sm btn-link p-0 text-decoration-none qty-summary-btn w-100 text-end"
+        data-pk="{{ obj.pk }}"
+        data-summary-focus="balance"
+        title="Available stock (same as Net Qty). Click for breakdown.">
+    <span class="balance-qty-cell fw-semibold {% if obj.net_quantity < 0 %}negative{% endif %}">
+        {{ obj.net_quantity|format_number }}{% if obj.unit_label %} {{ obj.unit_label }}{% endif %}
+    </span>
+    <i class="fas fa-info-circle ms-1 text-muted small" aria-hidden="true"></i>
+</button>

@@ -1,0 +1,100 @@
+<tr class="clickable-row product-row" data-href="{% url 'job_orders:product_view' product.job_order %}" data-product-id="{{ product.id }}" data-product-uuid="{{ product.uuid|default:'' }}">
+    <td>{{ row_index }}</td>
+    <td>{% if product.job_order_date %}{{ product.job_order_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+    <td>{{ product.job_order }}</td>
+    <td>
+        {% if product.image %}
+            <img src="{{ product.image.url }}" alt="Product Image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">
+        {% else %}
+            <span class="text-muted">No image</span>
+        {% endif %}
+    </td>
+    <td>{{ product.organization_name }}</td>
+    <td>{{ product.address }}</td>
+    <td>{{ product.contact_number }}</td>
+    <td>{{ product.print_product }}</td>
+    <td>{{ product.colors }}</td>
+    <td>{{ product.treatment }}</td>
+    <td>{{ product.cutting_length }}</td>
+    <td>{{ product.flap }}</td>
+    <td>{{ product.size }}</td>
+    <td>{{ product.width|default:"—" }}</td>
+    <td>{{ product.sealing_type|default:"—" }}</td>
+    <td>{{ product.cutting|default:"—" }}</td>
+    <td>{{ product.gusset|default:"—" }}</td>
+    <td>{{ product.formatted_price }}</td>
+    <td>{{ product.job_title }}</td>
+    <td>{{ product.order_quantity|default:"—" }}</td>
+    <td>{% if product.total is not None %}{{ product.formatted_total }}{% else %}—{% endif %}</td>
+    <td>
+        <input type="date"
+               class="form-control form-control-sm delivery-date-input"
+               data-product-id="{{ product.id }}"
+               data-field="estimated_delivery_date"
+               value="{{ product.estimated_delivery_date|date:'Y-m-d' }}"
+               onchange="updateDeliveryDate({{ product.id }}, 'estimated_delivery_date', this.value)">
+    </td>
+    <td>
+        <input type="date"
+               class="form-control form-control-sm delivery-date-input"
+               data-product-id="{{ product.id }}"
+               data-field="actual_delivery_date"
+               value="{{ product.actual_delivery_date|date:'Y-m-d' }}"
+               onchange="updateDeliveryDate({{ product.id }}, 'actual_delivery_date', this.value)">
+    </td>
+    <td id="cycle-time-{{ product.id }}">{{ product.cycle_time|default:"None" }}</td>
+    <td>{{ product.submission_id }}</td>
+    <td id="approval-buttons-{{ product.id }}">
+        {% if perms.job_orders.can_approve_jobs %}
+        <div class="approval-status-container">
+            <div class="approval-header">
+                <small class="text-muted d-block mb-1"><i class="fas fa-mouse-pointer"></i> Click to change</small>
+            </div>
+            <select onchange="updateApprovalStatus({{ product.id }}, this.value)"
+                    class="form-control form-control-sm approval-select"
+                    data-product-id="{{ product.id }}"
+                    data-product-uuid="{{ product.uuid|default:'' }}"
+                    data-original-value="{{ product.approval_status|default:'' }}"
+                    title="Click to change approval status">
+                <option value="" {% if not product.approval_status %}selected{% endif %}><i class="fas fa-question-circle"></i> Select Status</option>
+                <option value="approved" {% if product.approval_status == 'approved' %}selected{% endif %}><i class="fas fa-check-circle"></i> Approve</option>
+                <option value="pending" {% if product.approval_status == 'pending' %}selected{% endif %}><i class="fas fa-clock"></i> Pending</option>
+                <option value="rejected" {% if product.approval_status == 'rejected' %}selected{% endif %}><i class="fas fa-times-circle"></i> Reject</option>
+            </select>
+            <small class="text-success d-block mt-1"><i class="fas fa-user-check"></i> Click to change status</small>
+        </div>
+        {% else %}
+        <span class="badge bg-{% if product.approval_status == 'approved' %}success{% elif product.approval_status == 'rejected' %}danger{% else %}warning{% endif %}">{{ product.get_approval_status_display|default:'Pending' }}</span>
+        {% endif %}
+    </td>
+    {% if show_created_by %}
+    <td id="created-by-{{ product.id }}">{% if product.created_by %}{{ product.created_by.get_full_name|default:product.created_by.email }}{% else %}—{% endif %}</td>
+    {% endif %}
+    <td id="approved-by-{{ product.id }}">{% if product.approved_by %}{{ product.approved_by.get_full_name|default:product.approved_by.email|default:"Not yet approved" }}{% else %}Not yet approved{% endif %}</td>
+    <td class="production-status-cell" onclick="event.stopPropagation();">
+        <div class="production-status-container">
+            {% if perms.job_orders.change_product %}
+            <textarea class="form-control production-status" data-product-id="{{ product.id }}" rows="2" placeholder="Enter production status...">{{ product.production_status }}</textarea>
+            <button class="btn btn-primary btn-sm mt-2 save-status-btn" data-product-id="{{ product.id }}">Save Status</button>
+            {% else %}
+            <span class="text-muted">{{ product.production_status|default:"—" }}</span>
+            {% endif %}
+            <small class="text-muted d-block mt-1">
+                {% if product.production_status_date %}
+                    Last updated: {{ product.production_status_date|date:"Y-m-d H:i:s" }}<br>Updated by: {{ product.updated_by.get_full_name|default:"Unknown" }}
+                {% else %}
+                    Not updated yet
+                {% endif %}
+            </small>
+        </div>
+    </td>
+    <td class="no-click">
+        <a class="btn btn-primary btn-sm mr-2" href="{% url 'job_orders:product_view' product.job_order %}"><i class="fas fa-eye"></i> View</a>
+        {% if perms.job_orders.change_product %}
+        <a class="btn btn-info btn-sm mr-2" href="{% url 'job_orders:product_edit' product.id %}"><i class="fas fa-edit"></i> Edit</a>
+        {% endif %}
+        {% if perms.job_orders.delete_product %}
+        <button type="button" class="btn btn-danger btn-sm product-delete-btn" data-product-id="{{ product.id }}" data-product-uuid="{{ product.uuid|default:'' }}" data-job-order="{{ product.job_order }}"><i class="fas fa-trash"></i> Delete</button>
+        {% endif %}
+    </td>
+</tr>

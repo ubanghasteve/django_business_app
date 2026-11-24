@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Balance Sheet{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Balance Sheet</h2>
+    <div>
+      <a href="{% url 'reports:tax_dashboard' %}" class="btn btn-outline-secondary btn-sm">Tax Dashboard</a>
+      <a href="{% url 'reports:profit_and_loss' %}" class="btn btn-outline-secondary btn-sm">Profit &amp; Loss</a>
+      <a href="{% url 'reports:tax_history' %}" class="btn btn-outline-secondary btn-sm">Tax History</a>
+    </div>
+  </div>
+  {% if error %}
+  <div class="alert alert-warning">{{ error }}</div>
+  {% endif %}
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+      <label class="form-label">Year</label>
+      <input type="number" class="form-control form-control-sm" name="year" value="{{ year }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Month</label>
+      <input type="number" class="form-control form-control-sm" name="month" value="{{ month }}" min="1" max="12">
+    </div>
+    <div class="col-auto d-flex align-items-end">
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+    </div>
+  </form>
+  <p class="text-muted small">Position as at: {{ period_end }}</p>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-header"><strong>Assets</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Account</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              {% for acc, bal in assets.items %}
+              <tr>
+                <td>{{ acc.name }}</td>
+                <td class="text-end">{{ bal|floatformat:2|intcomma }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="2" class="text-muted small">No asset balances.</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Total assets</th>
+                <th class="text-end">{{ total_assets|floatformat:2|intcomma }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-header"><strong>Liabilities</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Account</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              {% for acc, bal in liabilities.items %}
+              <tr>
+                <td>{{ acc.name }}</td>
+                <td class="text-end">{{ bal|floatformat:2|intcomma }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="2" class="text-muted small">No liability balances.</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Total liabilities</th>
+                <th class="text-end">{{ total_liabilities|floatformat:2|intcomma }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-header"><strong>Equity</strong></div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Account</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+              {% for acc, bal in equity.items %}
+              <tr>
+                <td>{{ acc.name }}</td>
+                <td class="text-end">{{ bal|floatformat:2|intcomma }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="2" class="text-muted small">No equity balances.</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Total equity</th>
+                <th class="text-end">{{ total_equity|floatformat:2|intcomma }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <p class="mb-0">
+        <strong>Check:</strong>
+        Total assets ({{ total_assets|floatformat:2|intcomma }}) =
+        Total liabilities + equity ({{ total_liabilities|add:total_equity|floatformat:2|intcomma }})
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

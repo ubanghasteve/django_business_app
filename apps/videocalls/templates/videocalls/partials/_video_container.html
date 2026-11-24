@@ -1,0 +1,23 @@
+<div class="video-container" data-participant-id="{{ participant.id }}" data-session-id="{{ participant.session_id }}">
+    <video id="video-{{ participant.session_id }}" autoplay playsinline></video>
+    <div class="video-placeholder">
+        {{ participant.display_name|slice:":2"|upper }}
+    </div>
+    <div class="participant-info">
+        <span class="participant-name">{{ participant.display_name }}</span>
+        {% if participant.is_host %}
+        <span class="host-badge">HOST</span>
+        {% endif %}
+    </div>
+    <div class="participant-status">
+        {% if participant.is_audio_muted %}
+        <span class="status-icon muted"><i class="bi bi-mic-mute"></i></span>
+        {% endif %}
+        {% if participant.is_video_off %}
+        <span class="status-icon muted"><i class="bi bi-camera-video-off"></i></span>
+        {% endif %}
+        {% if participant.is_screen_sharing %}
+        <span class="status-icon screen-share"><i class="bi bi-display"></i></span>
+        {% endif %}
+    </div>
+</div>

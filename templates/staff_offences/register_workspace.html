@@ -1,0 +1,2444 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}Staff Offence Management{% endblock %}
+{% block breadcrumb %}Staff Offences / {% if register %}{{ register.reference_number }}{% else %}Create Offence{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --so-primary: {{ theme_primary_color|default:"#f97316" }};
+  --so-soft: {{ theme_accent_color|default:"#ffedd5" }};
+  --so-card: {{ theme_secondary_color|default:"#fff7ed" }};
+  --so-text: {{ theme_text_color|default:"#111827" }};
+  --so-muted: #6b7280;
+  --so-line: #e5e7eb;
+  --so-accent-text: color-mix(in srgb, {{ theme_primary_color|default:"#f97316" }} 72%, #7c2d12);
+}
+.so-workspace-page {
+  width: 100%; max-width: 100%;
+  overflow-x: hidden; box-sizing: border-box;
+}
+.so-create-wrap {
+  max-width: 1180px; margin: 0 auto; width: 100%;
+  min-width: 0; box-sizing: border-box;
+}
+.so-hero {
+  display: flex; align-items: center; gap: 0.9rem;
+  margin-bottom: 1.25rem; animation: soFadeUp 0.45s ease both;
+  min-width: 0; width: 100%;
+}
+.so-hero > div:last-child { min-width: 0; flex: 1; }
+.so-hero-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--so-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--so-primary) 28%, transparent);
+}
+.so-hero h1 {
+  margin: 0; font-size: clamp(1.12rem, 4.2vw, 1.45rem); font-weight: 700;
+  color: var(--so-text); line-height: 1.25;
+  overflow-wrap: anywhere; word-break: normal; hyphens: auto;
+}
+.so-hero p {
+  margin: 0.2rem 0 0; color: var(--so-muted);
+  font-size: clamp(0.82rem, 2.8vw, 0.9rem); overflow-wrap: anywhere;
+}
+.so-toolbar {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+.so-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+  gap: 1.25rem; align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+.so-grid > * { min-width: 0; max-width: 100%; }
+.so-panel {
+  background: #fff; border: 1px solid var(--so-line); border-radius: 18px;
+  padding: 1.35rem 1.4rem 1.45rem; animation: soFadeUp 0.5s ease both;
+  min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box;
+}
+.so-panel-preview { animation-delay: 0.08s; }
+.so-panel-kicker {
+  font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--so-muted); font-weight: 600; margin-bottom: 0.35rem;
+}
+.so-panel-title { font-size: 1.1rem; font-weight: 700; color: var(--so-text); margin: 0 0 0.35rem; }
+.so-panel-copy { color: var(--so-muted); font-size: 0.88rem; margin: 0 0 1.15rem; line-height: 1.45; }
+.so-field { margin-bottom: 1rem; }
+.so-field label {
+  display: block; font-size: 0.78rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--so-muted); margin-bottom: 0.4rem;
+}
+.so-field .form-control,
+.so-field .form-select {
+  border: 1.5px solid #d1d5db; border-radius: 10px; min-height: 44px;
+  padding: 0.55rem 0.85rem; font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%; max-width: 100%; box-sizing: border-box;
+}
+.so-field .form-control:focus,
+.so-field .form-select:focus {
+  border-color: var(--so-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 18%, transparent);
+  outline: none;
+}
+.so-field .form-control:disabled,
+.so-field .form-select:disabled,
+.so-field .form-control[readonly] { background: #f9fafb; color: #6b7280; cursor: default; }
+.so-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+@media (max-width: 575px) { .so-row-2 { grid-template-columns: 1fr; } }
+.so-signature-block {
+  margin-top: 0.35rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;
+}
+.so-signature-block.is-locked { opacity: 0.55; pointer-events: none; }
+.so-signature-hint {
+  font-size: 0.8rem; color: var(--so-muted); margin: 0 0 0.75rem; line-height: 1.4;
+}
+.so-optional-tag {
+  font-size: 0.75rem; font-weight: 500; color: var(--so-muted); text-transform: none; letter-spacing: 0;
+}
+.so-signature-drop {
+  display: flex; flex-direction: column; gap: 0.65rem;
+  border: 1.5px dashed #d1d5db; border-radius: 12px;
+  padding: 0.85rem; background: #fafafa;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.so-signature-drop.is-active {
+  border-color: var(--so-primary);
+  background: color-mix(in srgb, var(--so-primary) 6%, #fff);
+}
+.so-signature-preview-thumb {
+  display: none; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+}
+.so-signature-preview-thumb.is-visible { display: flex; }
+.so-signature-preview-thumb img {
+  max-height: 56px; max-width: 180px; object-fit: contain;
+  background: #fff; border: 1px solid var(--so-line); border-radius: 8px; padding: 4px;
+}
+.so-signature-file {
+  font-size: 0.86rem;
+}
+.so-signature-actions {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+}
+.so-btn-sig {
+  background: #fff; border: 1.5px solid #d1d5db; color: #374151;
+  font-weight: 600; border-radius: 8px; padding: 0.45rem 0.85rem;
+  font-size: 0.82rem; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.so-btn-sig:hover { background: #f9fafb; border-color: #9ca3af; }
+.so-btn-sig-primary {
+  background: var(--so-primary); border-color: var(--so-primary); color: #fff;
+}
+.so-btn-sig-primary:hover { filter: brightness(0.96); color: #fff; }
+.so-btn-sig-danger { color: #b91c1c; border-color: #fecaca; }
+.so-btn-sig-danger:hover { background: #fef2f2; border-color: #f87171; }
+.so-preview-signature {
+  margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;
+  display: none;
+}
+.so-preview-signature.is-visible { display: block; }
+.so-preview-signature-label {
+  font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--so-muted); font-weight: 600; margin-bottom: 0.45rem;
+}
+.so-preview-signature img {
+  max-height: 72px; max-width: 220px; object-fit: contain; display: block;
+}
+.so-preview-signature-name {
+  margin-top: 0.35rem; font-size: 0.85rem; font-weight: 600; color: var(--so-text);
+}
+.so-preview-signature-role {
+  font-size: 0.75rem; color: var(--so-muted);
+}
+.so-actions-row {
+  display: flex; gap: 0.65rem; flex-wrap: wrap;
+  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;
+}
+.so-btn-primary {
+  background: var(--so-primary); border: none; color: #fff;
+  font-weight: 600; border-radius: 10px; padding: 0.7rem 1.15rem;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--so-primary) 30%, transparent);
+}
+.so-btn-primary:hover:not(:disabled) { filter: brightness(0.96); color: #fff; transform: translateY(-1px); }
+.so-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
+.so-ready-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--so-soft); color: var(--so-accent-text);
+  font-weight: 700; border-radius: 10px; padding: 0.7rem 1.15rem;
+  font-size: 0.95rem; cursor: default; user-select: none;
+}
+.so-btn-ghost {
+  background: #fff; border: 1.5px solid #d1d5db; color: #374151;
+  font-weight: 600; border-radius: 10px; padding: 0.7rem 1.15rem; text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.so-btn-ghost:hover { background: #f9fafb; color: #111827; border-color: #9ca3af; }
+.so-status {
+  display: none; align-items: center; gap: 0.45rem;
+  background: var(--so-soft); color: var(--so-accent-text);
+  border-radius: 10px; padding: 0.65rem 0.85rem; font-size: 0.86rem; font-weight: 600;
+  margin-bottom: 1rem;
+}
+.so-status.is-visible { display: flex; }
+.so-preview {
+  background: #fff; border: 1px solid var(--so-line); border-radius: 18px;
+  padding: 1.4rem 1.45rem 1.3rem; position: sticky; top: 1rem;
+  min-width: 0; max-width: 100%; overflow: visible;
+}
+.so-preview-badge {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--so-primary);
+  background: var(--so-soft); border-radius: 999px; padding: 0.28rem 0.7rem;
+  margin-bottom: 0.9rem;
+}
+.so-preview .so-header {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding-bottom: 1rem; border-bottom: 1px solid var(--so-line); margin-bottom: 1.1rem;
+  min-width: 0;
+}
+.so-preview .so-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--so-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.so-preview .so-title { margin: 0; font-size: clamp(1.05rem, 3.5vw, 1.2rem); font-weight: 700; color: var(--so-text); }
+.so-preview .so-subtitle { margin: 0.15rem 0 0; font-size: 0.82rem; color: var(--so-muted); }
+.so-meta {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.95rem 1.5rem; margin-bottom: 1.1rem;
+}
+.so-meta-label {
+  font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #9ca3af; margin-bottom: 0.15rem;
+}
+.so-meta-value {
+  font-weight: 700; color: var(--so-text); font-size: 0.98rem;
+  word-break: break-word; overflow-wrap: anywhere;
+}
+.so-meta-value.is-empty { color: #c4c4c4; font-weight: 600; }
+.so-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1.15rem; }
+.so-stat-card { background: var(--so-card); border-radius: 12px; padding: 1rem 1.05rem; }
+.so-stat-label {
+  font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #9ca3af; margin-bottom: 0.3rem;
+}
+.so-stat-value {
+  margin: 0; font-size: 1.55rem; font-weight: 700; color: var(--so-accent-text);
+}
+.so-stat-value.so-bump { animation: soBump 0.4s ease; }
+.so-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.65rem; gap: 0.75rem; flex-wrap: wrap;
+}
+.so-section-head h5 { margin: 0; font-weight: 700; font-size: 1rem; }
+.so-btn-add {
+  background: var(--so-primary); color: #fff; border: none; border-radius: 8px;
+  padding: 0.45rem 0.85rem; font-size: 0.85rem; font-weight: 600;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--so-primary) 28%, transparent);
+  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+}
+.so-btn-add:hover:not(:disabled) { filter: brightness(0.96); color: #fff; transform: translateY(-1px); }
+.so-btn-add:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.so-table-shell {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* Force scroll child to stay within shell width (fixes mobile swipe) */
+  overflow: hidden;
+}
+.so-table-scroll-hint {
+  display: none;
+  align-items: center; gap: 0.4rem;
+  font-size: 0.75rem; font-weight: 600; color: #9ca3af;
+  margin: 0 0 0.55rem;
+}
+.so-table-wrap {
+  display: block;
+  box-sizing: border-box;
+  border-radius: 12px; border: 1px solid #f3f4f6;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: #fff;
+  touch-action: pan-x pan-y;
+}
+.so-table-wrap::-webkit-scrollbar { height: 10px; width: 10px; }
+.so-table-wrap::-webkit-scrollbar-thumb {
+  background: #c4c4c4; border-radius: 999px;
+}
+.so-table-wrap::-webkit-scrollbar-track { background: #f3f4f6; }
+.so-table {
+  width: 100%; border-collapse: collapse; margin: 0;
+  table-layout: auto;
+}
+.so-table thead th {
+  background: var(--so-soft); color: #6b7280; font-size: 0.72rem;
+  font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 0.7rem 0.75rem; border: none; white-space: nowrap;
+  position: sticky; top: 0; z-index: 2;
+}
+.so-table tbody td {
+  padding: 0.8rem 0.75rem; border-top: 1px solid #f3f4f6;
+  color: var(--so-text); font-size: 0.9rem; background: #fff; vertical-align: middle;
+}
+.so-table tbody tr.so-row-enter { animation: soRowIn 0.35s ease both; }
+.so-table tbody tr.so-row-exit { animation: soRowOut 0.28s ease forwards; }
+.so-table .so-check-col { width: 36px; text-align: center; vertical-align: middle; }
+.so-table .so-check-col input[type="checkbox"] {
+  width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--so-primary);
+}
+.so-table .so-sn { width: 48px; font-weight: 700; color: #6b7280; white-space: nowrap; }
+.so-table .so-date { width: 78px; white-space: nowrap; font-weight: 600; }
+.so-table .so-amt { width: 100px; white-space: nowrap; font-weight: 700; }
+.so-table .so-actions-col { width: 148px; white-space: nowrap; }
+.so-select-bar {
+  display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.65rem;
+  margin: 0 0 0.75rem; padding: 0.65rem 0.85rem;
+  background: color-mix(in srgb, var(--so-primary) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--so-primary) 28%, #e5e7eb);
+  border-radius: 12px;
+}
+.so-select-bar.is-visible { display: flex; }
+.so-select-bar-count { font-size: 0.86rem; font-weight: 600; color: var(--so-text); }
+.so-select-bar-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.so-select-bar-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1.5px solid #d1d5db; background: #fff; color: #374151;
+  border-radius: 10px; padding: 0.4rem 0.75rem;
+  font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.so-select-bar-btn:hover { border-color: var(--so-primary); background: #fff; }
+.so-select-bar-btn.so-select-bar-primary {
+  background: var(--so-primary); border-color: var(--so-primary); color: #fff;
+}
+.so-select-bar-btn.so-select-bar-primary:hover { filter: brightness(0.96); color: #fff; }
+.so-table tbody tr.is-selected { background: color-mix(in srgb, var(--so-primary) 7%, #fff); }
+.so-desc {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; line-height: 1.4; word-break: break-word;
+  color: var(--so-text); max-width: 260px;
+}
+.so-entry-action-select {
+  appearance: none; -webkit-appearance: none;
+  display: inline-block;
+  width: 132px; min-width: 132px;
+  border: 1.5px solid #d1d5db; border-radius: 10px;
+  background-color: #fff; color: #374151;
+  font-size: 0.8rem; font-weight: 700;
+  padding: 0.4rem 1.7rem 0.4rem 0.7rem; cursor: pointer; line-height: 1.2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b7280' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.55rem center;
+}
+.so-entry-action-select:focus {
+  outline: none; border-color: var(--so-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 18%, transparent);
+}
+.so-entry-action-select option[value="delete"] { color: #b91c1c; }
+.so-empty {
+  text-align: center; color: #9ca3af; padding: 1.25rem 0.75rem; font-size: 0.9rem; line-height: 1.45;
+}
+
+/* Tablet + mobile */
+@media (max-width: 991px) {
+  .so-grid { grid-template-columns: 1fr; }
+  .so-preview { position: static; overflow: visible; }
+}
+@media (max-width: 767px) {
+  .so-workspace-page {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .so-workspace-page.container-fluid {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .so-create-wrap { padding-left: 0 !important; padding-right: 0 !important; }
+  .so-hero h1 { font-size: 1.18rem; line-height: 1.3; }
+  .so-panel {
+    padding: 1.1rem 1rem 1.15rem; width: 100%; max-width: 100%;
+    overflow: visible;
+  }
+  .so-preview {
+    padding: 1.1rem 1rem 1.15rem;
+    position: static;
+    overflow: visible;
+  }
+  .so-panel-copy { font-size: 0.86rem; }
+
+  /* Keep real table; scroll left/right and up/down inside this box */
+  .so-table-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .so-table-scroll-hint { display: inline-flex; }
+  .so-table-wrap {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    max-height: min(55vh, 360px);
+    overflow-x: scroll !important; /* scroll (not auto) — more reliable on mobile */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    touch-action: pan-x pan-y;
+  }
+  .so-table {
+    /* Wider than the phone so horizontal swipe has somewhere to go */
+    min-width: 720px !important;
+    width: 720px !important;
+    max-width: none !important;
+    table-layout: auto;
+  }
+  .so-table thead { display: table-header-group; }
+  .so-table tbody { display: table-row-group; }
+  .so-table tbody tr[data-entry-id],
+  .so-table tbody tr.so-empty-row {
+    display: table-row;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    background: transparent;
+  }
+  .so-table tbody tr[data-entry-id] td,
+  .so-table tbody tr.so-empty-row td {
+    display: table-cell;
+    width: auto;
+    white-space: nowrap;
+    text-align: left;
+    border-top: 1px solid #f3f4f6;
+    padding: 0.75rem 0.8rem;
+    background: #fff;
+  }
+  .so-table tbody tr[data-entry-id] td::before,
+  .so-table tbody tr.so-empty-row td::before { content: none; }
+  .so-table tbody tr[data-entry-id] td > * {
+    max-width: none;
+    text-align: left;
+  }
+  .so-table .so-check-col { width: 36px; }
+  .so-table .so-sn { width: 52px; }
+  .so-table .so-date { width: 78px; }
+  .so-table td:nth-child(4) { width: 220px; white-space: normal; }
+  .so-table .so-amt { width: 100px; }
+  .so-table .so-actions-col { width: 148px; }
+  .so-desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    max-width: 200px;
+    white-space: normal;
+    overflow: hidden;
+  }
+  .so-entry-action-select {
+    width: 132px;
+    min-width: 118px;
+    max-width: 118px;
+  }
+  /* Empty message should fill the scrollport width, not clip mid-word */
+  .so-table-wrap:has(.so-empty-row) .so-table {
+    min-width: 100%;
+    width: 100%;
+  }
+  .so-table tbody tr.so-empty-row td {
+    white-space: normal;
+    width: 100%;
+  }
+  .so-table tbody tr.so-row-enter { animation: none; }
+  .so-footer-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+  .so-preview-actions { grid-template-columns: 1fr; }
+  .so-meta { grid-template-columns: 1fr; }
+  .so-stats { grid-template-columns: 1fr; }
+  .so-actions-row { flex-direction: column; }
+  .so-actions-row .so-btn-primary,
+  .so-actions-row .so-btn-ghost { width: 100%; text-align: center; }
+  .so-section-head { align-items: stretch; }
+  .so-btn-add { width: 100%; justify-content: center; display: inline-flex; }
+  .so-toolbar { gap: 0.45rem; }
+  .so-toolbar .btn { flex: 1 1 auto; }
+  .so-modal .modal-dialog {
+    margin: 0.5rem auto 1.25rem;
+    max-width: calc(100% - 1rem);
+    max-height: none;
+  }
+  .so-modal .modal-dialog-centered {
+    align-items: flex-start;
+    min-height: 0;
+  }
+  .so-modal .modal-content {
+    max-height: none;
+    border-radius: 16px;
+    overflow: visible;
+  }
+  .so-modal .modal-content > form {
+    overflow: visible;
+    max-height: none;
+  }
+  .so-modal-hero { padding: 1.05rem 1rem 0.95rem; }
+  .so-modal-title { font-size: 1.1rem; }
+  .so-modal-sub { font-size: 0.8rem; }
+  .so-modal .modal-body.so-modal-body,
+  .so-modal-body {
+    padding: 0.9rem 1rem 0.75rem;
+    overflow: visible !important;
+    flex: none;
+    min-height: 0;
+    max-height: none;
+  }
+  .so-modal-footer {
+    padding: 0.75rem 1rem 1rem;
+    position: static;
+    z-index: auto;
+  }
+  .so-modal-footer-right { width: 100%; display: flex; gap: 0.5rem; margin-left: 0; }
+  .so-modal-footer-right .so-btn-cancel,
+  .so-modal-footer-right .so-btn-save { flex: 1; justify-content: center; }
+  .so-view-value.so-view-amount { font-size: 1.15rem; }
+}
+@media (max-width: 575px) {
+  .so-hero-icon { width: 42px; height: 42px; font-size: 1.05rem; }
+  .so-hero h1 { font-size: 1.1rem; }
+  .so-table { min-width: 680px !important; width: 680px !important; }
+  .so-table-wrap { max-height: min(50vh, 320px); }
+}
+.so-footer-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px solid #f3f4f6;
+}
+.so-grand-amount { font-size: 1.2rem; font-weight: 700; color: var(--so-primary); }
+.so-grand-amount.so-bump { animation: soBump 0.4s ease; }
+.so-preview-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-top: 1.1rem;
+}
+.so-preview-actions a,
+.so-preview-actions span {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.65rem; border: 1.5px solid #111827; border-radius: 10px;
+  font-weight: 600; font-size: 0.85rem; color: #111827; text-decoration: none;
+  background: #fff; transition: background 0.15s ease, opacity 0.15s ease;
+}
+.so-preview-actions a:hover { background: #f9fafb; color: #111827; }
+.so-preview-actions span { opacity: 0.45; cursor: not-allowed; }
+.so-empty { text-align: center; color: #9ca3af; padding: 2rem 1rem; }
+.so-toast {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1080;
+  background: #111827; color: #fff; padding: 0.75rem 1rem; border-radius: 10px;
+  font-size: 0.88rem; box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.so-toast.show { opacity: 1; transform: translateY(0); }
+.so-view-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+.so-view-block {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 0.85rem 0.95rem; min-width: 0;
+}
+.so-view-block.so-view-full { grid-column: 1 / -1; }
+.so-view-label {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: #9ca3af; margin-bottom: 0.35rem;
+}
+.so-view-value {
+  font-size: 0.98rem; font-weight: 600; color: var(--so-text); line-height: 1.5;
+  overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap;
+}
+.so-view-value.so-view-amount {
+  font-size: 1.25rem; font-weight: 700; color: var(--so-accent-text);
+}
+@media (max-width: 575px) {
+  .so-view-grid { grid-template-columns: 1fr; }
+}
+
+/* —— Add / Edit / View Offence modals ——
+   One scroll surface (.modal) — nested body scroll fights the page on touch. */
+body.modal-open:has(.so-modal.show) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+.so-modal {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+/* Bootstrap slide uses transform on the dialog — that freezes overlay scroll on mobile */
+.so-modal.fade .modal-dialog {
+  transition: none !important;
+  transform: none !important;
+}
+.so-modal.show .modal-dialog {
+  transform: none !important;
+}
+.so-modal .modal-dialog {
+  max-width: min(520px, calc(100vw - 1.5rem));
+  margin: 0.75rem auto 1.5rem;
+  max-height: none;
+  height: auto;
+  pointer-events: auto;
+}
+.so-modal .modal-dialog-scrollable {
+  height: auto;
+  max-height: none;
+}
+.so-modal .modal-dialog-centered {
+  min-height: 0;
+  align-items: flex-start;
+}
+.so-modal .modal-dialog-scrollable.modal-dialog-centered {
+  min-height: 0;
+}
+.so-modal .modal-content {
+  border: none; border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(17, 24, 39, 0.22);
+  /* Opacity only — transform animations break touch scroll on WebKit */
+  animation: soModalInFade 0.28s ease both;
+  display: flex;
+  flex-direction: column;
+  max-height: none;
+  overflow: visible;
+  width: 100%;
+  transform: none !important;
+}
+.so-modal .modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+.so-modal-hero {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 1.35rem 1.4rem 1.2rem;
+  background:
+    radial-gradient(ellipse 80% 120% at 100% 0%, color-mix(in srgb, var(--so-primary) 35%, transparent), transparent 55%),
+    linear-gradient(145deg, #1f2937 0%, #111827 55%, #0f172a 100%);
+  color: #fff;
+}
+.so-modal-hero-row {
+  display: flex; align-items: flex-start; gap: 0.9rem;
+}
+.so-modal-hero-icon {
+  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--so-primary) 88%, #fff);
+  color: #fff; font-size: 1.15rem;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--so-primary) 40%, transparent);
+}
+.so-modal-hero-copy { flex: 1; min-width: 0; padding-top: 0.1rem; }
+.so-modal-kicker {
+  margin: 0 0 0.2rem; font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;
+}
+.so-modal-title {
+  margin: 0; font-size: 1.28rem; font-weight: 700; color: #fff; line-height: 1.25;
+}
+.so-modal-sub {
+  margin: 0.35rem 0 0; font-size: 0.86rem; color: #cbd5e1; line-height: 1.4;
+}
+.so-modal-close {
+  position: absolute; top: 0.85rem; right: 0.85rem;
+  width: 34px; height: 34px; border-radius: 10px; border: none;
+  background: rgba(255,255,255,0.1); color: #e5e7eb;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+  z-index: 2;
+}
+.so-modal-close:hover { background: rgba(255,255,255,0.18); color: #fff; }
+.so-modal .modal-body.so-modal-body,
+.so-modal-body {
+  padding: 1.25rem 1.4rem 0.85rem;
+  background: #fafafa;
+  flex: 0 0 auto;
+  min-height: 0;
+  /* Let the outer .modal scroll — avoids nested-scroll touch lag */
+  overflow: visible !important;
+  -webkit-overflow-scrolling: auto;
+  overscroll-behavior: auto;
+  touch-action: pan-y;
+}
+.so-modal-section {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+  padding: 1rem 1.05rem 0.35rem; margin-bottom: 0.9rem;
+  animation: soFadeUp 0.4s ease both;
+}
+.so-modal-section:nth-child(2) { animation-delay: 0.05s; }
+.so-modal-section:nth-child(3) { animation-delay: 0.1s; }
+.so-modal-section-label {
+  display: flex; align-items: center; gap: 0.45rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #6b7280; margin-bottom: 0.55rem;
+}
+.so-modal-section-label i {
+  color: var(--so-primary); font-size: 0.85rem;
+}
+.so-field-hint {
+  font-size: 0.75rem; color: #9ca3af; margin: -0.15rem 0 0.65rem; line-height: 1.35;
+}
+.so-modal .so-input {
+  border: 1.5px solid #d1d5db; border-radius: 11px; min-height: 46px;
+  padding: 0.6rem 0.9rem; font-size: 0.98rem; color: var(--so-text);
+  background: #fff; width: 100%;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.so-modal .so-input:focus {
+  border-color: var(--so-primary); outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 18%, transparent);
+  background: #fff;
+}
+.so-modal .so-input::placeholder { color: #c4c4c4; }
+.so-amount-wrap { position: relative; }
+.so-amount-prefix {
+  position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%);
+  font-weight: 700; color: var(--so-primary); font-size: 0.95rem; pointer-events: none;
+}
+.so-modal .so-input.so-input-amount { padding-left: 2.15rem; font-weight: 600; letter-spacing: 0.01em; }
+.so-live-summary {
+  display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center;
+  background: var(--so-card); border: 1px solid color-mix(in srgb, var(--so-primary) 18%, #e5e7eb);
+  border-radius: 14px; padding: 0.9rem 1rem; margin-bottom: 0.85rem;
+  animation: soFadeUp 0.45s ease 0.12s both;
+}
+.so-live-summary-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase; color: #9ca3af; margin-bottom: 0.2rem;
+}
+.so-live-summary-desc {
+  font-size: 0.92rem; font-weight: 600; color: var(--so-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(240px, 55vw);
+}
+.so-live-summary-desc.is-placeholder { color: #c4c4c4; font-weight: 500; }
+.so-live-summary-amount {
+  font-size: 1.35rem; font-weight: 700; color: var(--so-accent-text);
+  transition: transform 0.2s ease;
+}
+.so-live-summary-amount.so-bump { animation: soBump 0.35s ease; }
+.so-modal-errors {
+  display: none; align-items: flex-start; gap: 0.5rem;
+  background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
+  border-radius: 10px; padding: 0.7rem 0.85rem; font-size: 0.84rem;
+  margin-bottom: 0.75rem; animation: soShake 0.4s ease;
+}
+.so-modal-errors.is-visible { display: flex; }
+.so-modal-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  flex-wrap: wrap; padding: 0.85rem 1.4rem max(1.25rem, env(safe-area-inset-bottom));
+  background: #fafafa;
+  border-top: 1px solid #f3f4f6;
+  flex: 0 0 auto;
+  position: static;
+}
+.so-modal-footer-right { display: flex; gap: 0.55rem; margin-left: auto; }
+.so-btn-cancel {
+  background: #fff; border: 1.5px solid #d1d5db; color: #374151;
+  font-weight: 600; border-radius: 10px; padding: 0.62rem 1.05rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.so-btn-cancel:hover { background: #f9fafb; border-color: #9ca3af; color: #111827; }
+.so-btn-save {
+  background: var(--so-primary); border: none; color: #fff;
+  font-weight: 600; border-radius: 10px; padding: 0.62rem 1.2rem;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--so-primary) 32%, transparent);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  min-width: 118px;
+}
+.so-btn-save:hover:not(:disabled) { filter: brightness(0.96); color: #fff; transform: translateY(-1px); }
+.so-btn-save:disabled { opacity: 0.7; cursor: wait; }
+.so-btn-delete {
+  background: transparent; border: 1.5px solid #fecaca; color: #dc2626;
+  font-weight: 600; border-radius: 10px; padding: 0.55rem 0.9rem; font-size: 0.86rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.so-btn-delete:hover:not(:disabled) { background: #fef2f2; border-color: #f87171; }
+.so-modal-success {
+  display: none; position: absolute; inset: 0; z-index: 5;
+  background: rgba(255,255,255,0.96); align-items: center; justify-content: center;
+  flex-direction: column; gap: 0.55rem; text-align: center; padding: 1.5rem;
+}
+.so-modal-success.is-visible { display: flex; animation: soFadeUp 0.3s ease both; }
+.so-modal-success-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: color-mix(in srgb, var(--so-primary) 16%, #fff);
+  color: var(--so-primary); display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; animation: soIconPop 0.4s ease both;
+}
+.so-modal-success p { margin: 0; font-weight: 700; color: var(--so-text); font-size: 1.05rem; }
+.so-modal-success span { font-size: 0.86rem; color: #6b7280; }
+.so-modal .modal-content { position: relative; }
+
+@keyframes soFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes soBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes soRowIn {
+  from { opacity: 0; transform: translateY(8px); background: var(--so-soft); }
+  to { opacity: 1; transform: translateY(0); background: #fff; }
+}
+@keyframes soRowOut {
+  to { opacity: 0; transform: translateX(12px); }
+}
+@keyframes soModalIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes soModalInFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes soIconPop {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes soShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+@media (max-width: 767px) {
+  .so-meta, .so-stats, .so-preview-actions { grid-template-columns: 1fr; }
+  .so-live-summary { grid-template-columns: 1fr; }
+  .so-live-summary-amount { justify-self: start; }
+  .so-live-summary-desc { max-width: 100%; white-space: normal; }
+}
+@media (max-width: 575px) {
+  .so-row-2 { grid-template-columns: 1fr; }
+  .so-hero-icon { width: 42px; height: 42px; font-size: 1.05rem; }
+  .so-toolbar .btn { flex: 1 1 auto; }
+}
+</style>
+
+<div class="container-fluid py-3 py-md-4 so-workspace-page"
+     id="so-workspace"
+     data-mode="{{ workspace_mode }}"
+     data-currency="{{ currency_symbol }}"
+     data-can-add-entry="{% if can_add_entries %}1{% else %}0{% endif %}"
+     data-can-edit="{% if can_change_entries %}1{% else %}0{% endif %}"
+     data-can-delete-entry="{% if can_delete_entries %}1{% else %}0{% endif %}"
+     data-can-change-register="{% if can_change_register %}1{% else %}0{% endif %}"
+     data-can-print="{% if can_print %}1{% else %}0{% endif %}"
+     data-can-download="{% if can_download %}1{% else %}0{% endif %}"
+     data-create-url="{% url 'staff_offences:create_ajax' %}"
+     data-register-id="{% if register %}{{ register.pk }}{% endif %}"
+     data-print-url="{% if register and can_print %}{% url 'staff_offences:print' register.pk %}{% endif %}"
+     data-pdf-url="{% if register and can_download %}{% url 'staff_offences:pdf' register.pk %}{% endif %}"
+     data-entry-create-tpl="/staff-offences/__RID__/entries/add/ajax/"
+     data-entry-edit-tpl="/staff-offences/__RID__/entries/__EID__/edit/ajax/"
+     data-entry-delete-tpl="/staff-offences/__RID__/entries/__EID__/delete/ajax/"
+     data-signature-upload-tpl="/staff-offences/__RID__/signature/"
+     data-signature-clear-tpl="/staff-offences/__RID__/signature/clear/"
+     data-detail-tpl="/staff-offences/__RID__/"
+     data-default-signatory="{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user }}{% endif %}">
+  <div class="so-create-wrap">
+    <div class="so-toolbar">
+      <a href="{% url 'staff_offences:list' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> All registers
+      </a>
+      {% if register and can_delete_register %}
+      <a href="{% url 'staff_offences:delete' register.pk %}" class="btn btn-outline-danger btn-sm ms-auto" id="so-delete-link">
+        <i class="fas fa-trash me-1"></i> Delete register
+      </a>
+      {% endif %}
+    </div>
+
+    <div class="so-hero">
+      <div class="so-hero-icon"><i class="fas fa-building"></i></div>
+      <div>
+        <h1>Staff Offence Management</h1>
+        <p id="so-hero-sub">{% if register %}Human Resources · Monthly Register{% else %}Human Resources · Create offence{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="so-grid">
+      <div class="so-panel">
+        <div class="so-panel-kicker" id="so-step-kicker">{% if register %}Register{% else %}Step 1{% endif %}</div>
+        <h2 class="so-panel-title" id="so-step-title">{% if register %}Monthly register{% else %}Create offence{% endif %}</h2>
+        <p class="so-panel-copy" id="so-step-copy">
+          {% if register %}
+            Staff and month are set for this register. Add offence lines on the right — everything stays on this page.
+          {% else %}
+            Enter the staff member and month, optionally choose a signature, then click Create Offence once. The same person can have a separate register for each month. Choosing a month that already exists simply reopens that month’s register.
+          {% endif %}
+        </p>
+
+        <div class="so-status {% if register %}is-visible{% endif %}" id="so-ready-banner">
+          <i class="fas fa-check-circle"></i>
+          <span id="so-ready-text">{% if register %}Register {{ register.reference_number }} is ready. Add offences below.{% endif %}</span>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" novalidate id="so-create-form">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <div id="so-create-errors" class="alert alert-danger" style="display:none;"></div>
+
+          <div class="so-field">
+            <label for="{{ form.staff_name.id_for_label }}">Staff Member</label>
+            {{ form.staff_name }}
+            {% if form.staff_name.errors %}<div class="text-danger text-xs mt-1">{{ form.staff_name.errors }}</div>{% endif %}
+          </div>
+
+          <div class="so-field">
+            <label for="{{ form.department_name.id_for_label }}">Department</label>
+            {{ form.department_name }}
+            {% if form.department_name.errors %}<div class="text-danger text-xs mt-1">{{ form.department_name.errors }}</div>{% endif %}
+          </div>
+
+          <div class="so-row-2">
+            <div class="so-field">
+              <label for="{{ form.month.id_for_label }}">Month</label>
+              {{ form.month }}
+              {% if form.month.errors %}<div class="text-danger text-xs mt-1">{{ form.month.errors }}</div>{% endif %}
+            </div>
+            <div class="so-field">
+              <label for="{{ form.year.id_for_label }}">Year</label>
+              {{ form.year }}
+              {% if form.year.errors %}<div class="text-danger text-xs mt-1">{{ form.year.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          {% if can_change_register %}
+          <div class="so-signature-block" id="so-signature-block">
+            <div class="so-field" style="margin-bottom:0.5rem;">
+              <label>Authorized Signature <span class="so-optional-tag" id="so-sig-optional">{% if not register %}(optional){% endif %}</span></label>
+            </div>
+            <p class="so-signature-hint" id="so-signature-hint">
+              {% if register and register.authorized_signature %}
+                Already saved for <strong>this register</strong>. Choose a new image anytime to replace it — it saves automatically. Use Remove to clear it.
+              {% elif register %}
+                Choose a signature image — it saves automatically for <strong>this register</strong> and appears on the preview, print page, and PDF.
+              {% else %}
+                Optional. Choose a signature image here, then click <strong>Create Offence</strong> once — staff details and signature save together. No separate save step.
+              {% endif %}
+            </p>
+            <input type="hidden" id="so-signatory-name" value="{{ request.user.get_full_name|default:request.user }}">
+            <div class="so-signature-drop" id="so-signature-drop">
+              <div class="so-signature-preview-thumb {% if register and register.authorized_signature %}is-visible{% endif %}" id="so-sig-thumb-wrap">
+                <img id="so-sig-thumb" src="{% if register and register.authorized_signature %}{{ register.authorized_signature.url }}{% endif %}" alt="Current signature">
+                <span class="text-muted small" id="so-sig-thumb-label">{% if register and register.authorized_signature %}Saved for this register{% else %}{% endif %}</span>
+              </div>
+              <input type="file" class="form-control so-signature-file" id="so-signature-file"
+                     accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                     name="authorized_signature">
+              <div class="so-signature-actions">
+                <button type="button" class="so-btn-sig so-btn-sig-danger" id="so-sig-clear-btn"
+                        {% if not register or not register.authorized_signature %}style="display:none;"{% endif %}>
+                  <i class="fas fa-times me-1"></i> Remove
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="so-actions-row">
+            <a href="{% url 'staff_offences:list' %}" class="so-btn-ghost" id="so-cancel-link">
+              {% if register %}All registers{% else %}Cancel{% endif %}
+            </a>
+            {% if not register %}
+            <button type="submit" class="so-btn-primary" id="so-create-btn">
+              <i class="fas fa-plus me-1"></i> Create Offence
+            </button>
+            {% else %}
+            <span class="so-ready-chip" id="so-create-btn" aria-live="polite">
+              <i class="fas fa-check me-1"></i> Register ready
+            </span>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+
+      <div class="so-panel so-panel-preview so-preview" id="so-register-panel">
+        <div class="so-preview-badge"><i class="fas fa-list"></i> Offence register</div>
+
+        <div class="so-header">
+          <div class="so-icon"><i class="fas fa-building"></i></div>
+          <div>
+            <h2 class="so-title">Staff Offence Management</h2>
+            <p class="so-subtitle">Human Resources · Monthly Register</p>
+          </div>
+        </div>
+
+        <div class="so-meta">
+          <div>
+            <div class="so-meta-label">Staff Member</div>
+            <div class="so-meta-value {% if not register %}is-empty{% endif %}" id="pv-staff">
+              {% if register %}{{ register.staff_name }}{% else %}Staff name{% endif %}
+            </div>
+          </div>
+          <div>
+            <div class="so-meta-label">Department</div>
+            <div class="so-meta-value {% if not register or not register.department_name %}is-empty{% endif %}" id="pv-dept">
+              {% if register %}{{ register.department_name|default:"Department" }}{% else %}Department{% endif %}
+            </div>
+          </div>
+          <div>
+            <div class="so-meta-label">Month</div>
+            <div class="so-meta-value" id="pv-month">
+              {% if register %}{{ register.month_label }}{% else %}—{% endif %}
+            </div>
+          </div>
+          <div>
+            <div class="so-meta-label">Record No.</div>
+            <div class="so-meta-value" id="pv-ref">
+              {% if register %}{{ register.reference_number }}{% else %}OFF-····-····{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="so-stats">
+          <div class="so-stat-card">
+            <div class="so-stat-label">Total Offences</div>
+            <p class="so-stat-value" id="so-offence-count">{{ offence_count|default:0 }}</p>
+          </div>
+          <div class="so-stat-card">
+            <div class="so-stat-label">Monthly Total</div>
+            <p class="so-stat-value" id="so-monthly-total">{{ currency_symbol }}{{ monthly_total|default:0|floatformat:0|intcomma }}</p>
+          </div>
+        </div>
+
+        <div class="so-section-head">
+          <h5>Offence History</h5>
+          {% if can_add_entries %}
+          <button type="button" class="so-btn-add" id="so-add-btn" {% if not register %}disabled title="Create the register first"{% endif %}>
+            + Add Offence
+          </button>
+          {% endif %}
+        </div>
+
+        <div class="so-table-shell">
+          <p class="so-table-scroll-hint" id="so-entry-scroll-hint">
+            <i class="fas fa-arrows-alt-h"></i> Swipe left/right · scroll up/down inside the table
+          </p>
+          <div class="so-select-bar" id="so-select-bar" aria-live="polite">
+            <div class="so-select-bar-count" id="so-select-bar-count">0 selected</div>
+            <div class="so-select-bar-actions">
+              {% if can_print %}
+              <button type="button" class="so-select-bar-btn so-select-bar-primary" id="so-print-selected-btn">
+                <i class="fas fa-print"></i> Print selected
+              </button>
+              {% endif %}
+              {% if can_download %}
+              <button type="button" class="so-select-bar-btn" id="so-download-selected-btn">
+                <i class="fas fa-file-download"></i> Download selected
+              </button>
+              {% endif %}
+              <button type="button" class="so-select-bar-btn" id="so-clear-selected-btn">Clear</button>
+            </div>
+          </div>
+          <div class="so-table-wrap" id="so-entry-table-wrap" tabindex="0" role="region" aria-label="Offence history table">
+          <table class="so-table" id="so-offence-table">
+            <thead>
+              <tr>
+                <th class="so-check-col">
+                  <input type="checkbox" id="so-select-all" aria-label="Select all offences"
+                         {% if not register or not entries %}disabled{% endif %}>
+                </th>
+                <th>S/N</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th class="so-actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="so-offence-tbody">
+              {% for entry in entries %}
+              <tr data-entry-id="{{ entry.pk }}"
+                  data-date="{{ entry.date|date:'Y-m-d' }}"
+                  data-date-display="{{ entry.date|date:'d M' }}"
+                  data-description="{{ entry.description|escape }}"
+                  data-amount="{{ entry.amount }}"
+                  data-amount-display="{{ currency_symbol }}{{ entry.amount|floatformat:0|intcomma }}">
+                <td class="so-check-col" data-label="Select">
+                  <input type="checkbox" class="so-entry-check" aria-label="Select offence {{ forloop.counter }}">
+                </td>
+                <td class="so-sn" data-label="S/N">{{ forloop.counter }}</td>
+                <td class="so-date" data-label="Date">{{ entry.date|date:"d M" }}</td>
+                <td data-label="Description"><div class="so-desc">{{ entry.description }}</div></td>
+                <td class="so-amt" data-label="Amount">{{ currency_symbol }}{{ entry.amount|floatformat:0|intcomma }}</td>
+                <td class="so-actions-col" data-label="Actions">
+                  <select class="so-entry-action-select" aria-label="Actions for offence {{ forloop.counter }}">
+                    <option value="" selected disabled>Actions</option>
+                    <option value="view">View</option>
+                    {% if can_change_entries %}<option value="edit">Edit</option>{% endif %}
+                    {% if can_print %}<option value="print">Print this</option>{% endif %}
+                    {% if can_download %}<option value="download">Download this</option>{% endif %}
+                    {% if can_delete_entries %}<option value="delete">Delete</option>{% endif %}
+                  </select>
+                </td>
+              </tr>
+              {% empty %}
+              <tr class="so-empty-row">
+                <td colspan="6" class="so-empty" id="so-empty-msg">
+                  {% if register %}
+                    No offences recorded for this month yet.{% if can_add_entries %} Click <strong>+ Add Offence</strong> to begin.{% endif %}
+                  {% else %}
+                    Fill in the form and click <strong>Create Offence</strong>, then add entries here.
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          </div>
+        </div>
+
+        <div class="so-footer-row">
+          <div>
+            <strong>Grand Total</strong>
+            <div class="text-sm text-secondary">
+              <span id="so-entry-count-label">{{ offence_count|default:0 }}</span>
+              offence <span id="so-entry-word">entr{{ offence_count|default:0|pluralize:"y,ies" }}</span>
+            </div>
+          </div>
+          <div class="so-grand-amount" id="so-grand-total">{{ currency_symbol }}{{ monthly_total|default:0|floatformat:0|intcomma }}</div>
+        </div>
+
+        <div class="so-preview-signature {% if register and register.authorized_signature %}is-visible{% endif %}" id="so-preview-signature">
+          <div class="so-preview-signature-label">Authorized Signature</div>
+          <img id="so-preview-sig-img"
+               src="{% if register and register.authorized_signature %}{{ register.authorized_signature.url }}{% endif %}"
+               alt="Authorized signature">
+          <div class="so-preview-signature-name" id="so-preview-sig-name">
+            {% if register %}
+              {% if register.authorized_signatory_name %}{{ register.authorized_signatory_name }}{% elif register.created_by %}{{ register.created_by.get_full_name|default:register.created_by }}{% endif %}
+            {% endif %}
+          </div>
+          <div class="so-preview-signature-role">Authorized Officer</div>
+        </div>
+
+        <div class="so-preview-actions" id="so-print-actions">
+          {% if register and can_print %}
+          <a href="{% url 'staff_offences:print' register.pk %}" id="so-print-link" target="_blank" rel="noopener">
+            <i class="fas fa-print"></i> Print Register
+          </a>
+          {% endif %}
+          {% if register and can_download %}
+          <a href="{% url 'staff_offences:pdf' register.pk %}" id="so-pdf-link" target="_blank" rel="noopener">
+            <i class="fas fa-file-download"></i> Download PDF
+          </a>
+          {% endif %}
+          {% if not register or not can_print %}
+          <span id="so-print-placeholder" {% if register and can_print %}style="display:none"{% endif %}><i class="fas fa-print"></i> Print Register</span>
+          {% endif %}
+          {% if not register or not can_download %}
+          <span id="so-pdf-placeholder" {% if register and can_download %}style="display:none"{% endif %}><i class="fas fa-file-download"></i> Download PDF</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="so-toast" id="so-toast" role="status" aria-live="polite"></div>
+
+<div class="modal fade so-modal" id="offenceViewModal" tabindex="-1" aria-labelledby="offenceViewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="so-modal-hero">
+        <button type="button" class="so-modal-close" data-bs-dismiss="modal" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="so-modal-hero-row">
+          <div class="so-modal-hero-icon"><i class="fas fa-eye"></i></div>
+          <div class="so-modal-hero-copy">
+            <p class="so-modal-kicker">Offence details</p>
+            <h5 class="so-modal-title" id="offenceViewModalLabel">View Offence</h5>
+            <p class="so-modal-sub">Full offence record for this monthly register.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body so-modal-body">
+        <input type="hidden" id="so-view-entry-id" value="">
+        <div class="so-view-grid">
+          <div class="so-view-block">
+            <div class="so-view-label">Date</div>
+            <div class="so-view-value" id="so-view-date">—</div>
+          </div>
+          <div class="so-view-block">
+            <div class="so-view-label">Amount</div>
+            <div class="so-view-value so-view-amount" id="so-view-amount">—</div>
+          </div>
+          <div class="so-view-block so-view-full">
+            <div class="so-view-label">Description</div>
+            <div class="so-view-value" id="so-view-description">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="so-modal-footer">
+        <div class="so-modal-footer-right" style="width:100%;">
+          <button type="button" class="so-btn-cancel" data-bs-dismiss="modal">Close</button>
+          {% if can_change_entries %}
+          <button type="button" class="so-btn-save" id="so-view-edit-btn">
+            <i class="fas fa-pen me-1"></i> Edit offence
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if can_add_entries or can_change_entries %}
+<div class="modal fade so-modal" id="offenceModal" tabindex="-1" aria-labelledby="offenceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="so-modal-success" id="so-modal-success" aria-live="polite">
+        <div class="so-modal-success-icon"><i class="fas fa-check"></i></div>
+        <p id="so-modal-success-title">Offence saved</p>
+        <span>Register totals updated instantly</span>
+      </div>
+
+      <form id="offenceForm" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="entry_id" id="offence-entry-id" value="">
+
+        <div class="so-modal-hero">
+          <button type="button" class="so-modal-close" data-bs-dismiss="modal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+          <div class="so-modal-hero-row">
+            <div class="so-modal-hero-icon" id="so-modal-hero-icon">
+              <i class="fas fa-exclamation-triangle" id="so-modal-hero-fa"></i>
+            </div>
+            <div class="so-modal-hero-copy">
+              <p class="so-modal-kicker">Staff offence register</p>
+              <h5 class="so-modal-title" id="offenceModalLabel">Add Offence</h5>
+              <p class="so-modal-sub" id="so-modal-sub">
+                Record what happened, when, and the deduction amount. It appears on the register right away.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-body so-modal-body">
+          <div class="so-modal-section">
+            <label class="so-modal-section-label" for="id_date">
+              <i class="fas fa-calendar-day"></i> When it happened
+            </label>
+            <p class="so-field-hint">Use the actual offence date for this staff member’s month.</p>
+            <div class="mb-3">
+              <input type="date" name="date" id="id_date" class="so-input" required>
+            </div>
+          </div>
+
+          <div class="so-modal-section">
+            <label class="so-modal-section-label" for="id_description">
+              <i class="fas fa-align-left"></i> What happened
+            </label>
+            <p class="so-field-hint">Keep it clear and specific — this shows on print and PDF.</p>
+            <div class="mb-3">
+              <textarea name="description" id="id_description" class="so-input" rows="3"
+                        maxlength="500" required placeholder="e.g. Late arrival, Unauthorized absence"
+                        style="min-height:84px;resize:vertical;line-height:1.45;"></textarea>
+            </div>
+          </div>
+
+          <div class="so-modal-section">
+            <label class="so-modal-section-label" for="id_amount">
+              <i class="fas fa-coins"></i> Deduction amount
+            </label>
+            <p class="so-field-hint">Amount deducted for this offence ({{ currency_symbol }}).</p>
+            <div class="mb-3 so-amount-wrap">
+              <span class="so-amount-prefix">{{ currency_symbol }}</span>
+              <input type="number" name="amount" id="id_amount" class="so-input so-input-amount"
+                     step="0.01" min="0" required placeholder="0.00" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="so-live-summary" id="so-live-summary" aria-live="polite">
+            <div>
+              <div class="so-live-summary-label">Live preview</div>
+              <div class="so-live-summary-desc is-placeholder" id="so-live-desc">Description will appear here</div>
+            </div>
+            <div class="so-live-summary-amount" id="so-live-amount">{{ currency_symbol }}0</div>
+          </div>
+
+          <div id="offenceFormErrors" class="so-modal-errors" role="alert"></div>
+        </div>
+
+        <div class="so-modal-footer">
+          <button type="button" class="so-btn-delete" id="offence-delete-btn" style="display:none;">
+            <i class="fas fa-trash-alt me-1"></i> Delete
+          </button>
+          <div class="so-modal-footer-right">
+            <button type="button" class="so-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="so-btn-save" id="offence-save-btn">
+              <i class="fas fa-check me-1" id="so-save-icon"></i>
+              <span id="so-save-label">Save offence</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var root = document.getElementById('so-workspace');
+  if (!root) return;
+
+  var currency = root.getAttribute('data-currency') || '₦';
+  var canAddEntry = root.getAttribute('data-can-add-entry') === '1';
+  var canEdit = root.getAttribute('data-can-edit') === '1';
+  var canDeleteEntry = root.getAttribute('data-can-delete-entry') === '1';
+  var canChangeRegister = root.getAttribute('data-can-change-register') === '1';
+  var createUrl = root.getAttribute('data-create-url');
+  var registerId = root.getAttribute('data-register-id') || '';
+  var entryCreateTpl = root.getAttribute('data-entry-create-tpl');
+  var entryEditTpl = root.getAttribute('data-entry-edit-tpl');
+  var entryDeleteTpl = root.getAttribute('data-entry-delete-tpl');
+  var signatureUploadTpl = root.getAttribute('data-signature-upload-tpl');
+  var signatureClearTpl = root.getAttribute('data-signature-clear-tpl');
+  var detailTpl = root.getAttribute('data-detail-tpl');
+  var defaultSignatory = root.getAttribute('data-default-signatory') || '';
+  var canPrint = root.getAttribute('data-can-print') === '1';
+  var canDownload = root.getAttribute('data-can-download') === '1';
+
+  var months = {
+    '1': 'January', '2': 'February', '3': 'March', '4': 'April',
+    '5': 'May', '6': 'June', '7': 'July', '8': 'August',
+    '9': 'September', '10': 'October', '11': 'November', '12': 'December'
+  };
+
+  var staff = document.getElementById('{{ form.staff_name.id_for_label }}');
+  var dept = document.getElementById('{{ form.department_name.id_for_label }}');
+  var month = document.getElementById('{{ form.month.id_for_label }}');
+  var year = document.getElementById('{{ form.year.id_for_label }}');
+  var form = document.getElementById('so-create-form');
+  var createBtn = document.getElementById('so-create-btn');
+  var createErrors = document.getElementById('so-create-errors');
+  var csrfCreate = form ? form.querySelector('[name=csrfmiddlewaretoken]') : null;
+  var csrf = csrfCreate ? csrfCreate.value : '';
+  var tbody = document.getElementById('so-offence-tbody');
+  var toastEl = document.getElementById('so-toast');
+  var addBtn = document.getElementById('so-add-btn');
+  var syncChannel = null;
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      syncChannel = new BroadcastChannel('staff-offences-sync');
+    }
+  } catch (e) {}
+
+  function signalStaffOffencesChanged(detail) {
+    var payload = Object.assign({ t: Date.now(), source: 'workspace' }, detail || {});
+    try {
+      localStorage.setItem('staff-offences-sync', JSON.stringify(payload));
+    } catch (e) {}
+    try {
+      window.dispatchEvent(new CustomEvent('staff-offences-changed', { detail: payload }));
+    } catch (e) {}
+    try {
+      if (syncChannel) syncChannel.postMessage(payload);
+    } catch (e) {}
+    try {
+      window.dispatchEvent(new CustomEvent('notifications-changed'));
+    } catch (e) {}
+  }
+
+  function toast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(function() { toastEl.classList.remove('show'); }, 2200);
+  }
+
+  function setText(el, value, placeholder) {
+    if (!el) return;
+    var v = (value || '').trim();
+    el.textContent = v || placeholder;
+    el.classList.toggle('is-empty', !v);
+  }
+
+  function syncPreviewFromForm() {
+    if (registerId) return;
+    setText(document.getElementById('pv-staff'), staff && staff.value, 'Staff name');
+    setText(document.getElementById('pv-dept'), dept && dept.value, 'Department');
+    var m = month ? month.value : '';
+    var y = year ? year.value : '';
+    var label = (months[m] || '—') + (y ? (' ' + y) : '');
+    var pvMonth = document.getElementById('pv-month');
+    if (pvMonth) {
+      pvMonth.textContent = label;
+      pvMonth.classList.remove('is-empty');
+    }
+    var pvRef = document.getElementById('pv-ref');
+    if (pvRef) pvRef.textContent = y ? ('OFF-' + y + '-····') : 'OFF-····-····';
+  }
+
+  ['input', 'change', 'keyup'].forEach(function(evt) {
+    if (staff) staff.addEventListener(evt, syncPreviewFromForm);
+    if (dept) dept.addEventListener(evt, syncPreviewFromForm);
+    if (month) month.addEventListener(evt, syncPreviewFromForm);
+    if (year) year.addEventListener(evt, syncPreviewFromForm);
+  });
+  syncPreviewFromForm();
+
+  function formatMoney(displayOrNumber) {
+    var raw = String(displayOrNumber).replace(/,/g, '');
+    var num = Number(raw);
+    if (isNaN(num)) num = 0;
+    return currency + Math.round(num).toLocaleString();
+  }
+
+  function bump(el) {
+    if (!el) return;
+    el.classList.remove('so-bump');
+    void el.offsetWidth;
+    el.classList.add('so-bump');
+  }
+
+  function updateTotals(count, totalDisplay) {
+    var pretty = formatMoney(totalDisplay);
+    var countEl = document.getElementById('so-offence-count');
+    var monthlyEl = document.getElementById('so-monthly-total');
+    var grandEl = document.getElementById('so-grand-total');
+    var label = document.getElementById('so-entry-count-label');
+    var word = document.getElementById('so-entry-word');
+    if (countEl) { countEl.textContent = count; bump(countEl); }
+    if (monthlyEl) { monthlyEl.textContent = pretty; bump(monthlyEl); }
+    if (grandEl) { grandEl.textContent = pretty; bump(grandEl); }
+    if (label) label.textContent = count;
+    if (word) word.textContent = (Number(count) === 1) ? 'entry' : 'entries';
+  }
+
+  function renumber() {
+    tbody.querySelectorAll('tr[data-entry-id]').forEach(function(row, i) {
+      var sn = row.querySelector('.so-sn');
+      if (sn) sn.textContent = i + 1;
+    });
+  }
+
+  function sortHistoryByDate() {
+    if (!tbody) return;
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-entry-id]'));
+    if (rows.length < 2) {
+      renumber();
+      return;
+    }
+    rows.sort(function(a, b) {
+      var da = a.getAttribute('data-date') || '';
+      var db = b.getAttribute('data-date') || '';
+      if (da !== db) return da < db ? -1 : 1;
+      var ida = Number(a.getAttribute('data-entry-id') || 0);
+      var idb = Number(b.getAttribute('data-entry-id') || 0);
+      return ida - idb;
+    });
+    var empty = tbody.querySelector('.so-empty-row');
+    rows.forEach(function(row) { tbody.appendChild(row); });
+    if (empty) tbody.appendChild(empty);
+    renumber();
+  }
+
+  function escapeAttr(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+
+  function setRowData(tr, entry) {
+    tr.setAttribute('data-date', entry.date_iso || '');
+    tr.setAttribute('data-date-display', entry.date || '');
+    tr.setAttribute('data-description', entry.description || '');
+    tr.setAttribute('data-amount', entry.amount || '');
+    tr.setAttribute('data-amount-display', formatMoney(entry.amount_display || entry.amount));
+  }
+
+  function ensureEmptyState() {
+    var rows = tbody.querySelectorAll('tr[data-entry-id]');
+    var empty = tbody.querySelector('.so-empty-row');
+    var selectAll = document.getElementById('so-select-all');
+    if (rows.length === 0) {
+      if (!empty) {
+        var tr = document.createElement('tr');
+        tr.className = 'so-empty-row';
+        tr.innerHTML = '<td colspan="6" class="so-empty">' +
+          (registerId
+            ? 'No offences recorded for this month yet. Click <strong>+ Add Offence</strong> to begin.'
+            : 'Fill in the form and click <strong>Create Offence</strong>, then add entries here.') +
+          '</td>';
+        tbody.appendChild(tr);
+      }
+      if (selectAll) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+        selectAll.disabled = true;
+      }
+      updateSelectionBar();
+    } else if (empty) {
+      empty.remove();
+      if (selectAll) selectAll.disabled = false;
+    }
+  }
+
+  function actionSelectHtml() {
+    var html = '<select class="so-entry-action-select" aria-label="Actions">'
+      + '<option value="" selected disabled>Actions</option>'
+      + '<option value="view">View</option>';
+    if (canEdit) html += '<option value="edit">Edit</option>';
+    if (canPrint) html += '<option value="print">Print this</option>';
+    if (canDownload) html += '<option value="download">Download this</option>';
+    if (canDeleteEntry) html += '<option value="delete">Delete</option>';
+    html += '</select>';
+    return html;
+  }
+
+  function buildRow(entry) {
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-entry-id', entry.id);
+    tr.classList.add('so-row-enter');
+    setRowData(tr, entry);
+    tr.innerHTML =
+      '<td class="so-check-col" data-label="Select"><input type="checkbox" class="so-entry-check" aria-label="Select offence"></td>'
+      + '<td class="so-sn" data-label="S/N"></td>'
+      + '<td class="so-date" data-label="Date">' + escapeAttr(entry.date) + '</td>'
+      + '<td data-label="Description"><div class="so-desc"></div></td>'
+      + '<td class="so-amt" data-label="Amount">' + formatMoney(entry.amount_display || entry.amount) + '</td>'
+      + '<td class="so-actions-col" data-label="Actions">' + actionSelectHtml() + '</td>';
+    tr.querySelector('.so-desc').textContent = entry.description;
+    return tr;
+  }
+
+  function getSelectedEntryIds() {
+    return Array.prototype.map.call(
+      tbody.querySelectorAll('tr[data-entry-id] .so-entry-check:checked'),
+      function(cb) {
+        var row = cb.closest('tr[data-entry-id]');
+        return row ? row.getAttribute('data-entry-id') : '';
+      }
+    ).filter(Boolean);
+  }
+
+  function registerPrintUrl(entryIds) {
+    if (!registerId) return '';
+    var base = '/staff-offences/' + registerId + '/print/';
+    if (entryIds && entryIds.length) {
+      return base + '?entries=' + entryIds.join(',');
+    }
+    return base;
+  }
+
+  function registerPdfUrl(entryIds) {
+    if (!registerId) return '';
+    var base = '/staff-offences/' + registerId + '/pdf/';
+    if (entryIds && entryIds.length) {
+      return base + '?entries=' + entryIds.join(',');
+    }
+    return base;
+  }
+
+  function openEntriesDocument(kind, entryIds) {
+    if (!registerId) {
+      toast('Create the register first.');
+      return;
+    }
+    if (!entryIds || !entryIds.length) {
+      toast('Select at least one offence.');
+      return;
+    }
+    var url = kind === 'download' ? registerPdfUrl(entryIds) : registerPrintUrl(entryIds);
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function updateSelectionBar() {
+    var checks = tbody.querySelectorAll('tr[data-entry-id] .so-entry-check');
+    var selected = tbody.querySelectorAll('tr[data-entry-id] .so-entry-check:checked');
+    var bar = document.getElementById('so-select-bar');
+    var countEl = document.getElementById('so-select-bar-count');
+    var selectAll = document.getElementById('so-select-all');
+    var n = selected.length;
+    var total = checks.length;
+
+    Array.prototype.forEach.call(tbody.querySelectorAll('tr[data-entry-id]'), function(row) {
+      var cb = row.querySelector('.so-entry-check');
+      row.classList.toggle('is-selected', !!(cb && cb.checked));
+    });
+
+    if (selectAll) {
+      selectAll.disabled = total === 0;
+      selectAll.checked = total > 0 && n === total;
+      selectAll.indeterminate = n > 0 && n < total;
+    }
+    if (countEl) {
+      countEl.textContent = n === 1 ? '1 offence selected' : (n + ' offences selected');
+    }
+    if (bar) bar.classList.toggle('is-visible', n > 0);
+  }
+
+  function upsertRow(entry) {
+    ensureEmptyState();
+    var existing = tbody.querySelector('tr[data-entry-id="' + entry.id + '"]');
+    if (existing) {
+      setRowData(existing, entry);
+      existing.querySelector('.so-date').textContent = entry.date;
+      existing.querySelector('.so-desc').textContent = entry.description;
+      existing.querySelector('.so-amt').textContent = formatMoney(entry.amount_display || entry.amount);
+      existing.classList.remove('so-row-enter');
+      void existing.offsetWidth;
+      existing.classList.add('so-row-enter');
+    } else {
+      var empty = tbody.querySelector('.so-empty-row');
+      if (empty) empty.remove();
+      tbody.appendChild(buildRow(entry));
+    }
+    // Keep Offence History in ascending date order (oldest → newest).
+    sortHistoryByDate();
+    var selectAll = document.getElementById('so-select-all');
+    if (selectAll) selectAll.disabled = false;
+    updateSelectionBar();
+  }
+
+  function removeRow(id) {
+    var row = tbody.querySelector('tr[data-entry-id="' + id + '"]');
+    if (!row) return;
+    row.classList.add('so-row-exit');
+    setTimeout(function() {
+      row.remove();
+      sortHistoryByDate();
+      ensureEmptyState();
+      updateSelectionBar();
+    }, 250);
+  }
+
+  function entryUrl(kind, entryId) {
+    var tpl = kind === 'create' ? entryCreateTpl
+      : (kind === 'edit' ? entryEditTpl : entryDeleteTpl);
+    return tpl.replace('__RID__', registerId).replace('__EID__', entryId || '');
+  }
+
+  function lockHeaderFields() {
+    [staff, dept, month, year].forEach(function(el) {
+      if (el) el.disabled = true;
+    });
+  }
+
+  function updateSignatureHint(hasSaved) {
+    var hint = document.getElementById('so-signature-hint');
+    if (!hint) return;
+    if (!registerId) {
+      hint.innerHTML = 'Optional. Choose a signature image here, then click <strong>Create Offence</strong> once — staff details and signature save together. No separate save step.';
+      return;
+    }
+    if (hasSaved) {
+      hint.innerHTML = 'Already saved for <strong>this register</strong>. Choose a new image anytime to replace it — it saves automatically. Use Remove to clear it.';
+    } else {
+      hint.innerHTML = 'Choose a signature image — it saves automatically for <strong>this register</strong> and appears on the preview, print page, and PDF.';
+    }
+  }
+
+  function applySignaturePreview(url, name) {
+    var previewWrap = document.getElementById('so-preview-signature');
+    var previewImg = document.getElementById('so-preview-sig-img');
+    var previewName = document.getElementById('so-preview-sig-name');
+    var thumbWrap = document.getElementById('so-sig-thumb-wrap');
+    var thumbImg = document.getElementById('so-sig-thumb');
+    var thumbLabel = document.getElementById('so-sig-thumb-label');
+    var clearBtn = document.getElementById('so-sig-clear-btn');
+    var hasSig = !!(url && String(url).trim());
+
+    if (previewWrap) previewWrap.classList.toggle('is-visible', hasSig);
+    if (previewImg) {
+      previewImg.src = hasSig ? url : '';
+      previewImg.style.display = hasSig ? '' : 'none';
+    }
+    if (previewName) previewName.textContent = name || '';
+
+    if (thumbWrap) thumbWrap.classList.toggle('is-visible', hasSig);
+    if (thumbImg) thumbImg.src = hasSig ? url : '';
+    if (thumbLabel) thumbLabel.textContent = hasSig ? 'Saved for this register' : '';
+    if (clearBtn) clearBtn.style.display = hasSig ? '' : 'none';
+    updateSignatureHint(hasSig);
+  }
+
+  function unlockSignatureBlock(reg) {
+    var nameInput = document.getElementById('so-signatory-name');
+    var optionalTag = document.getElementById('so-sig-optional');
+    if (optionalTag) optionalTag.textContent = '';
+    if (nameInput) {
+      nameInput.value = defaultSignatory;
+    }
+    if (reg) {
+      applySignaturePreview(reg.authorized_signature_url || '', reg.authorized_signatory_name || defaultSignatory);
+    } else {
+      updateSignatureHint(false);
+    }
+  }
+
+  function activateRegister(reg) {
+    registerId = String(reg.id);
+    root.setAttribute('data-register-id', registerId);
+    root.setAttribute('data-mode', 'active');
+
+    setText(document.getElementById('pv-staff'), reg.staff_name, 'Staff name');
+    setText(document.getElementById('pv-dept'), reg.department_name, 'Department');
+    var pvMonth = document.getElementById('pv-month');
+    if (pvMonth) {
+      pvMonth.textContent = reg.month_label;
+      pvMonth.classList.remove('is-empty');
+    }
+    var pvRef = document.getElementById('pv-ref');
+    if (pvRef) pvRef.textContent = reg.reference_number;
+
+    updateTotals(reg.offence_count || 0, reg.monthly_total_display || reg.monthly_total || '0');
+
+    var banner = document.getElementById('so-ready-banner');
+    var readyText = document.getElementById('so-ready-text');
+    if (banner) banner.classList.add('is-visible');
+    if (readyText) {
+      readyText.textContent = 'Register ' + reg.reference_number + ' is ready. Add offences on the right.';
+    }
+
+    var kicker = document.getElementById('so-step-kicker');
+    var title = document.getElementById('so-step-title');
+    var copy = document.getElementById('so-step-copy');
+    var heroSub = document.getElementById('so-hero-sub');
+    if (kicker) kicker.textContent = 'Register';
+    if (title) title.textContent = 'Monthly register';
+    if (copy) {
+      copy.textContent = 'Staff and month are set for this register. Add offence lines on the right — everything stays on this page.';
+    }
+    if (heroSub) heroSub.textContent = 'Human Resources · Monthly Register';
+
+    if (createBtn) {
+      if (createBtn.tagName === 'BUTTON') {
+        var chip = document.createElement('span');
+        chip.className = 'so-ready-chip';
+        chip.id = 'so-create-btn';
+        chip.setAttribute('aria-live', 'polite');
+        chip.innerHTML = '<i class="fas fa-check me-1"></i> Register ready';
+        createBtn.replaceWith(chip);
+        createBtn = chip;
+      } else {
+        createBtn.innerHTML = '<i class="fas fa-check me-1"></i> Register ready';
+      }
+    }
+    var cancelLink = document.getElementById('so-cancel-link');
+    if (cancelLink) cancelLink.textContent = 'All registers';
+    lockHeaderFields();
+    unlockSignatureBlock(reg);
+
+    if (addBtn) {
+      addBtn.disabled = false;
+      addBtn.removeAttribute('title');
+    }
+
+    var emptyMsg = document.getElementById('so-empty-msg');
+    if (emptyMsg) {
+      emptyMsg.innerHTML = 'No offences recorded for this month yet. Click <strong>+ Add Offence</strong> to begin.';
+    }
+
+    var actions = document.getElementById('so-print-actions');
+    if (actions) {
+      var html = '';
+      if (canPrint && reg.print_url) {
+        html += '<a href="' + reg.print_url + '" id="so-print-link" target="_blank" rel="noopener">'
+          + '<i class="fas fa-print"></i> Print Register</a>';
+      }
+      if (canDownload && reg.pdf_url) {
+        html += '<a href="' + reg.pdf_url + '" id="so-pdf-link" target="_blank" rel="noopener">'
+          + '<i class="fas fa-file-download"></i> Download PDF</a>';
+      }
+      if (!canPrint) {
+        html += '<span id="so-print-placeholder"><i class="fas fa-print"></i> Print Register</span>';
+      }
+      if (!canDownload) {
+        html += '<span id="so-pdf-placeholder"><i class="fas fa-file-download"></i> Download PDF</span>';
+      }
+      actions.innerHTML = html;
+    }
+
+    try {
+      history.replaceState(null, '', detailTpl.replace('__RID__', registerId));
+    } catch (e) {}
+
+    if (reg.entries && reg.entries.length) {
+      tbody.innerHTML = '';
+      reg.entries.forEach(function(entry) { upsertRow(entry); });
+    } else {
+      sortHistoryByDate();
+    }
+  }
+
+  if (registerId) {
+    lockHeaderFields();
+  }
+  // Ensure current rows stay oldest → newest by date on first paint.
+  sortHistoryByDate();
+
+  (function bindSignatureControls() {
+    var fileInput = document.getElementById('so-signature-file');
+    var clearBtn = document.getElementById('so-sig-clear-btn');
+    var nameInput = document.getElementById('so-signatory-name');
+    var drop = document.getElementById('so-signature-drop');
+    var localObjectUrl = null;
+    var uploading = false;
+
+    function revokeLocalPreview() {
+      if (localObjectUrl) {
+        try { URL.revokeObjectURL(localObjectUrl); } catch (e) {}
+        localObjectUrl = null;
+      }
+    }
+
+    function signatureUrl(kind) {
+      var tpl = kind === 'clear' ? signatureClearTpl : signatureUploadTpl;
+      return (tpl || '').replace('__RID__', registerId);
+    }
+
+    function showLocalSignaturePreview(file, label) {
+      revokeLocalPreview();
+      if (!file) return;
+      localObjectUrl = URL.createObjectURL(file);
+      var previewImg = document.getElementById('so-preview-sig-img');
+      var previewWrap = document.getElementById('so-preview-signature');
+      var thumbWrap = document.getElementById('so-sig-thumb-wrap');
+      var thumbImg = document.getElementById('so-sig-thumb');
+      var thumbLabel = document.getElementById('so-sig-thumb-label');
+      var previewName = document.getElementById('so-preview-sig-name');
+      if (previewWrap) previewWrap.classList.add('is-visible');
+      if (previewImg) {
+        previewImg.src = localObjectUrl;
+        previewImg.style.display = '';
+      }
+      if (thumbWrap) thumbWrap.classList.add('is-visible');
+      if (thumbImg) thumbImg.src = localObjectUrl;
+      if (thumbLabel) thumbLabel.textContent = label || '';
+      if (previewName) previewName.textContent = defaultSignatory;
+      if (nameInput) nameInput.value = defaultSignatory;
+      if (drop) drop.classList.add('is-active');
+      if (clearBtn) clearBtn.style.display = '';
+    }
+
+    function uploadSignatureFile(file) {
+      if (!registerId || !file || uploading) return;
+      uploading = true;
+      if (fileInput) fileInput.disabled = true;
+      showLocalSignaturePreview(file, 'Saving…');
+      var fd = new FormData();
+      fd.append('authorized_signature', file);
+      fetch(signatureUrl('upload'), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd,
+        credentials: 'same-origin'
+      }).then(function(r) {
+        return r.json().then(function(data) { return { ok: r.ok, data: data }; });
+      }).then(function(res) {
+        uploading = false;
+        if (fileInput) {
+          fileInput.disabled = false;
+          fileInput.value = '';
+        }
+        if (!res.ok || !res.data.success) {
+          revokeLocalPreview();
+          if (drop) drop.classList.remove('is-active');
+          toast((res.data && res.data.error) || 'Could not save signature.');
+          return;
+        }
+        revokeLocalPreview();
+        if (drop) drop.classList.remove('is-active');
+        var savedName = res.data.authorized_signatory_name || defaultSignatory;
+        applySignaturePreview(res.data.authorized_signature_url, savedName);
+        if (nameInput) nameInput.value = savedName;
+        signalStaffOffencesChanged({
+          action: 'signature-updated',
+          id: registerId
+        });
+        toast(res.data.message || 'Signature saved for this register.');
+      }).catch(function() {
+        uploading = false;
+        if (fileInput) fileInput.disabled = false;
+        revokeLocalPreview();
+        if (drop) drop.classList.remove('is-active');
+        toast('Could not save signature.');
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function() {
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        if (registerId) {
+          uploadSignatureFile(file);
+          return;
+        }
+        showLocalSignaturePreview(file, 'Included when you click Create Offence');
+        toast('Signature ready — click Create Offence to save everything together.');
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        if (!registerId) {
+          revokeLocalPreview();
+          if (fileInput) fileInput.value = '';
+          if (drop) drop.classList.remove('is-active');
+          applySignaturePreview('', '');
+          updateSignatureHint(false);
+          toast('Signature cleared.');
+          return;
+        }
+        if (!window.confirm('Remove the authorized signature from this register?')) return;
+        clearBtn.disabled = true;
+        fetch(signatureUrl('clear'), {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+          body: new FormData(),
+          credentials: 'same-origin'
+        }).then(function(r) {
+          return r.json().then(function(data) { return { ok: r.ok, data: data }; });
+        }).then(function(res) {
+          clearBtn.disabled = false;
+          if (!res.ok || !res.data.success) {
+            toast((res.data && res.data.error) || 'Could not remove signature.');
+            return;
+          }
+          revokeLocalPreview();
+          if (fileInput) fileInput.value = '';
+          applySignaturePreview('', '');
+          signalStaffOffencesChanged({
+            action: 'signature-cleared',
+            id: registerId
+          });
+          toast(res.data.message || 'Signature removed.');
+        }).catch(function() {
+          clearBtn.disabled = false;
+          toast('Could not remove signature.');
+        });
+      });
+    }
+  })();
+
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      if (registerId) {
+        e.preventDefault();
+        return;
+      }
+      e.preventDefault();
+      if (createErrors) {
+        createErrors.style.display = 'none';
+        createErrors.textContent = '';
+      }
+      if (createBtn && createBtn.tagName === 'BUTTON') createBtn.disabled = true;
+      var fd = new FormData(form);
+      fetch(createUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd,
+        credentials: 'same-origin'
+      }).then(function(r) {
+        return r.json().then(function(data) { return { ok: r.ok, data: data }; });
+      }).then(function(res) {
+        if (!res.ok || !res.data.success) {
+          if (createBtn && createBtn.tagName === 'BUTTON') createBtn.disabled = false;
+          var msg = 'Could not create offence register.';
+          if (res.data && res.data.errors) {
+            msg = Object.keys(res.data.errors).map(function(k) {
+              return res.data.errors[k].join(' ');
+            }).join('; ');
+          } else if (res.data && res.data.error) {
+            msg = res.data.error;
+          }
+          if (createErrors) {
+            createErrors.textContent = msg;
+            createErrors.style.display = 'block';
+          }
+          toast(msg);
+          return;
+        }
+        var sigInput = document.getElementById('so-signature-file');
+        if (sigInput) sigInput.value = '';
+        activateRegister(res.data.register);
+        signalStaffOffencesChanged({
+          action: res.data.created ? 'register-created' : 'register-opened',
+          id: res.data.register && res.data.register.id
+        });
+        var monthLabel = (res.data.register && res.data.register.month_label) || 'this month';
+        if (res.data.created) {
+          toast('New register created for ' + monthLabel);
+        } else {
+          toast('Reopened existing register for ' + monthLabel + ' — add more offences here');
+        }
+        if (canEdit && addBtn) {
+          setTimeout(function() { addBtn.click(); }, 250);
+        }
+      }).catch(function() {
+        if (createBtn && createBtn.tagName === 'BUTTON') createBtn.disabled = false;
+        toast('Network error. Please try again.');
+      });
+    });
+  }
+
+  if (typeof bootstrap === 'undefined') return;
+
+  var modal = null;
+  var viewModalEl = document.getElementById('offenceViewModal');
+  var viewModal = viewModalEl ? bootstrap.Modal.getOrCreateInstance(viewModalEl) : null;
+  var viewEditBtn = document.getElementById('so-view-edit-btn');
+  var openEditFromRow = function() {};
+
+  function readRowData(row) {
+    return {
+      id: row.getAttribute('data-entry-id') || '',
+      date_iso: row.getAttribute('data-date') || '',
+      date: row.getAttribute('data-date-display') || '',
+      description: row.getAttribute('data-description') || '',
+      amount: row.getAttribute('data-amount') || '',
+      amount_display: row.getAttribute('data-amount-display') || ''
+    };
+  }
+
+  function openViewModal(row) {
+    if (!viewModal || !row) return;
+    var data = readRowData(row);
+    var idEl = document.getElementById('so-view-entry-id');
+    var dateEl = document.getElementById('so-view-date');
+    var amtEl = document.getElementById('so-view-amount');
+    var descEl = document.getElementById('so-view-description');
+    if (idEl) idEl.value = data.id;
+    if (dateEl) dateEl.textContent = data.date || data.date_iso || '—';
+    if (amtEl) amtEl.textContent = data.amount_display || formatMoney(data.amount);
+    if (descEl) descEl.textContent = data.description || '—';
+    viewModal.show();
+  }
+
+  // Keep touch scrolling on one surface (the modal overlay), not nested body panes.
+  document.querySelectorAll('.so-modal').forEach(function(el) {
+    el.addEventListener('shown.bs.modal', function() {
+      el.scrollTop = 0;
+    });
+  });
+
+  function deleteEntryById(id, triggerBtn) {
+    if (!id) return;
+    if (!confirm('Delete this offence entry? Totals will update immediately.')) {
+      if (triggerBtn && triggerBtn.tagName === 'SELECT') triggerBtn.value = '';
+      return;
+    }
+    if (triggerBtn) triggerBtn.disabled = true;
+    fetch(entryUrl('delete', id), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(res) {
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          if (triggerBtn.tagName === 'SELECT') triggerBtn.value = '';
+        }
+        if (!res.ok || !res.data.success) {
+          toast((res.data && res.data.error) || 'Could not delete.');
+          return;
+        }
+        if (viewModal) viewModal.hide();
+        if (modal) modal.hide();
+        removeRow(id);
+        updateTotals(res.data.offence_count, res.data.monthly_total_display || res.data.monthly_total);
+        signalStaffOffencesChanged({ action: 'entry-deleted', registerId: registerId, id: id });
+        toast('Offence deleted');
+      }).catch(function() {
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          if (triggerBtn.tagName === 'SELECT') triggerBtn.value = '';
+        }
+        toast('Network error');
+      });
+  }
+
+  tbody.addEventListener('change', function(e) {
+    if (e.target.classList.contains('so-entry-check')) {
+      updateSelectionBar();
+      return;
+    }
+    var select = e.target.closest('.so-entry-action-select');
+    if (!select) return;
+    var row = select.closest('tr[data-entry-id]');
+    if (!row) return;
+    var action = select.value;
+    if (!action) return;
+    var entryId = row.getAttribute('data-entry-id');
+
+    if (action === 'view') {
+      openViewModal(row);
+      select.value = '';
+      return;
+    }
+    if (action === 'edit' && canEdit) {
+      openEditFromRow(row);
+      select.value = '';
+      return;
+    }
+    if (action === 'print' && canPrint) {
+      openEntriesDocument('print', [entryId]);
+      select.value = '';
+      return;
+    }
+    if (action === 'download' && canDownload) {
+      openEntriesDocument('download', [entryId]);
+      select.value = '';
+      return;
+    }
+    if (action === 'delete' && canDeleteEntry) {
+      deleteEntryById(entryId, select);
+      return;
+    }
+    select.value = '';
+  });
+
+  (function bindEntrySelection() {
+    var selectAll = document.getElementById('so-select-all');
+    var printBtn = document.getElementById('so-print-selected-btn');
+    var downloadBtn = document.getElementById('so-download-selected-btn');
+    var clearBtn = document.getElementById('so-clear-selected-btn');
+
+    if (selectAll) {
+      selectAll.addEventListener('change', function() {
+        var on = selectAll.checked;
+        Array.prototype.forEach.call(
+          tbody.querySelectorAll('tr[data-entry-id] .so-entry-check'),
+          function(cb) { cb.checked = on; }
+        );
+        updateSelectionBar();
+      });
+    }
+    if (printBtn) {
+      printBtn.addEventListener('click', function() {
+        openEntriesDocument('print', getSelectedEntryIds());
+      });
+    }
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', function() {
+        openEntriesDocument('download', getSelectedEntryIds());
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        Array.prototype.forEach.call(
+          tbody.querySelectorAll('.so-entry-check'),
+          function(cb) { cb.checked = false; }
+        );
+        updateSelectionBar();
+      });
+    }
+    updateSelectionBar();
+  })();
+
+  if (viewEditBtn) {
+    viewEditBtn.addEventListener('click', function() {
+      var id = document.getElementById('so-view-entry-id').value;
+      var row = tbody.querySelector('tr[data-entry-id="' + id + '"]');
+      if (viewModal) viewModal.hide();
+      if (row && canEdit) {
+        setTimeout(function() { openEditFromRow(row); }, 180);
+      }
+    });
+  }
+
+  // Constrain the scroll box to the visible panel width, then enable swipe.
+  (function setupEntryTableScroll() {
+    var wrap = document.getElementById('so-entry-table-wrap');
+    var shell = wrap && wrap.closest('.so-table-shell');
+    var hint = document.getElementById('so-entry-scroll-hint');
+    if (!wrap) return;
+
+    function constrain() {
+      var parent = shell || wrap.parentElement;
+      if (!parent) return;
+      var w = parent.getBoundingClientRect().width;
+      if (w > 0) {
+        wrap.style.width = w + 'px';
+        wrap.style.maxWidth = w + 'px';
+      }
+      wrap.style.overflowX = 'scroll';
+      wrap.style.webkitOverflowScrolling = 'touch';
+
+      if (!hint) return;
+      var needsX = wrap.scrollWidth > wrap.clientWidth + 2;
+      var needsY = wrap.scrollHeight > wrap.clientHeight + 2;
+      var mobile = window.matchMedia('(max-width: 767px)').matches;
+      if (mobile && (needsX || needsY)) {
+        hint.style.display = 'inline-flex';
+        hint.style.opacity = '1';
+        hint.innerHTML = needsX
+          ? '<i class="fas fa-arrows-alt-h"></i> Swipe left/right to see all columns'
+          : '<i class="fas fa-arrows-alt-v"></i> Scroll up/down inside the table';
+      } else if (mobile) {
+        hint.style.display = 'none';
+      }
+    }
+
+    wrap.addEventListener('scroll', function() {
+      if (!hint) return;
+      if (wrap.scrollLeft > 6 || wrap.scrollTop > 6) hint.style.opacity = '0.5';
+    }, { passive: true });
+
+    window.addEventListener('resize', constrain);
+    window.addEventListener('orientationchange', function() {
+      setTimeout(constrain, 80);
+    });
+    setTimeout(constrain, 30);
+    setTimeout(constrain, 200);
+    if (tbody) {
+      new MutationObserver(function() { setTimeout(constrain, 20); })
+        .observe(tbody, { childList: true, subtree: true });
+    }
+  })();
+
+  if (!canAddEntry && !canEdit) return;
+
+  var modalEl = document.getElementById('offenceModal');
+  if (!modalEl) return;
+  var offenceForm = document.getElementById('offenceForm');
+  var deleteBtn = document.getElementById('offence-delete-btn');
+  var modalTitle = document.getElementById('offenceModalLabel');
+  var modalSub = document.getElementById('so-modal-sub');
+  var heroFa = document.getElementById('so-modal-hero-fa');
+  var saveBtn = document.getElementById('offence-save-btn');
+  var saveLabel = document.getElementById('so-save-label');
+  var saveIcon = document.getElementById('so-save-icon');
+  var successEl = document.getElementById('so-modal-success');
+  var successTitle = document.getElementById('so-modal-success-title');
+  var liveDesc = document.getElementById('so-live-desc');
+  var liveAmount = document.getElementById('so-live-amount');
+  var descInput = document.getElementById('id_description');
+  var amountInput = document.getElementById('id_amount');
+  var dateInput = document.getElementById('id_date');
+  var errEl = document.getElementById('offenceFormErrors');
+  modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var offenceCsrf = offenceForm.querySelector('[name=csrfmiddlewaretoken]');
+  if (offenceCsrf) csrf = offenceCsrf.value || csrf;
+
+  openEditFromRow = function(row) {
+    var data = readRowData(row);
+    document.getElementById('offence-entry-id').value = data.id;
+    if (dateInput) dateInput.value = data.date_iso || '';
+    if (descInput) descInput.value = data.description || '';
+    if (amountInput) amountInput.value = data.amount || '';
+    setModalMode(true);
+    clearOffenceErrors();
+    if (successEl) successEl.classList.remove('is-visible');
+    setSaving(false);
+    syncLivePreview();
+    modal.show();
+  };
+
+  function clearOffenceErrors() {
+    if (!errEl) return;
+    errEl.textContent = '';
+    errEl.classList.remove('is-visible');
+  }
+
+  function showOffenceErrors(msg) {
+    if (!errEl) return;
+    errEl.innerHTML = '<i class="fas fa-exclamation-circle mt-1"></i><span></span>';
+    errEl.querySelector('span').textContent = msg;
+    errEl.classList.add('is-visible');
+  }
+
+  function syncLivePreview(animateAmount) {
+    var desc = (descInput && descInput.value || '').trim();
+    if (liveDesc) {
+      liveDesc.textContent = desc || 'Description will appear here';
+      liveDesc.classList.toggle('is-placeholder', !desc);
+    }
+    if (liveAmount) {
+      var raw = amountInput ? amountInput.value : '';
+      var next = formatMoney(raw === '' ? 0 : raw);
+      var changed = liveAmount.textContent !== next;
+      liveAmount.textContent = next;
+      if (animateAmount && changed) bump(liveAmount);
+    }
+  }
+
+  if (descInput) {
+    ['input', 'change', 'keyup'].forEach(function(evt) {
+      descInput.addEventListener(evt, function() { syncLivePreview(false); });
+    });
+  }
+  if (amountInput) {
+    ['input', 'change', 'keyup'].forEach(function(evt) {
+      amountInput.addEventListener(evt, function() { syncLivePreview(true); });
+    });
+  }
+
+  function isEditMode() {
+    return !!(document.getElementById('offence-entry-id') && document.getElementById('offence-entry-id').value);
+  }
+
+  function setSaving(isSaving) {
+    if (!saveBtn) return;
+    saveBtn.disabled = isSaving;
+    if (saveIcon) {
+      saveIcon.className = isSaving ? 'fas fa-spinner fa-spin me-1' : 'fas fa-check me-1';
+    }
+    if (saveLabel) {
+      if (isSaving) {
+        saveLabel.textContent = 'Saving…';
+      } else {
+        saveLabel.textContent = isEditMode() ? 'Update offence' : 'Save offence';
+      }
+    }
+  }
+
+  function showSuccessThenClose(message, afterClose) {
+    if (successEl) {
+      if (successTitle) successTitle.textContent = message;
+      successEl.classList.add('is-visible');
+    }
+    setTimeout(function() {
+      modal.hide();
+      if (successEl) successEl.classList.remove('is-visible');
+      if (typeof afterClose === 'function') afterClose();
+    }, 520);
+  }
+
+  function setModalMode(isEdit) {
+    if (modalTitle) modalTitle.textContent = isEdit ? 'Edit Offence' : 'Add Offence';
+    if (modalSub) {
+      modalSub.textContent = isEdit
+        ? 'Update the date, description, or amount. Changes sync to the register immediately.'
+        : 'Record what happened, when, and the deduction amount. It appears on the register right away.';
+    }
+    if (heroFa) {
+      heroFa.className = isEdit ? 'fas fa-pen' : 'fas fa-exclamation-triangle';
+    }
+    if (deleteBtn) deleteBtn.style.display = isEdit ? 'inline-flex' : 'none';
+    if (saveLabel) saveLabel.textContent = isEdit ? 'Update offence' : 'Save offence';
+  }
+
+  function resetOffenceForm() {
+    offenceForm.reset();
+    document.getElementById('offence-entry-id').value = '';
+    setModalMode(false);
+    clearOffenceErrors();
+    if (successEl) successEl.classList.remove('is-visible');
+    setSaving(false);
+    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    syncLivePreview();
+  }
+
+  modalEl.addEventListener('shown.bs.modal', function() {
+    if (descInput && !document.getElementById('offence-entry-id').value) {
+      descInput.focus();
+    }
+    syncLivePreview();
+  });
+
+  modalEl.addEventListener('hidden.bs.modal', function() {
+    clearOffenceErrors();
+    if (successEl) successEl.classList.remove('is-visible');
+    setSaving(false);
+  });
+
+  if (addBtn) {
+    addBtn.addEventListener('click', function() {
+      if (!registerId) {
+        toast('Create the offence register first.');
+        return;
+      }
+      resetOffenceForm();
+      modal.show();
+    });
+  }
+
+  deleteBtn.addEventListener('click', function() {
+    var id = document.getElementById('offence-entry-id').value;
+    deleteEntryById(id, deleteBtn);
+  });
+
+  offenceForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!registerId) {
+      toast('Create the offence register first.');
+      return;
+    }
+    clearOffenceErrors();
+    var entryId = document.getElementById('offence-entry-id').value;
+    var url = entryId ? entryUrl('edit', entryId) : entryUrl('create');
+    var fd = new FormData(offenceForm);
+    fd.delete('entry_id');
+    setSaving(true);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd,
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(res) {
+        if (!res.ok || !res.data.success) {
+          setSaving(false);
+          var msg = 'Could not save offence.';
+          if (res.data && res.data.errors) {
+            msg = Object.keys(res.data.errors).map(function(k) {
+              return res.data.errors[k].join(' ');
+            }).join('; ');
+          } else if (res.data && res.data.error) {
+            msg = res.data.error;
+          }
+          showOffenceErrors(msg);
+          return;
+        }
+        var okMsg = entryId ? 'Offence updated' : 'Offence added';
+        showSuccessThenClose(okMsg, function() {
+          setSaving(false);
+          upsertRow(res.data.entry);
+          updateTotals(res.data.offence_count, res.data.monthly_total_display || res.data.monthly_total);
+          signalStaffOffencesChanged({
+            action: entryId ? 'entry-updated' : 'entry-created',
+            registerId: registerId,
+            id: res.data.entry && res.data.entry.id
+          });
+          toast(okMsg);
+        });
+      }).catch(function() {
+        setSaving(false);
+        showOffenceErrors('Network error. Please try again.');
+      });
+  });
+
+})();
+</script>
+{% endblock %}

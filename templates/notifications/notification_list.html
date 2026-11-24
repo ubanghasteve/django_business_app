@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Notifications | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <h5 class="mb-0"><i class="fas fa-bell me-2"></i>All Notifications</h5>
+      <span class="badge bg-primary rounded-pill" id="notifPageUnreadBadge" style="display:none;">0</span>
+      <span class="small text-muted" id="notifPageLastUpdated" aria-live="polite"></span>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="notifPageMarkAllRead">Mark all read</button>
+      <button type="button" class="btn btn-outline-danger btn-sm" id="notifPageClearAll">Clear all</button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div id="notifPageList" class="list-group list-group-flush">
+      <div class="text-center text-muted py-5">
+        <p class="mb-0">Loading notifications…</p>
+      </div>
+    </div>
+    <div class="d-flex justify-content-center py-3" id="notifPageLoadMore" style="display:none;">
+      <button type="button" class="btn btn-outline-primary" id="notifPageLoadMoreBtn">Load more</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.notif-item { transition: background-color .15s; }
+.notif-item:hover { background-color: rgba(0,0,0,.03); }
+.notif-item.unread { background-color: rgba(25,118,210,.04); }
+.notif-source { font-size: 0.75rem; color: #6c757d; }
+/* Vertical scroll: list scrolls when many notifications */
+#notifPageList {
+  max-height: min(70vh, 600px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+/* Mobile responsive: full width, touch-friendly */
+@media (max-width: 575.98px) {
+  .card-header .d-flex { flex-direction: column; align-items: stretch !important; }
+  .card-header .d-flex .btn { width: 100%; }
+  #notifPageList { max-height: 65vh; }
+}
+@media (max-width: 767.98px) {
+  #notifPageList { max-height: 68vh; }
+}
+</style>
+
+<script>
+(function() {
+  var API_BASE = "{% url 'notifications:api_list' %}".replace(/\/$/, '');
+  var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  function getCookie(n) {
+    var v = document.cookie.match('(?:^|;)\\s*' + n.replace(/[\\.*+?^${}()|[\]\\\\]/g, '\\\\$&') + '\\s*=\\s*([^;]*)');
+    return v ? decodeURIComponent(v[1]) : '';
+  }
+  var token = csrf || getCookie('csrftoken');
+
+  function fetchOpts(method) {
+    var o = { method: method || 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } };
+    if (token && method !== 'GET') o.headers['X-CSRFToken'] = token;
+    return o;
+  }
+  function apiUrl(path) { var sep = path.indexOf('?') >= 0 ? '&' : '?'; return API_BASE + path + sep + '_=' + Date.now(); }
+
+  var offset = 0;
+  var limit = 25;
+  var loading = false;
+  var POLL_MS = 4000;  /* Real-time: refresh list every 4s for accurate, up-to-date data */
+  var pollTimer = null;
+  var initialLoaded = false;
+
+  function setLastUpdated() {
+    var el = document.getElementById('notifPageLastUpdated');
+    if (el) { el.textContent = 'Updated ' + new Date().toLocaleTimeString(); }
+  }
+  function setUnreadBadge(count) {
+    var b = document.getElementById('notifPageUnreadBadge');
+    if (!b) return;
+    var n = typeof count === 'number' ? count : 0;
+    if (n > 999) {
+      b.textContent = '999+';
+    } else {
+      b.textContent = n;
+    }
+    b.style.display = n > 0 ? 'inline' : 'none';
+  }
+
+  function renderItem(n) {
+    var url = n.action_url ? ' href="' + n.action_url + '"' : ' href="#"';
+    var cls = 'list-group-item list-group-item-action notif-item' + (n.is_read ? '' : ' unread');
+    var dataId = n.id ? ' data-notif-id="' + n.id + '"' : '';
+    var avatar = n.actor_avatar ? '<img src="' + n.actor_avatar + '" class="rounded-circle me-2" width="36" height="36" alt="">' : '<div class="rounded-circle bg-secondary me-2 d-flex align-items-center justify-content-center text-white" style="width:36px;height:36px;font-size:0.9rem;">' + (n.actor_name ? n.actor_name.charAt(0) : '?') + '</div>';
+    var actorLabel = 'By ';
+    if (n.actor_display && n.title) {
+      var t = (n.title||'').toLowerCase();
+      if (t.indexOf('approved')>=0) actorLabel = 'Approved by ';
+      else if (t.indexOf('rejected')>=0) actorLabel = 'Rejected by ';
+    }
+    var byLine = n.actor_display ? actorLabel + (n.actor_display || '').replace(/</g,'&lt;') + ' · ' : '';
+    var meta = byLine + (n.date_display || '') + (n.time_display ? ' at ' + n.time_display : '');
+    var html = '<a class="' + cls + '"' + url + dataId + '><div class="d-flex"><div class="flex-shrink-0">' + avatar + '</div><div class="flex-grow-1 min-w-0"><span class="fw-semibold d-block">' + (n.title || '').replace(/</g,'&lt;') + '</span><span class="small text-muted d-block">' + (n.message || '').replace(/</g,'&lt;') + '</span><span class="notif-source d-block mt-1">' + (n.source_app_display || n.source_app) + ' · ' + meta + '</span></div></div></a>';
+    return html;
+  }
+
+  function doMarkRead(id) {
+    var url = (window.location.origin || '') + API_BASE + '/' + id + '/mark-read/';
+    if (!navigator.onLine && window.OfflineSync && window.OfflineSync.queuePendingRequest) {
+      return window.OfflineSync.queuePendingRequest(url, 'POST', '', 'application/x-www-form-urlencoded')
+        .then(function() { showQueuedToast(); });
+    }
+    return fetch(url, fetchOpts('POST')).catch(function(){});
+  }
+  function showQueuedToast() {
+    var msg = document.createElement('div');
+    msg.className = 'alert alert-info position-fixed shadow-sm';
+    msg.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 280px;';
+    msg.innerHTML = '<strong>Queued.</strong> Will sync when you\'re back online.';
+    document.body.appendChild(msg);
+    setTimeout(function() { if (msg.parentNode) msg.remove(); }, 4000);
+  }
+  function attachItemClickHandlers(container) {
+    if (!container) return;
+    container.querySelectorAll('a[data-notif-id]').forEach(function(a) {
+      a.addEventListener('click', function() {
+        var id = a.getAttribute('data-notif-id');
+        if (id) doMarkRead(id);
+      });
+    });
+  }
+
+  function load(append) {
+    if (loading) return;
+    loading = true;
+    var el = document.getElementById('notifPageList');
+    var reqLimit, reqOffset;
+    if (!append) {
+      if (!initialLoaded) {
+        el.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0">Loading…</p></div>';
+      }
+      reqLimit = Math.min(50, Math.max(limit, offset));
+      reqOffset = 0;
+      offset = 0;
+    } else {
+      reqLimit = limit;
+      reqOffset = offset;
+    }
+    fetch(apiUrl('/?limit=' + reqLimit + '&offset=' + reqOffset), fetchOpts('GET'))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        loading = false;
+        if (!data) { if (!append) el.innerHTML = '<div class="text-center text-muted py-4"><p class="mb-0">Failed to load notifications.</p></div>'; return; }
+        var list = data.notifications || [];
+        var unreadCount = typeof data.unread_count === 'number' ? data.unread_count : 0;
+        setUnreadBadge(unreadCount);
+        setLastUpdated();
+        if (!append) el.innerHTML = '';
+        if (list.length === 0 && !append) {
+          el.innerHTML = '<div class="text-center text-muted py-5"><p class="mb-0">You have no notifications.</p><p class="small mt-1">When you receive notifications, they will appear here.</p></div>';
+          offset = 0;
+        } else {
+          list.forEach(function(n) { el.insertAdjacentHTML('beforeend', renderItem(n)); });
+          offset = append ? offset + list.length : list.length;
+          attachItemClickHandlers(el);
+        }
+        var loadMore = document.getElementById('notifPageLoadMore');
+        if (loadMore) loadMore.style.display = list.length >= (append ? limit : reqLimit) ? 'flex' : 'none';
+        initialLoaded = true;
+      })
+      .catch(function() {
+        loading = false;
+        if (!append) {
+          el.innerHTML = (typeof navigator !== 'undefined' && !navigator.onLine)
+            ? '<div class="text-center text-muted py-4"><p class="mb-0"><i class="fas fa-wifi me-2"></i>You\'re offline. Notifications will load when you\'re back online.</p></div>'
+            : '<div class="text-center text-muted py-4"><p class="mb-0">Failed to load notifications.</p></div>';
+        }
+      });
+  }
+
+  document.getElementById('notifPageMarkAllRead') && document.getElementById('notifPageMarkAllRead').addEventListener('click', function() {
+    var url = (window.location.origin || '') + API_BASE + '/mark-all-read/';
+    if (!navigator.onLine && window.OfflineSync && window.OfflineSync.queuePendingRequest) {
+      window.OfflineSync.queuePendingRequest(url, 'POST', '', 'application/x-www-form-urlencoded').then(function() {
+        showQueuedToast();
+      });
+      return;
+    }
+    fetch(url, fetchOpts('POST')).then(function() { load(false); });
+  });
+  document.getElementById('notifPageClearAll') && document.getElementById('notifPageClearAll').addEventListener('click', function() {
+    if (!confirm('Clear all notifications?')) return;
+    var url = (window.location.origin || '') + API_BASE + '/clear-all/';
+    if (!navigator.onLine && window.OfflineSync && window.OfflineSync.queuePendingRequest) {
+      window.OfflineSync.queuePendingRequest(url, 'POST', '', 'application/x-www-form-urlencoded').then(function() {
+        showQueuedToast();
+      });
+      return;
+    }
+    fetch(url, fetchOpts('POST')).then(function() { load(false); });
+  });
+  document.getElementById('notifPageLoadMoreBtn') && document.getElementById('notifPageLoadMoreBtn').addEventListener('click', function() { load(true); });
+
+  load(false);
+  pollTimer = setInterval(function() { if (!loading) load(false); }, POLL_MS);
+
+  if (typeof document.hidden !== 'undefined') {
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+      else { load(false); if (!pollTimer) pollTimer = setInterval(function() { if (!loading) load(false); }, POLL_MS); }
+    });
+  }
+  window.addEventListener('focus', function() { if (!loading) load(false); });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Attendance - HR & Staff{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+  <li class="breadcrumb-item active">Attendance</li>
+{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+  {% include 'hr_staff/partials/hr_top_nav.html' %}
+  
+  <div class="card border-0 shadow-sm rounded-3 mt-3">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between pt-3 pb-0">
+      <h5 class="mb-0 fw-bold">Attendance Records</h5>
+      <div class="d-flex gap-2">
+        <a href="{% url 'hr_staff:attendance_reports' %}" class="btn btn-outline-secondary btn-sm rounded-2">
+          <i class="fas fa-chart-bar me-1"></i> Reports
+        </a>
+        <a href="{% url 'hr_staff:attendance_create' %}" class="btn btn-primary btn-sm rounded-2">
+          <i class="fas fa-plus me-1"></i> Add Record
+        </a>
+      </div>
+    </div>
+    <div class="card-body pt-2">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Date</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Hours</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="attendanceTable">
+            {% for att in attendance_records %}
+            <tr>
+              <td><a href="{% url 'hr_staff:employee_detail' att.employee.pk %}">{{ att.employee.full_name }}</a></td>
+              <td>{{ att.date }}</td>
+              <td>{{ att.check_in|default:"—" }}</td>
+              <td>{{ att.check_out|default:"—" }}</td>
+              <td>{{ att.work_hours|default:"—" }}</td>
+              <td>
+                {% if att.status == 'present' %}<span class="badge bg-success">Present</span>
+                {% elif att.status == 'late' %}<span class="badge bg-warning">Late</span>
+                {% elif att.status == 'absent' %}<span class="badge bg-danger">Absent</span>
+                {% elif att.status == 'on_leave' %}<span class="badge bg-info">On Leave</span>
+                {% else %}<span class="badge bg-secondary">{{ att.get_status_display }}</span>{% endif %}
+              </td>
+              <td>
+                <a href="{% url 'hr_staff:attendance_detail' att.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No attendance records yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var POLL_MS = 15000;
+  function loadAttendance() {
+    fetch('/api/hr-staff/attendance/', { credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || !data.results || data.results.length === 0) return;
+        var tbody = document.getElementById('attendanceTable');
+        if (!tbody) return;
+        var html = '';
+        data.results.forEach(function(a) {
+          var statusClass = a.status === 'present' ? 'bg-success' : (a.status === 'late' ? 'bg-warning' : (a.status === 'absent' ? 'bg-danger' : 'bg-secondary'));
+          html += '<tr>';
+          html += '<td><a href="/hr-staff/employees/' + a.employee + '/">' + (a.employee_name || '') + '</a></td>';
+          html += '<td>' + (a.date || '') + '</td>';
+          html += '<td>' + (a.check_in || '—') + '</td>';
+          html += '<td>' + (a.check_out || '—') + '</td>';
+          html += '<td>' + (a.work_hours || '—') + '</td>';
+          html += '<td><span class="badge ' + statusClass + '">' + (a.status_display || a.status || '') + '</span></td>';
+          html += '<td><a href="/hr-staff/attendance/' + a.id + '/" class="btn btn-sm btn-outline-secondary">View</a></td>';
+          html += '</tr>';
+        });
+        tbody.innerHTML = html;
+      })
+      .catch(function() {});
+  }
+  setTimeout(loadAttendance, 0);
+  setInterval(loadAttendance, POLL_MS);
+})();
+</script>
+{% endblock %}

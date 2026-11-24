@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Edit File - {{ payroll_file.title }}{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Edit File{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:files_list' %}" class="text-decoration-none">Files</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:file_detail' payroll_file.id %}" class="text-decoration-none">{{ payroll_file.title|truncatechars:30 }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h5 class="fw-bold mb-1">Edit File Metadata</h5>
+                    <p class="text-muted small mb-0">Update file information and organization details</p>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Title</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="text-danger small">{{ form.notes.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Category</label>
+                                <select name="category" class="form-select" id="id_category">
+                                    <option value="">Select Category</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {% if cat.id == payroll_file.category_id %}selected{% endif %}>{{ cat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Employee</label>
+                                <select name="employee" class="form-select" id="id_employee">
+                                    <option value="">Not specified</option>
+                                    {% for emp in employees %}
+                                    <option value="{{ emp.id }}" {% if emp.id == payroll_file.employee_id %}selected{% endif %}>{{ emp.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Month</label>
+                                <select name="month" class="form-select" id="id_month">
+                                    <option value="">Not specified</option>
+                                    <option value="1" {% if payroll_file.month == 1 %}selected{% endif %}>January</option>
+                                    <option value="2" {% if payroll_file.month == 2 %}selected{% endif %}>February</option>
+                                    <option value="3" {% if payroll_file.month == 3 %}selected{% endif %}>March</option>
+                                    <option value="4" {% if payroll_file.month == 4 %}selected{% endif %}>April</option>
+                                    <option value="5" {% if payroll_file.month == 5 %}selected{% endif %}>May</option>
+                                    <option value="6" {% if payroll_file.month == 6 %}selected{% endif %}>June</option>
+                                    <option value="7" {% if payroll_file.month == 7 %}selected{% endif %}>July</option>
+                                    <option value="8" {% if payroll_file.month == 8 %}selected{% endif %}>August</option>
+                                    <option value="9" {% if payroll_file.month == 9 %}selected{% endif %}>September</option>
+                                    <option value="10" {% if payroll_file.month == 10 %}selected{% endif %}>October</option>
+                                    <option value="11" {% if payroll_file.month == 11 %}selected{% endif %}>November</option>
+                                    <option value="12" {% if payroll_file.month == 12 %}selected{% endif %}>December</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Year</label>
+                                <input type="number" name="year" class="form-control" id="id_year" value="{{ payroll_file.year|default:'' }}" placeholder="e.g., 2024">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Payroll Period</label>
+                                <select name="payroll_period" class="form-select" id="id_payroll_period">
+                                    <option value="">Not specified</option>
+                                    {% for period in periods %}
+                                    <option value="{{ period.id }}" {% if period.id == payroll_file.payroll_period_id %}selected{% endif %}>{{ period }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tags</label>
+                            <input type="text" name="tags" class="form-control" id="id_tags" value="{{ payroll_file.tags }}" placeholder="e.g., january, bonus, tax">
+                            <small class="text-muted">Comma-separated tags for easy searching</small>
+                            {% if form.tags.errors %}
+                            <div class="text-danger small">{{ form.tags.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.is_starred }}
+                                    <label class="form-check-label" for="id_is_starred">
+                                        Star this file
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.is_archived }}
+                                    <label class="form-check-label" for="id_is_archived">
+                                        Archive this file
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.is_public }}
+                                    <label class="form-check-label" for="id_is_public">
+                                        Make publicly accessible
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save Changes
+                            </button>
+                            <a href="{% url 'payroll:file_detail' payroll_file.id %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h6 class="fw-bold mb-1">Current File Info</h6>
+                </div>
+                <div class="card-body pt-2">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted border-0">Filename</td>
+                            <td class="border-0 fw-semibold">{{ payroll_file.original_filename }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Size</td>
+                            <td class="border-0">{{ payroll_file.file_size_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Type</td>
+                            <td class="border-0">{{ payroll_file.get_file_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">Uploaded</td>
+                            <td class="border-0">{{ payroll_file.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted border-0">By</td>
+                            <td class="border-0">{{ payroll_file.created_by|default:"System" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,577 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Invoice {{ invoice.invoice_number }} - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+{% block breadcrumb %}Invoice Details{% endblock %}
+
+{% block content %}
+<style>
+/* Theme colors from Company Profile - Applied globally */
+:root {
+    --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+    --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+    --text-color: {{ theme_text_color|default:"#333333" }};
+    --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+}
+
+/* EXACT styling from downloadInvoice() function with template colors */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-color);
+    background: white;
+    padding: 20px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Mobile horizontal scroll wrapper */
+.preview-scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.preview-scroll-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.preview-scroll-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.preview-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.mobile-scroll-hint {
+    display: none;
+    text-align: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 12px;
+    border-radius: 20px;
+    margin: 0 auto 15px;
+    width: fit-content;
+}
+
+@media (max-width: 850px) {
+    .mobile-scroll-hint {
+        display: block;
+    }
+    
+    .preview-scroll-wrapper {
+        margin: 0 -10px;
+        padding: 0 10px;
+    }
+    
+    .invoice-preview {
+        min-width: 750px;
+    }
+}
+
+.invoice-preview {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    box-shadow: none;
+    border: 2px solid var(--accent-color);
+    border-radius: 10px;
+}
+
+.invoice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--accent-color);
+    gap: 30px;
+}
+
+.company-logo {
+    flex-shrink: 0;
+}
+
+.company-logo img {
+    max-height: 80px;
+    max-width: 200px;
+}
+
+.company-details {
+    flex: 1;
+    text-align: left;
+    padding-left: 20px;
+}
+
+.company-details h2 {
+    color: var(--primary-color) !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+
+.company-details p {
+    margin: 5px 0;
+    color: #666;
+}
+
+        .invoice-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color) !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .invoice-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa !important;
+            border-radius: 6px;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .invoice-info-left {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .invoice-info-right {
+            text-align: right;
+        }
+
+.client-section {
+    margin-bottom: 30px;
+}
+
+.client-section h3 {
+    color: var(--primary-color) !important;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 30px 0;
+    background: white;
+}
+
+.items-table th,
+.items-table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.items-table th {
+    background: var(--primary-color) !important;
+    color: white !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.items-table tr:nth-child(even) {
+    background: #f8f9fa !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.totals-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin: 30px 0;
+    padding: 20px;
+    background: #f8f9fa !important;
+    border-radius: 8px;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.totals-right {
+    text-align: right;
+    min-width: 250px;
+}
+
+.totals-right p {
+    margin: 8px 0;
+    padding: 5px 0;
+}
+
+.total-final {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--primary-color) !important;
+    border-top: 2px solid var(--primary-color) !important;
+    padding-top: 10px !important;
+    margin-top: 10px !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.signature-section {
+    text-align: center;
+    margin: 40px 0 30px 0;
+    padding: 20px;
+}
+
+.signature-section img {
+    max-height: 80px;
+    margin-bottom: 10px;
+}
+
+        .bank-details-compact {
+            font-size: 11px;
+            line-height: 1.4;
+            color: var(--text-color);
+        }
+        
+        .bank-details-compact p {
+            margin: 0;
+            padding: 0;
+        }
+
+/* Print specific styles */
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    body {
+        padding: 0;
+        margin: 0;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .invoice-preview {
+        box-shadow: none;
+        padding: 20px;
+        margin: 0;
+        max-width: none;
+        border: none;
+    }
+    
+    .no-print {
+        display: none !important;
+    }
+    
+    .items-table th {
+        background: var(--primary-color) !important;
+        color: white !important;
+    }
+    
+            .total-final {
+                color: var(--primary-color) !important;
+                border-top: 2px solid var(--primary-color) !important;
+            }
+            
+            .invoice-title {
+                color: var(--primary-color) !important;
+            }
+            
+            .client-section h3 {
+                color: var(--primary-color) !important;
+            }
+}
+
+/* Template info indicator */
+.template-info {
+    background: var(--secondary-color);
+    border: 1px solid var(--accent-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 15px;
+    font-size: 12px;
+}
+
+.template-color-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+</style>
+
+<style>
+.invoice-detail-header-bar { display: flex; flex-direction: column; gap: 1rem; }
+.invoice-detail-header-bar .header-title-row { flex-shrink: 0; }
+.invoice-detail-header-bar .header-actions-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+</style>
+<div class="row">
+  <div class="col-12">
+    <div class="card my-4">
+      <div class="card-header p-0 mt-n4 mx-3 no-print">
+        <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-4 px-3">
+          <div class="invoice-detail-header-bar">
+            <div class="header-title-row">
+              <h6 class="text-white text-capitalize mb-0">Invoice {{ invoice.invoice_number }}</h6>
+            </div>
+            <div class="header-actions-row">
+              {% if can_change_invoice %}
+              <a href="{% url 'invoices:edit' invoice.pk %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-edit text-sm"></i> Edit
+              </a>
+              {% endif %}
+              {% if can_print_invoice %}
+              <a href="{% url 'invoices:print' invoice.pk %}" target="_blank" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-print text-sm"></i> Print
+              </a>
+              <a href="{% url 'invoices:print' invoice.pk %}" target="_blank" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-file-pdf text-sm"></i> Download PDF
+              </a>
+              {% endif %}
+              {% if can_create_invoice %}
+              <a href="{% url 'invoices:create' %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-plus text-sm"></i> Create Invoice
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-body p-0 mt-3">
+        <!-- Current Template Indicator -->
+        {% if current_template %}
+        <div class="template-info mx-3 mt-3 no-print">
+          <span class="template-color-indicator"></span>
+          <strong>Current Template:</strong> {{ current_template.name }}
+          <small class="text-muted ms-2">This invoice is styled with the current template colors</small>
+        </div>
+        {% endif %}
+        {% if is_company_admin %}
+        <div class="template-info mx-3 mt-2 no-print">
+          <small class="text-muted">Created by {% if invoice.created_by %}{{ invoice.created_by.get_full_name|default:invoice.created_by.email }} on {{ invoice.created_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</small>
+        </div>
+        {% endif %}
+        
+        <!-- Mobile scroll hint -->
+        <div class="mobile-scroll-hint">
+            <i class="fas fa-arrows-left-right"></i> Swipe left/right to view full invoice
+        </div>
+        
+        <!-- EXACT copy of invoice-preview from create page -->
+        <div class="preview-scroll-wrapper">
+        <div class="invoice-preview">
+          <!-- Invoice Header -->
+          <div class="invoice-header">
+            <div class="company-logo">
+              {% if company_logo %}
+                <img src="{{ company_logo }}" alt="Company Logo">
+              {% else %}
+                <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo">
+              {% endif %}
+            </div>
+            <div class="company-details">
+              <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+              <p>{{ company_profile.address|default:"Company Address" }}</p>
+              <p>{{ company_profile.phone|default:"Phone Number" }}</p>
+              <p>{{ company_profile.email|default:"Email Address" }}</p>
+              {% if company_profile.website %}<p>{{ company_profile.website }}</p>{% endif %}
+            </div>
+          </div>
+          
+          <!-- Invoice Info with Title and Bank Details -->
+          <div class="invoice-info">
+            <div class="invoice-info-left">
+              <div class="invoice-title">{% if invoice.template %}{{ invoice.template.document_title }}{% else %}INVOICE{% endif %}</div>
+              <div>
+                <strong>Invoice #:</strong> {{ invoice.invoice_number }}
+              </div>
+              {% if invoice.invoice_date %}
+              <div>
+                <strong>Date:</strong> {{ invoice.invoice_date|date:"M d, Y" }}
+              </div>
+              {% endif %}
+              {% if invoice.due_date %}
+              <div>
+                <strong>Due:</strong> {{ invoice.due_date|date:"M d, Y" }}
+              </div>
+              {% endif %}
+            </div>
+            {% if bank_accounts and invoice.show_bank_details %}
+            <div class="invoice-info-right bank-details-compact">
+              {% for account in bank_accounts %}
+              <p style="margin-bottom: {% if not forloop.last %}8px;{% else %}0;{% endif %}"><strong>Bank:</strong> {{ account.bank_name }}<br><strong>Account:</strong> {{ account.account_number }}<br><strong>Name:</strong> {{ account.account_name }}</p>
+              {% if not forloop.last %}<hr style="margin: 6px 0;">{% endif %}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          
+          <!-- Client Section -->
+          <div class="client-section">
+            <h3>BILL TO:</h3>
+            <div>
+              <strong>{{ invoice.client_name }}</strong><br>
+              {% if invoice.client_email %}{{ invoice.client_email }}<br>{% endif %}
+              {% if invoice.client_phone %}{{ invoice.client_phone }}<br>{% endif %}
+              {% if invoice.client_address %}{{ invoice.client_address }}<br>{% endif %}
+            </div>
+          </div>
+          
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width: 8%;">S/N</th>
+                <th style="width: 20%;">PRODUCT / SERVICE</th>
+                <th style="width: 30%;">DESCRIPTION</th>
+                <th style="width: 10%;">QTY.</th>
+                <th style="width: 15%;">COST</th>
+                <th style="width: 17%;">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in invoice.items.all %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.product_service|default:"" }}</td>
+                <td>{{ item.description|default:"" }}</td>
+                <td>{% if item.quantity and item.quantity != 0 %}{% if item.quantity_display %}{{ item.quantity_display }}{% else %}{{ item.quantity|floatformat:"-2" }}{% endif %}{% endif %}</td>
+                <td class="format-currency">{% if item.unit_price and item.unit_price != 0 %}{{ currency_symbol }}{{ item.unit_price|floatformat:2 }}{% endif %}</td>
+                <td class="format-currency">{% if item.line_total and item.line_total != 0 %}{{ currency_symbol }}{{ item.line_total|floatformat:2 }}{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 20px; color: #999;">
+                  No items found for this invoice.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          
+          <!-- Totals Section -->
+          <div class="totals-section">
+            <div class="totals-left">
+              {% if invoice.notes %}
+                <div>{{ invoice.notes|linebreaks }}</div>
+              {% endif %}
+            </div>
+            <div class="totals-right">
+              <p>Subtotal: <span class="format-currency">{{ currency_symbol }}{{ invoice.subtotal|floatformat:2 }}</span></p>
+              <!-- Always show discount, tax, shipping, other charges, and payment details -->
+              {% if invoice.total_discount != 0 %}
+                <p>Discount{% if invoice.discount_type == 'percentage' and invoice.discount_value %} ({{ invoice.discount_value|floatformat:2 }}%){% endif %}: {% if invoice.total_discount > 0 %}-{% endif %}<span class="format-currency">{{ currency_symbol }}{{ invoice.total_discount|floatformat:2 }}</span></p>
+              {% endif %}
+              {% if invoice.total_tax != 0 %}
+                <p>Tax/VAT{% if invoice.tax_type == 'percentage' and invoice.tax_value %} ({{ invoice.tax_value|floatformat:2 }}%){% endif %}: <span class="format-currency">{{ currency_symbol }}{{ invoice.total_tax|floatformat:2 }}</span></p>
+              {% endif %}
+              {% if invoice.shipping_fee != 0 %}
+                <p>Shipping: <span class="format-currency">{{ currency_symbol }}{{ invoice.shipping_fee|floatformat:2 }}</span></p>
+              {% endif %}
+              {% if invoice.other_charges != 0 %}
+                <p>Other Charges: <span class="format-currency">{{ currency_symbol }}{{ invoice.other_charges|floatformat:2 }}</span></p>
+              {% endif %}
+              <p class="total-final">TOTAL: <span class="format-currency">{{ currency_symbol }}{{ invoice.grand_total|floatformat:2 }}</span></p>
+              {% if invoice.amount_paid != 0 %}
+                <p title="Only this amount counts as revenue (part payments count only what was paid).">Amount Paid: <span class="format-currency">{{ currency_symbol }}{{ invoice.amount_paid|floatformat:2|intcomma }}</span></p>
+                {% if invoice.balance_due > 0 %}
+                  <p title="Amount the customer still owes.">Balance Due: <span class="format-currency">{{ currency_symbol }}{{ invoice.balance_due|floatformat:2|intcomma }}</span></p>
+                {% elif invoice.balance_to_customer > 0 %}
+                  <p title="Overpayment: amount to refund to customer.">Balance to customer (refund due): <span class="format-currency">{{ currency_symbol }}{{ invoice.balance_to_customer|floatformat:2|intcomma }}</span></p>
+                {% endif %}
+              {% endif %}
+              {% if invoice.amount_paid == 0 %}
+                <p class="text-muted small mt-1" title="Unpaid invoices contribute 0 to revenue until payment is recorded.">Unpaid — revenue from this invoice is 0 until amount paid is recorded.</p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- Signature Section -->
+          {% if company_signature and invoice.show_signature %}
+          <div class="signature-section">
+            <img src="{{ company_signature }}" alt="Signature">
+            <p><strong>Authorized Signature</strong></p>
+          </div>
+          {% endif %}
+        </div>
+        </div><!-- End preview-scroll-wrapper -->
+        
+        <!-- Action Buttons -->
+        <div class="row mt-4 no-print">
+          <div class="col-12 text-center">
+            <a href="{% url 'invoices:list' %}" class="btn btn-outline-secondary me-2">
+              <i class="fas fa-arrow-left text-sm"></i> Back to Invoices
+            </a>
+            {% if can_change_invoice %}
+            <a href="{% url 'invoices:edit' invoice.pk %}" class="btn btn-primary">
+              <i class="fas fa-edit text-sm"></i> Edit Invoice
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Format all currency values with commas
+    const currencyElements = document.querySelectorAll('.format-currency');
+    
+    currencyElements.forEach(function(element) {
+        const text = element.textContent;
+        // Extract currency symbol and number
+        const match = text.match(/^([₦$€£])(\d+(?:\.\d{2})?)$/);
+        if (match) {
+            const symbol = match[1];
+            const number = parseFloat(match[2]);
+            // Format number with commas
+            const formattedNumber = number.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            element.textContent = symbol + formattedNumber;
+        }
+    });
+});
+</script>
+{% endblock %}

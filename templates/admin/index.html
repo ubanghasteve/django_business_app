@@ -1,0 +1,27 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="app-applist-intro module">
+  <h2>Applications &amp; Features</h2>
+  <p class="quiet">Manage all business app data below. Each application is listed with its models and features.</p>
+  <ul class="app-features-list" style="margin: 0.5rem 0 1rem 0; padding-left: 1.5rem;">
+    <li><strong>Requisitions</strong> – Create and manage requisitions (draft, pending, approved, completed, rejected).</li>
+    <li><strong>Accounts</strong> – Tenant accounts, approval, owners; approve companies to grant Company Admin full access to all apps (including Requisitions).</li>
+    <li><strong>Core</strong> – Company profiles, bank accounts.</li>
+    <li><strong>Invoices</strong> – Invoices and invoice templates.</li>
+    <li><strong>Receipts</strong> – Receipts.</li>
+    <li><strong>Quotations</strong> – Quotations and templates.</li>
+    <li><strong>Waybills</strong> – Waybills, templates, items.</li>
+    <li><strong>Job Orders</strong> – Products, orders, job order templates, customers, stores.</li>
+    <li><strong>Expenses</strong> – Expenses, categories, attachments.</li>
+    <li><strong>Inventory</strong> – Layouts, items, templates, transactions.</li>
+    <li><strong>Clients</strong> – Clients.</li>
+    <li><strong>Accounting</strong> – Transactions, ledgers, accounts, financial reports.</li>
+    <li><strong>Messaging</strong> – Conversations, messages, call sessions.</li>
+    <li><strong>Security &amp; Users</strong> – Users, team members (SubUsers), roles (AccountGroup), activity log, sessions.</li>
+    <li><strong>Auth</strong> – Django groups and permissions (used by Roles &amp; Permissions).</li>
+  </ul>
+</div>
+{{ block.super }}
+{% endblock %}

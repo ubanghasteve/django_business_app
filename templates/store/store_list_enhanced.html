@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load store_extras %}
+
+{% block title %}{{ layout.name|default:"Store" }} - Store Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/store-dynamic.css' %}">
+<style>
+    :root {
+        --primary-color: {{ layout.primary_color|default:"#007bff" }};
+        --secondary-color: {{ layout.secondary_color|default:"#6c757d" }};
+    }
+    .store-container { background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 30px; }
+    .store-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+    .btn-action { padding: 8px 16px; border: none; border-radius: 6px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.3s ease; }
+    .btn-primary-custom { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); }
+    .btn-success-custom { background: #28a745; color: white; }
+    .filters-section { background: #f8f9fa; padding: 20px; border-bottom: 1px solid #dee2e6; }
+    .grand-total-row { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="store-container">
+        <div class="store-header">
+            <div>
+                <h2><i class="fas fa-boxes"></i> {{ layout.name|default:"Store Management" }}</h2>
+                {% if layout.description %}<p class="mb-0 mt-2" style="opacity:0.9;">{{ layout.description }}</p>{% endif %}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'store:create' %}" class="btn-action btn-success-custom"><i class="fas fa-plus"></i> Add Item</a>
+                <a href="{% url 'store:category_list' %}" class="btn-action btn-primary-custom"><i class="fas fa-layer-group"></i> Categories</a>
+                <a href="{% url 'store:layout_list' %}" class="btn-action btn-primary-custom"><i class="fas fa-cog"></i> Layouts</a>
+            </div>
+        </div>
+
+        <div class="filters-section">
+            <form method="get" class="row g-2">
+                <div class="col-md-3">
+                    <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="Search products...">
+                </div>
+                <div class="col-md-2">
+                    <select name="approval_status" class="form-control">
+                        <option value="">All Status</option>
+                        {% for val, label in approval_choices %}<option value="{{ val }}" {% if request.GET.approval_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="stock_status" class="form-control">
+                        <option value="">All Stock</option>
+                        {% for val, label in stock_choices %}<option value="{{ val }}" {% if request.GET.stock_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="date_to" value="{{ request.GET.date_to }}" class="form-control">
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        {% for col in layout.get_visible_columns %}
+                        <th style="width:{{ col.width }}; white-space:nowrap;">{{ col.label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    <tr data-item-id="{{ item.pk }}">
+                        {% for col in layout.get_visible_columns %}
+                        <td>
+                            {% if col.key == 'sn' %}{{ item.sn }}{% endif %}
+                            {% if col.key == 'product_name' %}
+                                <a href="{% url 'store:detail' item.pk %}">{{ item.product_name }}</a>
+                            {% endif %}
+                            {% if col.key == 'category' %}{{ item.category }}{% endif %}
+                            {% if col.key == 'company_name' %}{{ item.company_name }}{% endif %}
+                            {% if col.key == 'quantity_in' %}{{ item.quantity_in }}{% endif %}
+                            {% if col.key == 'quantity_out' %}{{ item.quantity_out }}{% endif %}
+                            {% if col.key == 'remaining_quantity' %}{{ item.remaining_quantity }}{% endif %}
+                            {% if col.key == 'balance_quantity' %}{{ item.balance_quantity }}{% endif %}
+                            {% if col.key == 'unit_price' %}{{ user_currency_symbol }}{{ item.unit_price }}{% endif %}
+                            {% if col.key == 'total_amount' %}{{ user_currency_symbol }}{{ item.total_amount }}{% endif %}
+                            {% if col.key == 'stock_balance_remaining' %}{{ user_currency_symbol }}{{ item.stock_balance_remaining }}{% endif %}
+                            {% if col.key == 'stock_status' %}
+                                <span class="badge status-{{ item.stock_status }}">{{ item.get_stock_status_display }}</span>
+                            {% endif %}
+                            {% if col.key == 'approval_status' %}
+                                <span class="badge bg-info">{{ item.get_approval_status_display }}</span>
+                            {% endif %}
+                            {% if col.key == 'remark' %}{{ item.remark|truncatechars:30 }}{% endif %}
+                            {% if col.key == 'created_at' %}{{ item.created_at|date:"d M Y" }}{% endif %}
+                            {% if col.key == 'actions' %}
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'store:detail' item.pk %}" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+                                    <a href="{% url 'store:update' item.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+                                    <a href="{% url 'store:print' item.pk %}" class="btn btn-sm btn-secondary"><i class="fas fa-print"></i></a>
+                                </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="{{ layout.get_visible_columns|length }}" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No items found.
+                        <a href="{% url 'store:create' %}">Add your first item</a>
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+                {% if layout.show_grand_total and page_obj %}
+                <tfoot>
+                    <tr class="grand-total-row">
+                        <td colspan="{{ layout.get_visible_columns|length|add:'-1' }}" class="text-end">Grand Total:</td>
+                        <td>{{ user_currency_symbol }}{{ total_balance|stringformat:".2f" }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav><ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">&laquo;</a></li>{% endif %}
+        {% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>{% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<li class="page-item"><a class="page-link" href="?page={{ num }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">{{ num }}</a></li>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% for k,v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">&raquo;</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+</div>
+{% endblock %}

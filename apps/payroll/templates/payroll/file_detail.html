@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ file.title }} - Smart Payroll{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h4 class="fw-bold mb-0">{{ file.title }}</h4>
+                    <div class="btn-group">
+                        <a href="{{ file.file.url }}" class="btn btn-outline-primary btn-sm" download><i class="fas fa-download me-1"></i>Download</a>
+                        {% if file.file_type == 'excel' %}
+                        <a href="{% url 'payroll:excel_extract' file.id %}" class="btn btn-outline-success btn-sm"><i class="fas fa-table me-1"></i>Extract Data</a>
+                        <a href="{% url 'payroll:template_create' file.id %}" class="btn btn-outline-warning btn-sm"><i class="fas fa-puzzle-piece me-1"></i>Create Template</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="text-muted small">File Type</div>
+                            <div><span class="badge bg-{% if file.file_type == 'excel' %}success{% elif file.file_type == 'pdf' %}danger{% else %}secondary{% endif %}">{{ file.file_type|upper }}</span></div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-muted small">Size</div>
+                            <div class="fw-semibold">{{ file.file_size|filesizeformat }}</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-muted small">Period</div>
+                            <div class="fw-semibold">{% if file.month and file.year %}{{ file.get_month_display }} {{ file.year }}{% else %}-{% endif %}</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-muted small">Views</div>
+                            <div class="fw-semibold">{{ file.view_count }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="text-muted small">Category</div>
+                        <div class="fw-semibold">{{ file.category.name|default:"Uncategorized" }}</div>
+                    </div>
+
+                    {% if file.tags %}
+                    <div class="mb-3">
+                        <div class="text-muted small">Tags</div>
+                        <div>
+                            <span class="badge bg-light text-dark">{{ file.tags }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="text-muted small">Original Filename</div>
+                            <div>{{ file.original_filename }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Uploaded</div>
+                            <div>{{ file.created_at|date:"F j, Y \a\t g:i A" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if file.file_type == 'excel' %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-table me-2 text-success"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <a href="{% url 'payroll:excel_extract' file.id %}" class="btn btn-success w-100">
+                                <i class="fas fa-magic me-2"></i>Extract Data from Excel
+                            </a>
+                            <small class="text-muted d-block mt-1">Parse all sheets and store data</small>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'payroll:template_create' file.id %}" class="btn btn-warning w-100">
+                                <i class="fas fa-brain me-2"></i>Auto-Detect Template
+                            </a>
+                            <small class="text-muted d-block mt-1">Create a dynamic form from this file</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0">File Info</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">File ID</td>
+                            <td class="text-end">#{{ file.id }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">MIME Type</td>
+                            <td class="text-end">{{ file.mime_type }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Uploaded By</td>
+                            <td class="text-end">{{ file.created_by.get_full_name|default:file.created_by.email }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status</td>
+                            <td class="text-end">
+                                {% if file.is_archived %}<span class="badge bg-secondary">Archived</span>
+                                {% else %}<span class="badge bg-success">Active</span>{% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary toggle-star" data-file-id="{{ file.id }}">
+                            <i class="fas fa-star me-2"></i>{% if file.is_starred %}Unstar{% else %}Star{% endif %}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary toggle-archive" data-file-id="{{ file.id }}">
+                            <i class="fas fa-archive me-2"></i>{% if file.is_archived %}Unarchive{% else %}Archive{% endif %}
+                        </button>
+                        <a href="{{ file.file.url }}" class="btn btn-outline-success" download><i class="fas fa-download me-2"></i>Download</a>
+                        <form method="post" action="{% url 'payroll:file_delete' file.id %}" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger w-100"><i class="fas fa-trash me-2"></i>Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.querySelector('.toggle-star').addEventListener('click', function() {
+    fetch(`/payroll/files/{{ file.id }}/toggle-star/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    }).then(() => location.reload());
+});
+
+document.querySelector('.toggle-archive').addEventListener('click', function() {
+    fetch(`/payroll/files/{{ file.id }}/toggle-archive/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    }).then(() => location.reload());
+});
+</script>
+{% endblock %}
+{% endblock %}

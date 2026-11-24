@@ -1,0 +1,29 @@
+{# prefix: e.g. receipt, issue — ids become {prefix}-time-hour, hidden id {prefix}-time #}
+<div class="col-md-4">
+    <label class="form-label small fw-semibold">Time <span class="text-muted fw-normal">(12-hour)</span></label>
+    <div class="inventory-time-ampm d-flex flex-wrap gap-1 align-items-center" data-hidden-id="{{ prefix }}-time">
+        <select class="form-select form-select-sm inventory-modal-input inventory-time-hour" id="{{ prefix }}-time-hour" aria-label="Hour">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+        </select>
+        <span class="text-muted px-0">:</span>
+        <input type="number" min="0" max="59" step="1"
+               class="form-control form-control-sm inventory-modal-input inventory-time-minute"
+               id="{{ prefix }}-time-minute" aria-label="Minute" placeholder="00" style="width: 3.25rem;">
+        <select class="form-select form-select-sm inventory-modal-input inventory-time-ampm" id="{{ prefix }}-time-ampm" aria-label="AM or PM">
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+        </select>
+    </div>
+    <input type="hidden" name="{{ hidden_name }}" id="{{ prefix }}-time" value="">
+</div>

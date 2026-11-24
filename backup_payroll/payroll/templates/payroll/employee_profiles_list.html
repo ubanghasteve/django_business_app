@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Employee Payroll Profiles{% endblock %}
+{% block extra_css %}
+<style>
+.payroll-profiles-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid #dee2e6; }
+.payroll-profiles-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; border-radius: 11px 11px 0 0; }
+.payroll-profile-card { border-radius: 10px; border: 2px solid #e9ecef; transition: all .2s ease; background: #fff; }
+.payroll-profile-card:hover { border-color: #1e88e5; box-shadow: 0 4px 12px rgba(30,136,229,.15); transform: translateY(-2px); }
+.payroll-profile-card .card-body { padding: 1.25rem; }
+.payroll-employee-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 1.1rem; }
+.payroll-salary-badge { padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+.payroll-salary-badge.basic { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+.payroll-salary-badge.allowance { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+.payroll-salary-badge.total { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+.payroll-structure-pill { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+.payroll-deduction-badge { padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+.payroll-deduction-badge.pension { background: #e0f7fa; color: #00838f; border: 1px solid #b2ebf2; }
+.payroll-deduction-badge.nhf { background: #fce4ec; color: #c2185b; border: 1px solid #f8bbd9; }
+.payroll-deduction-badge.enabled { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+.payroll-deduction-badge.disabled { background: #f5f5f5; color: #9e9e9e; border: 1px solid #e0e0e0; }
+.payroll-empty-state { padding: 3rem; text-align: center; background: #f8f9fa; border-radius: 12px; border: 2px dashed #dee2e6; }
+.payroll-empty-state i { font-size: 4rem; color: #dee2e6; }
+.payroll-section-label { font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.payroll-field-value { font-size: 1rem; font-weight: 600; color: #212529; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-profiles-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Employee Profiles</li>
+        </ol>
+    </nav>
+    
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Employee Payroll Profiles</h5>
+            <a href="{% url 'payroll:structures_list' %}" class="btn btn-light btn-sm">
+                <i class="fas fa-cog me-1"></i>Manage Structures
+            </a>
+        </div>
+        <div class="card-body">
+            {% if profiles %}
+            <div class="row">
+                {% for profile in profiles %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="payroll-profile-card card h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="payroll-employee-avatar me-3">
+                                    {{ profile.employee.first_name.0|upper }}{{ profile.employee.last_name.0|upper }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 fw-bold">{{ profile.employee.first_name }} {{ profile.employee.last_name }}</h6>
+                                    <small class="text-muted">{{ profile.employee.employee_id|default:"No ID" }} &bull; {{ profile.employee.department|default:"No Department" }}</small>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-3">
+                            
+                            <div class="mb-3">
+                                <div class="payroll-section-label mb-2">Salary Information</div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Basic Salary</span>
+                                    <span class="payroll-salary-badge basic">{{ user_currency_symbol|default:"₦" }}{{ profile.basic_salary|floatformat:2|intcomma }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Allowance</span>
+                                    <span class="payroll-salary-badge allowance">{{ user_currency_symbol|default:"₦" }}{{ profile.allowance|floatformat:2|intcomma }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">Total</span>
+                                    <span class="payroll-salary-badge total">{{ user_currency_symbol|default:"₦" }}{{ profile.basic_salary|add:profile.allowance|floatformat:2|intcomma }}</span>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-3">
+                            
+                            <div class="mb-3">
+                                <div class="payroll-section-label mb-2">Deductions</div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Pension</span>
+                                    <span class="payroll-deduction-badge pension {% if profile.pension_enabled %}enabled{% else %}disabled{% endif %}">
+                                        {% if profile.pension_enabled %}Enabled{% else %}Disabled{% endif %}
+                                    </span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">NHF</span>
+                                    <span class="payroll-deduction-badge nhf {% if profile.nhf_enabled %}enabled{% else %}disabled{% endif %}">
+                                        {% if profile.nhf_enabled %}Enabled{% else %}Disabled{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            {% if profile.payroll_structure %}
+                            <div class="mb-3">
+                                <span class="payroll-structure-pill"><i class="fas fa-cog me-1"></i>{{ profile.payroll_structure.name }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-end mt-2">
+                                <a href="{% url 'payroll:employee_profile_edit' profile.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit me-1"></i>Edit Profile
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="payroll-empty-state">
+                <i class="fas fa-user-clock mb-3"></i>
+                <h5>No Employee Payroll Profiles</h5>
+                <p class="text-muted mb-3">Create a payroll run to automatically generate profiles for active employees.</p>
+                <a href="{% url 'payroll:payroll_run' %}" class="btn btn-primary">
+                    <i class="fas fa-play me-1"></i>Run Payroll
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

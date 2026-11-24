@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if create %}Add New Employee{% else %}Edit {{ employee.full_name }}{% endif %} - HR & Staff{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}{% if create %}Add New Employee{% else %}Edit Employee{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-form-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:employee_list' %}" class="text-decoration-none">Employees</a></li>
+                    {% if create %}
+                    <li class="breadcrumb-item active" aria-current="page">Add Employee</li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:employee_detail' employee.pk %}" class="text-decoration-none">{{ employee.full_name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                    {% endif %}
+                </ol>
+            </nav>
+            <!-- Modal-like form container: rounded, light gray bg, scrollable -->
+            <div class="hr-add-employee-card">
+                <!-- Header: icon + title + subtitle + close -->
+                <div class="hr-form-header d-flex align-items-start justify-content-between gap-2">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="hr-form-header-icon rounded-2 d-flex align-items-center justify-content-center flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24" aria-hidden="true"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="fw-bold text-dark mb-1 hr-form-title">{% if create %}Add New Employee{% else %}Edit Employee{% endif %}</h4>
+                            <p class="text-muted small mb-0 hr-form-subtitle">{% if create %}Fill in the details to add a new employee to the system.{% else %}Update employee details below.{% endif %}</p>
+                        </div>
+                    </div>
+                    <a href="{% if employee %}{% url 'hr_staff:employee_detail' employee.pk %}{% else %}{% url 'hr_staff:employee_list' %}{% endif %}" class="btn btn-link text-secondary p-2 hr-form-close" aria-label="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </a>
+                </div>
+
+                <form method="post" action="{% if create %}{% url 'hr_staff:employee_create' %}{% else %}{% url 'hr_staff:employee_edit' employee.pk %}{% endif %}" enctype="multipart/form-data" class="hr-add-employee-form" data-sync-model="hr_staff" data-sync-redirect="{% url 'hr_staff:employee_list' %}" {% if employee %}data-record-uuid="{{ employee.uuid }}"{% endif %}>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="hr-form-scroll">
+                        <!-- Profile Photo -->
+                        <section class="hr-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-section-title">Profile Photo</h6>
+                            <label for="id_profile_photo" class="hr-upload-zone d-flex flex-column align-items-center justify-content-center py-5 px-3 rounded-3">
+                                <input type="file" name="profile_photo" id="id_profile_photo" accept="image/png,image/jpeg,image/jpg" class="d-none {% if form.profile_photo.errors %}is-invalid{% endif %}">
+                                <span class="hr-upload-icon rounded-circle d-flex align-items-center justify-content-center mb-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm3-10.17L14.17 8H13v6h-2V8H9.83L12 5.83zM5 18h14v2H5z"/></svg>
+                                </span>
+                                <span class="text-dark fw-medium mb-1 hr-upload-prompt">Click to upload profile photo.</span>
+                                <span class="hr-upload-filename text-success small mb-0" id="hr-profile-photo-filename" style="display: none;"></span>
+                                <span class="text-muted small hr-upload-hint">PNG, JPG up to 5MB. File is used when you save the form.</span>
+                                {% if form.profile_photo.errors %}<div class="invalid-feedback d-block">{{ form.profile_photo.errors.0 }}</div>{% endif %}
+                            </label>
+                        </section>
+
+                        <!-- Link to existing user (create only): HR profile only, no duplicate User -->
+                        {% if create %}
+                        <section class="hr-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-section-title">Existing staff</h6>
+                            <div class="mb-3">
+                                <label for="id_link_to_existing_user" class="form-label hr-form-label">Link to existing user</label>
+                                {{ form.link_to_existing_user }}
+                                <p class="form-text small text-muted mb-0">Optional: create an employee profile for a user who already has login. Their login and app permissions stay the same.</p>
+                                {% if form.link_to_existing_user.errors %}<div class="invalid-feedback d-block">{{ form.link_to_existing_user.errors.0 }}</div>{% endif %}
+                            </div>
+                        </section>
+                        {% endif %}
+
+                        <!-- Personal Information -->
+                        <section class="hr-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-section-title">Personal Information</h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_full_name" class="form-label hr-form-label">Full Name</label>
+                                    <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}" id="id_full_name" class="form-control hr-form-control {% if form.full_name.errors %}is-invalid{% endif %}" placeholder="e.g. John Doe">
+                                    {% if form.full_name.errors %}<div class="invalid-feedback">{{ form.full_name.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_email" class="form-label hr-form-label">Email Address</label>
+                                    {{ form.email }}
+                                    {% if form.email.errors %}<div class="invalid-feedback">{{ form.email.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_phone" class="form-label hr-form-label">Phone Number</label>
+                                    {{ form.phone }}
+                                    {% if form.phone.errors %}<div class="invalid-feedback">{{ form.phone.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_date_of_birth" class="form-label hr-form-label">Date of Birth</label>
+                                    <div class="hr-date-wrap position-relative">
+                                        {{ form.date_of_birth }}
+                                        <span class="hr-date-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                                        </span>
+                                    </div>
+                                    {% if form.date_of_birth.errors %}<div class="invalid-feedback">{{ form.date_of_birth.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label for="id_street_address" class="form-label hr-form-label">Street Address</label>
+                                    {{ form.street_address }}
+                                    {% if form.street_address.errors %}<div class="invalid-feedback">{{ form.street_address.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_city" class="form-label hr-form-label">City</label>
+                                    {{ form.city }}
+                                    {% if form.city.errors %}<div class="invalid-feedback">{{ form.city.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_state_province" class="form-label hr-form-label">State / Province</label>
+                                    {{ form.state_province }}
+                                    {% if form.state_province.errors %}<div class="invalid-feedback">{{ form.state_province.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_zip_code" class="form-label hr-form-label">Zip / Postal Code</label>
+                                    {{ form.zip_code }}
+                                    {% if form.zip_code.errors %}<div class="invalid-feedback">{{ form.zip_code.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Employment Information -->
+                        <section class="hr-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-section-title">Employment Information</h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_position" class="form-label hr-form-label">Position / Job Title</label>
+                                    {{ form.position }}
+                                    {% if form.position.errors %}<div class="invalid-feedback">{{ form.position.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_department" class="form-label hr-form-label">Department</label>
+                                    <select name="department" id="id_department" class="form-select hr-form-control" {% if not create %}data-current-dept-id="{{ current_department_id|default:'' }}" data-current-dept-name="{{ current_department_name|default:'' }}"{% endif %}>
+                                        <option value="">e.g. Engineering</option>
+                                        {% for choice in form.department.field.queryset %}
+                                        <option value="{{ choice.pk }}" {% if form.department.value == choice.pk %}selected{% endif %}>{{ choice.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if form.department.errors %}<div class="invalid-feedback">{{ form.department.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_monthly_salary" class="form-label hr-form-label">Monthly Salary</label>
+                                    <div class="hr-salary-wrap input-group">
+                                        <span class="input-group-text hr-salary-prefix">{{ user_currency_symbol|default:"$" }}</span>
+                                        {{ form.monthly_salary }}
+                                    </div>
+                                    {% if form.monthly_salary.errors %}<div class="invalid-feedback d-block">{{ form.monthly_salary.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_status" class="form-label hr-form-label">Employment Status</label>
+                                    {{ form.status }}
+                                    {% if form.status.errors %}<div class="invalid-feedback">{{ form.status.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_reporting_manager" class="form-label hr-form-label">Reporting Manager (Optional)</label>
+                                    {{ form.reporting_manager }}
+                                    {% if form.reporting_manager.errors %}<div class="invalid-feedback">{{ form.reporting_manager.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_date_joined" class="form-label hr-form-label">Date Joined</label>
+                                    {{ form.date_joined }}
+                                    {% if form.date_joined.errors %}<div class="invalid-feedback">{{ form.date_joined.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Emergency Contact & Bio -->
+                        <section class="hr-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-section-title">Emergency Contact &amp; Bio</h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_emergency_contact_name" class="form-label hr-form-label">Contact Name</label>
+                                    {{ form.emergency_contact_name }}
+                                    {% if form.emergency_contact_name.errors %}<div class="invalid-feedback">{{ form.emergency_contact_name.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_emergency_contact_phone" class="form-label hr-form-label">Contact Phone</label>
+                                    {{ form.emergency_contact_phone }}
+                                    {% if form.emergency_contact_phone.errors %}<div class="invalid-feedback">{{ form.emergency_contact_phone.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label for="id_bio" class="form-label hr-form-label">Bio / Notes</label>
+                                    {{ form.bio }}
+                                    {% if form.bio.errors %}<div class="invalid-feedback">{{ form.bio.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </section>
+
+                        {% if create and can_create_portal %}
+                        <section class="hr-form-section">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" name="enable_portal_access" id="id_enable_portal_access" class="form-check-input" value="on" {% if default_enable_portal %}checked{% endif %}>
+                                <label class="form-check-label" for="id_enable_portal_access">Enable portal access</label>
+                            </div>
+                            <small class="text-muted d-block mb-3">Create a login account for this employee. They will receive temporary credentials (shown once after save).</small>
+                            {% if form.temporary_password %}
+                            <div class="mb-0">
+                                <label for="id_temporary_password" class="form-label hr-form-label">Temporary password</label>
+                                {{ form.temporary_password }}
+                                {% if form.temporary_password.help_text %}<small class="form-text text-muted">{{ form.temporary_password.help_text }}</small>{% endif %}
+                                {% if form.temporary_password.errors %}<div class="invalid-feedback d-block">{{ form.temporary_password.errors.0 }}</div>{% endif %}
+                            </div>
+                            {% endif %}
+                        </section>
+                        {% endif %}
+                    </div>
+
+                    <!-- Footer: Cancel + Add Employee -->
+                    <div class="hr-form-footer d-flex flex-wrap gap-2 justify-content-end pt-4 border-top">
+                        <a href="{% if employee %}{% url 'hr_staff:employee_detail' employee.pk %}{% else %}{% url 'hr_staff:employee_list' %}{% endif %}" class="btn hr-btn-cancel rounded-3">Cancel</a>
+                        <button type="submit" class="btn btn-primary hr-btn-submit rounded-3 d-inline-flex align-items-center">
+                            <svg class="me-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                            {% if create %}Add Employee{% else %}Save Changes{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-form-page-wrap { background-color: #f8f9fa; max-width: 100%; }
+.hr-add-employee-card { background: #fff; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.06); max-width: 900px; margin: 0 auto; overflow: hidden; }
+.hr-form-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #eee; }
+.hr-form-header-icon { width: 48px; height: 48px; background: rgba(25,118,210,.12); color: #1976d2; }
+.hr-form-title { font-size: 1.25rem; color: #344767; }
+.hr-form-subtitle { font-size: 0.875rem; color: #67748e; }
+.hr-form-close { text-decoration: none !important; border-radius: 0.5rem; }
+.hr-form-close:hover { background: rgba(0,0,0,.06); color: #344767 !important; }
+
+.hr-form-scroll {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.5rem;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+.hr-form-section { margin-bottom: 1.75rem; }
+.hr-form-section:last-child { margin-bottom: 0; }
+.hr-section-title { font-size: 1rem; color: #344767; }
+.hr-form-label { font-size: 0.875rem; color: #344767; font-weight: 500; margin-bottom: 0.35rem; }
+.hr-form-control { border: 1px solid #dee2e6; border-radius: 0.5rem; padding: 0.5rem 0.75rem; min-height: 42px; }
+.hr-form-control:focus { border-color: #1976d2; box-shadow: 0 0 0 0.2rem rgba(25,118,210,.15); }
+
+/* Profile photo upload zone */
+.hr-upload-zone { border: 2px dashed #dee2e6; background: #f8f9fa; cursor: pointer; transition: border-color .2s, background .2s; }
+.hr-upload-zone:hover { border-color: #1976d2; background: rgba(25,118,210,.04); }
+.hr-upload-icon { width: 56px; height: 56px; background: rgba(25,118,210,.15); color: #1976d2; }
+
+/* Date of birth calendar icon */
+.hr-date-wrap .hr-form-control { padding-right: 2.5rem; }
+.hr-date-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #67748e; pointer-events: none; display: flex; align-items: center; }
+.hr-date-wrap { position: relative; }
+
+/* Monthly salary $ prefix */
+.hr-salary-wrap .hr-form-control { border-radius: 0 0.5rem 0.5rem 0; }
+.hr-salary-prefix { border: 1px solid #dee2e6; border-right: 0; border-radius: 0.5rem 0 0 0.5rem; background: #f8f9fa; color: #344767; min-width: 42px; justify-content: center; }
+
+/* Footer buttons */
+.hr-form-footer { padding: 1rem 1.5rem; background: #fafafa; }
+.hr-btn-cancel { background: #e9ecef; color: #344767; border: none; padding: 0.5rem 1.25rem; font-weight: 500; }
+.hr-btn-cancel:hover { background: #dee2e6; color: #344767; }
+.hr-btn-submit { background: #1976d2 !important; border-color: #1976d2 !important; padding: 0.5rem 1.25rem; font-weight: 500; }
+.hr-btn-submit:hover { background: #1565c0 !important; border-color: #1565c0 !important; color: #fff !important; }
+
+/* Responsive */
+@media (max-width: 575.98px) {
+  .hr-form-header { padding: 1rem; flex-wrap: wrap; }
+  .hr-form-scroll { padding: 1rem; max-height: none; }
+  .hr-form-footer { padding: 1rem; }
+  .hr-form-close { order: -1; margin-left: auto; }
+}
+</style>
+<script>
+(function() {
+    var form = document.querySelector('.hr-add-employee-form');
+    var fileInput = document.getElementById('id_profile_photo');
+    var uploadZone = document.querySelector('.hr-upload-zone');
+    var promptSpan = uploadZone && uploadZone.querySelector('.hr-upload-prompt');
+    var filenameSpan = document.getElementById('hr-profile-photo-filename');
+    var submitBtn = form && form.querySelector('button[type="submit"]');
+    var PROFILE_PHOTO_MAX_MB = 5;
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            var errEl = document.getElementById('hr-profile-photo-size-error');
+            if (errEl) errEl.remove();
+            if (this.files && this.files.length) {
+                var file = this.files[0];
+                var name = file.name;
+                var sizeMB = file.size / (1024 * 1024);
+                if (sizeMB > PROFILE_PHOTO_MAX_MB) {
+                    var msg = document.createElement('div');
+                    msg.id = 'hr-profile-photo-size-error';
+                    msg.className = 'invalid-feedback d-block text-danger mt-1';
+                    msg.textContent = 'File must be 5MB or less. Please choose a smaller image.';
+                    fileInput.parentNode.appendChild(msg);
+                    this.value = '';
+                    if (promptSpan) promptSpan.textContent = 'Click to upload profile photo.';
+                    if (filenameSpan) { filenameSpan.textContent = ''; filenameSpan.style.display = 'none'; }
+                    return;
+                }
+                if (promptSpan) promptSpan.textContent = 'Photo selected:';
+                if (filenameSpan) { filenameSpan.textContent = name; filenameSpan.style.display = 'block'; }
+            } else {
+                if (promptSpan) promptSpan.textContent = 'Click to upload profile photo.';
+                if (filenameSpan) { filenameSpan.textContent = ''; filenameSpan.style.display = 'none'; }
+            }
+        });
+    }
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            if (submitBtn.disabled) { e.preventDefault(); return false; }
+            if (!form.checkValidity()) return;
+            if (fileInput && fileInput.files && fileInput.files.length) {
+                var sizeMB = fileInput.files[0].size / (1024 * 1024);
+                if (sizeMB > PROFILE_PHOTO_MAX_MB) {
+                    e.preventDefault();
+                    var errEl = document.getElementById('hr-profile-photo-size-error');
+                    if (!errEl) {
+                        errEl = document.createElement('div');
+                        errEl.id = 'hr-profile-photo-size-error';
+                        errEl.className = 'invalid-feedback d-block text-danger mt-1';
+                        errEl.textContent = 'File must be 5MB or less. Please choose a smaller image.';
+                        fileInput.parentNode.appendChild(errEl);
+                    }
+                    return false;
+                }
+            }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+        });
+    }
+
+    // Mouse wheel: scroll the form area when over it, so wheel and touch-drag work reliably
+    var scrollEl = document.querySelector('.hr-form-scroll');
+    if (scrollEl) {
+        scrollEl.addEventListener('wheel', function(e) {
+            var top = scrollEl.scrollTop;
+            var max = scrollEl.scrollHeight - scrollEl.clientHeight;
+            var down = e.deltaY > 0;
+            if (max <= 0) return;
+            if (down && top >= max) return;
+            if (!down && top <= 0) return;
+            e.preventDefault();
+            scrollEl.scrollTop += e.deltaY;
+        }, { passive: false });
+    }
+
+    // Refresh department dropdown from API so newly created departments appear without page refresh
+    var deptSelect = document.getElementById('id_department');
+    if (deptSelect) {
+        function refreshDepartmentDropdown() {
+            fetch('/api/hr-staff/departments/?page_size=500', { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var results = data.results !== undefined ? data.results : (Array.isArray(data) ? data : []);
+                    var currentVal = deptSelect.value;
+                    var emptyLabel = (deptSelect.options[0] && deptSelect.options[0].value === '') ? deptSelect.options[0].text : 'e.g. Engineering';
+                    var currentDeptId = deptSelect.getAttribute('data-current-dept-id') || '';
+                    var currentDeptName = deptSelect.getAttribute('data-current-dept-name') || '';
+                    deptSelect.innerHTML = '';
+                    var emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.textContent = emptyLabel;
+                    deptSelect.appendChild(emptyOpt);
+                    results.forEach(function(d) {
+                        var opt = document.createElement('option');
+                        opt.value = String(d.id);
+                        opt.textContent = d.name || '';
+                        deptSelect.appendChild(opt);
+                    });
+                    if (currentDeptId && currentDeptName && !results.some(function(d) { return String(d.id) === currentDeptId; })) {
+                        var fallback = document.createElement('option');
+                        fallback.value = currentDeptId;
+                        fallback.textContent = currentDeptName;
+                        deptSelect.appendChild(fallback);
+                    }
+                    if (currentVal) {
+                        deptSelect.value = currentVal;
+                    }
+                })
+                .catch(function() {});
+        }
+        refreshDepartmentDropdown();
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') refreshDepartmentDropdown();
+        });
+    }
+
+    // Load users without employee (create only) for link_to_existing_user dropdown
+    var linkSelect = document.getElementById('id_link_to_existing_user');
+    if (linkSelect && document.querySelector('.hr-add-employee-form[action*="create"]')) {
+        fetch('/api/hr-staff/account-users-without-employee/', { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var results = data.results || [];
+                var currentVal = linkSelect.value;
+                linkSelect.innerHTML = '<option value="">---------</option>';
+                results.forEach(function(u) {
+                    var opt = document.createElement('option');
+                    opt.value = String(u.id);
+                    opt.textContent = (u.email || (u.first_name + ' ' + u.last_name) || 'User #' + u.id);
+                    linkSelect.appendChild(opt);
+                });
+                if (currentVal) linkSelect.value = currentVal;
+            })
+            .catch(function() {});
+    }
+})();
+</script>
+{% endblock %}

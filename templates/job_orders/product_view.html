@@ -1,0 +1,661 @@
+{% extends 'base.html' %}
+{% block title %}Product View - {{ product.job_order }}{% endblock %}
+
+{% block content %}
+<style>
+/* Visible borders for Status Update form fields */
+#statusUpdateForm .form-control,
+#editStatusModal .form-control {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+#statusUpdateForm .form-control:focus,
+#editStatusModal .form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.priority-badge.priority-0 { background-color: #6c757d !important; } /* Low - Gray */
+.priority-badge.priority-1 { background-color: #17a2b8 !important; } /* Normal - Info Blue */
+.priority-badge.priority-2 { background-color: #ffc107 !important; color: #212529 !important; } /* High - Warning Yellow */
+.priority-badge.priority-3 { background-color: #dc3545 !important; } /* Urgent - Danger Red */
+
+.user-info .badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    line-height: 1.3;
+    text-align: left;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.user-info .badge i {
+    margin-right: 0.25rem;
+}
+
+.user-info .badge small {
+    font-size: 0.65rem;
+    opacity: 0.9;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.user-info .badge small i {
+    margin-right: 0.15rem;
+    color: #6c757d;
+}
+
+.timeline-item .user-info {
+    margin-top: 0.5rem;
+}
+
+#current-production-status .badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    line-height: 1.3;
+    text-align: left;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+#current-production-status .badge small {
+    font-size: 0.65rem;
+    opacity: 0.9;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+#current-production-status .badge small i {
+    margin-right: 0.15rem;
+    color: #6c757d;
+}
+</style>
+{% include 'partials/topside.html' %}
+
+<div class="row my-4">
+    <div class="col-md-10 mx-auto">
+        <div class="card card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5>Job Order: {{ product.job_order }}</h5>
+                <div>
+                    {% if perms.job_orders.print_product %}
+                    <a href="{% url 'job_orders:product_view_print' product.job_order %}" class="btn btn-info" target="_blank">
+                        <i class="fas fa-print"></i> Print
+                    </a>
+                    {% endif %}
+                    {% if perms.job_orders.download_product %}
+                    <a href="{% url 'job_orders:product_view_print' product.job_order %}?intent=pdf" class="btn btn-primary" target="_blank" title="Opens the print view and Windows print dialog. Choose &quot;Save as PDF&quot; or &quot;Microsoft Print to PDF&quot; to save.">
+                        <i class="fas fa-download"></i> Download PDF
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'job_orders:products' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+            <hr>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary">Basic Information</h6>
+                    <table class="table table-borderless">
+                        <tr><td><strong>Job Order:</strong></td><td>{{ product.job_order }}</td></tr>
+                        {% if product.submission_id %}<tr><td><strong>Submission ID:</strong></td><td>{{ product.submission_id }}</td></tr>{% endif %}
+                        {% if product.job_order_date %}<tr><td><strong>Job Order Date:</strong></td><td>{{ product.job_order_date|date:"Y-m-d" }}</td></tr>{% endif %}
+                        {% if product.organization_name %}<tr><td><strong>Job Name:</strong></td><td>{{ product.organization_name }}</td></tr>{% endif %}
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-primary">Customer Information</h6>
+                    <table class="table table-borderless">
+                        {% if product.address %}<tr><td><strong>Customer Name:</strong></td><td>{{ product.address }}</td></tr>{% endif %}
+                        {% if product.contact_number %}<tr><td><strong>Contact Number (Phone):</strong></td><td>{{ product.contact_number }}</td></tr>{% endif %}
+                        {% if is_company_admin %}
+                        <tr><td><strong>Created by</strong></td><td>{% if product.created_by %}{{ product.created_by.get_full_name|default:product.created_by.email|default:"—" }}{% else %}—{% endif %}</td></tr>
+                        <tr><td><strong>Created on</strong></td><td>{{ product.date_created|date:"M d, Y H:i" }}</td></tr>
+                        {% endif %}
+                        <tr><td><strong>Status:</strong></td><td>{{ product.get_approval_status_display }}</td></tr>
+                        {% if product.approved_by %}<tr><td><strong>Approved By:</strong></td><td>{{ product.approved_by.get_full_name|default:product.approved_by.email|default:"—" }}</td></tr>{% endif %}
+                    </table>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h6 class="text-primary">Product Specifications</h6>
+                    <table class="table table-borderless">
+                        {% if product.print_product %}<tr><td><strong>Package Type/Product:</strong></td><td>{{ product.print_product }}</td></tr>{% endif %}
+                        {% if product.colors %}<tr><td><strong>No. of Colors/Color Names:</strong></td><td>{{ product.colors }}</td></tr>{% endif %}
+                        {% if product.treatment %}<tr><td><strong>Treatment:</strong></td><td>{{ product.treatment }}</td></tr>{% endif %}
+                        {% if product.cutting_length %}<tr><td><strong>Cutting Length:</strong></td><td>{{ product.cutting_length }}</td></tr>{% endif %}
+                        {% if product.flap %}<tr><td><strong>Flap:</strong></td><td>{{ product.flap }}</td></tr>{% endif %}
+                        {% if product.printing %}<tr><td><strong>Printing:</strong></td><td>{{ product.printing }}</td></tr>{% endif %}
+                        {% if product.size %}<tr><td><strong>Thickness:</strong></td><td>{{ product.size }}</td></tr>{% endif %}
+                        {% if product.micron %}<tr><td><strong>Micron:</strong></td><td>{{ product.micron }}</td></tr>{% endif %}
+                        {% if product.width %}<tr><td><strong>Width:</strong></td><td>{{ product.width }}</td></tr>{% endif %}
+                        {% if product.sealing_type %}<tr><td><strong>Sealing Type:</strong></td><td>{{ product.sealing_type }}</td></tr>{% endif %}
+                        {% if product.cutting %}<tr><td><strong>Cutting:</strong></td><td>{{ product.cutting }}</td></tr>{% endif %}
+                        {% if product.gusset %}<tr><td><strong>Gusset:</strong></td><td>{{ product.gusset }}</td></tr>{% endif %}
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-primary">Pricing & Delivery</h6>
+                    <table class="table table-borderless">
+                        {% if product.price is not None %}<tr><td><strong>Price (₦):</strong></td><td>{{ product.formatted_price }}</td></tr>{% endif %}
+                        {% if product.job_title %}<tr><td><strong>Extrusion Quantity (kg):</strong></td><td>{{ product.job_title }}</td></tr>{% endif %}
+                        {% if product.order_quantity %}<tr><td><strong>Delivery Quantity (kg):</strong></td><td>{{ product.order_quantity }}</td></tr>{% endif %}
+                        {% if product.total is not None %}<tr><td><strong>Total:</strong></td><td>{{ product.formatted_total }}</td></tr>{% endif %}
+                        {% if product.estimated_delivery_date %}<tr><td><strong>Estimated Delivery Date:</strong></td><td>{{ product.estimated_delivery_date|date:"Y-m-d" }}</td></tr>{% endif %}
+                        {% if product.actual_delivery_date %}<tr><td><strong>Actual Delivery Date:</strong></td><td>{{ product.actual_delivery_date|date:"Y-m-d" }}</td></tr>{% endif %}
+                        {% if product.cycle_time %}<tr><td><strong>Cycle Time:</strong></td><td>{{ product.cycle_time }}</td></tr>{% endif %}
+                    </table>
+                </div>
+            </div>
+            
+            {% if product.order_info %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="text-primary">Order Information</h6>
+                    <div class="border p-3 bg-light">
+                        {{ product.order_info }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if product.production_status %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="text-primary">Current Production Status</h6>
+                    <div class="border p-3 bg-info text-white" id="current-production-status">
+                        <div id="current-status-text">{{ product.production_status }}</div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <small id="current-status-meta">
+                                Last updated: {{ product.production_status_date|date:"Y-m-d H:i:s" }}
+                            </small>
+                            {% if product.updated_by %}
+                            <span class="badge bg-light text-dark">
+                                <i class="fas fa-user"></i> {{ product.updated_by.get_full_name }}
+                                {% if product.updated_by.phone and product.updated_by.phone.strip %}
+                                    <br><small><i class="fas fa-phone"></i> {{ product.updated_by.phone }}</small>
+                                {% else %}
+                                    <br><small><i class="fas fa-phone-slash text-muted"></i> No phone</small>
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Status Update Form -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="text-primary">Add Status Update</h6>
+                    <div class="card">
+                        <div class="card-body">
+                            <form id="statusUpdateForm" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <div class="mb-3">
+                                    <label for="new_status" class="form-label">Status Update</label>
+                                    <textarea class="form-control" id="new_status" name="new_status" rows="4" 
+                                              placeholder="Enter your status update or progress report..." required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="priority" class="form-label">Priority Level</label>
+                                    <select class="form-control" id="priority" name="priority">
+                                        <option value="0">Low</option>
+                                        <option value="1" selected>Normal</option>
+                                        <option value="2">High</option>
+                                        <option value="3">Urgent</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Add Status Update
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4" id="status-history-section">
+                <div class="col-12">
+                    <h6 class="text-primary">Status Update History</h6>
+                    <span id="status-history-count" class="visually-hidden">{{ status_history|length }}</span>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="timeline" id="status-history-timeline">
+                                {% for status in status_history %}
+                                <div class="timeline-item mb-3" id="status-{{ status.id }}">
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="fas fa-info-circle"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                        <h6 class="card-title mb-0">
+                                                            Status Update #{{ forloop.revcounter }}
+                                                            <span class="badge ms-2 priority-badge priority-{{ status.priority }}" id="priority-badge-{{ status.id }}">Priority: {{ status.get_priority_display }}</span>
+                                                        </h6>
+                                                        {% if perms.job_orders.change_product or perms.job_orders.delete_product %}
+                                                        <div class="btn-group btn-group-sm">
+                                                            {% if perms.job_orders.change_product %}
+                                                            <button class="btn btn-outline-primary btn-sm" onclick="editStatus({{ status.id }}, '{{ status.status|escapejs }}', {{ status.priority }})" title="Edit Status">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            {% endif %}
+                                                            {% if perms.job_orders.delete_product %}
+                                                            <button class="btn btn-outline-danger btn-sm" onclick="deleteStatus({{ status.id }})" title="Delete Status">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <p class="card-text" id="status-text-{{ status.id }}">{{ status.status }}</p>
+                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-clock"></i> {{ status.created_at|date:"Y-m-d H:i:s" }}
+                                                        </small>
+                                                        {% if status.updated_by %}
+                                                        <div class="user-info">
+                                                            <span class="badge bg-light text-dark">
+                                                                <i class="fas fa-user"></i> {{ status.updated_by.get_full_name }}
+                                                                {% if status.updated_by.phone and status.updated_by.phone.strip %}
+                                                                    <br><small><i class="fas fa-phone"></i> {{ status.updated_by.phone }}</small>
+                                                                {% else %}
+                                                                    <br><small><i class="fas fa-phone-slash text-muted"></i> No phone</small>
+                                                                {% endif %}
+                                                            </span>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="status-history-empty alert alert-info mb-0">
+                                    <i class="fas fa-info-circle"></i> No status updates available for this product yet.
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if product.image %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="text-primary">Product Image</h6>
+                    <img src="{{ product.image.url }}" alt="Product Image" class="img-fluid" style="max-width: 400px;">
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Edit Status Modal -->
+<div class="modal fade" id="editStatusModal" tabindex="-1" aria-labelledby="editStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editStatusModalLabel">
+                    <i class="fas fa-edit"></i> Edit Status Update
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editStatusForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editStatusId" name="status_id">
+                    
+                    <div class="mb-3">
+                        <label for="editStatusText" class="form-label">Status Update</label>
+                        <textarea class="form-control" id="editStatusText" name="new_status" rows="4" 
+                                  placeholder="Enter your status update..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editStatusPriority" class="form-label">Priority Level</label>
+                        <select class="form-control" id="editStatusPriority" name="priority">
+                            <option value="0">Low</option>
+                            <option value="1">Normal</option>
+                            <option value="2">High</option>
+                            <option value="3">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Status
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Status Modal -->
+<div class="modal fade" id="deleteStatusModal" tabindex="-1" aria-labelledby="deleteStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteStatusModalLabel">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="deleteStatusId" name="status_id">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning!</strong> Are you sure you want to delete this status update?
+                </div>
+                <p>This action cannot be undone. The status update will be permanently removed from the system.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> Delete Status Update
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Reload when restored from back-forward cache so detail is always fresh
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const statusForm = document.getElementById('statusUpdateForm');
+    
+    if (statusForm) {
+        statusForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+            
+            fetch('{% url "job_orders:update_production_status" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showAlert('success', data.message);
+                    
+                    // Clear the form
+                    this.reset();
+                    
+                    // Insert new status into timeline without page refresh
+                    if (data.status_item_html) {
+                        const timeline = document.getElementById('status-history-timeline');
+                        if (timeline) {
+                            const emptyEl = timeline.querySelector('.status-history-empty');
+                            if (emptyEl) emptyEl.remove();
+                            timeline.insertAdjacentHTML('afterbegin', data.status_item_html);
+                            const countEl = document.getElementById('status-history-count');
+                            if (countEl) countEl.textContent = parseInt(countEl.textContent, 10) + 1;
+                            // Renumber labels so newest is #1, then #2, #3...
+                            timeline.querySelectorAll('.timeline-item').forEach((item, index) => {
+                                const title = item.querySelector('.card-title');
+                                if (title) title.innerHTML = (title.innerHTML || '').replace(/Status Update #\d+/, 'Status Update #' + (index + 1));
+                            });
+                        }
+                    }
+                } else {
+                    showAlert('danger', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'An error occurred while updating the status.');
+            })
+            .finally(() => {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+    
+    function showAlert(type, message) {
+        // Remove existing alerts
+        const existingAlerts = document.querySelectorAll('.alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // Create new alert
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert at the top of the content
+        const content = document.querySelector('.container-fluid');
+        if (content) {
+            content.insertBefore(alertDiv, content.firstChild);
+        }
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    // Global functions for edit and delete with AJAX modals
+    window.editStatus = function(statusId, currentStatus, currentPriority) {
+        // Populate the edit modal
+        document.getElementById('editStatusId').value = statusId;
+        document.getElementById('editStatusText').value = currentStatus;
+        document.getElementById('editStatusPriority').value = currentPriority;
+        
+        // Show the edit modal
+        const editModal = new bootstrap.Modal(document.getElementById('editStatusModal'));
+        editModal.show();
+    };
+    
+    window.deleteStatus = function(statusId) {
+        // Set the status ID for deletion
+        document.getElementById('deleteStatusId').value = statusId;
+        
+        // Show the delete confirmation modal
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteStatusModal'));
+        deleteModal.show();
+    };
+    
+    // Handle edit form submission
+    document.getElementById('editStatusForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const statusId = document.getElementById('editStatusId').value;
+        const newStatus = document.getElementById('editStatusText').value;
+        const newPriority = document.getElementById('editStatusPriority').value;
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Disable button and show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+        
+        const formData = new FormData();
+        formData.append('new_status', newStatus);
+        formData.append('priority', newPriority);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch(`/job-orders/edit-status-history/${statusId}/`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                
+                // Update the status text and priority badge in the timeline
+                const statusTextElement = document.getElementById(`status-text-${statusId}`);
+                if (statusTextElement) {
+                    statusTextElement.textContent = data.new_status;
+                }
+                
+                const priorityBadge = document.getElementById(`priority-badge-${statusId}`);
+                if (priorityBadge) {
+                    priorityBadge.textContent = `Priority: ${data.new_priority_display}`;
+                    // Update the badge class for color coding
+                    priorityBadge.className = `badge ms-2 priority-badge priority-${data.new_priority}`;
+                }
+                
+                // Check if this is the most recent status and update the current production status section
+                const statusElements = document.querySelectorAll('.timeline-item');
+                if (statusElements.length > 0) {
+                    const firstStatusElement = statusElements[0];
+                    const firstStatusId = firstStatusElement.id.replace('status-', '');
+                    
+                    if (firstStatusId == statusId) {
+                        // This is the most recent status, update the current production status section
+                        const currentStatusText = document.getElementById('current-status-text');
+                        if (currentStatusText) {
+                            currentStatusText.textContent = data.new_status;
+                        }
+                        
+                        // Update the metadata
+                        const currentStatusMeta = document.getElementById('current-status-meta');
+                        if (currentStatusMeta) {
+                            const now = new Date();
+                            const dateString = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+                            currentStatusMeta.textContent = `Last updated: ${dateString}`;
+                        }
+                        
+                        // Update the user badge in current status section
+                        const currentUserBadge = document.querySelector('#current-production-status .badge');
+                        if (currentUserBadge) {
+                            let userInfo = '<i class="fas fa-user"></i> {{ user.get_full_name }}';
+                            {% if user.phone and user.phone.strip %}
+                            userInfo += '<br><small><i class="fas fa-phone"></i> {{ user.phone }}</small>';
+                            {% else %}
+                            userInfo += '<br><small><i class="fas fa-phone-slash text-muted"></i> No phone</small>';
+                            {% endif %}
+                            currentUserBadge.innerHTML = userInfo;
+                        }
+                    }
+                }
+                
+                // Close the modal
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('editStatusModal'));
+                editModal.hide();
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred while editing the status.');
+        })
+        .finally(() => {
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+    
+    // Handle delete confirmation
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        const statusId = document.getElementById('deleteStatusId').value;
+        const submitBtn = this;
+        const originalText = submitBtn.innerHTML;
+        
+        // Disable button and show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch(`/job-orders/delete-status-history/${statusId}/`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                // Remove the status element from the page
+                const statusElement = document.getElementById(`status-${statusId}`);
+                if (statusElement) {
+                    statusElement.remove();
+                }
+                // Update count and renumber labels
+                const countEl = document.getElementById('status-history-count');
+                if (countEl) {
+                    const n = parseInt(countEl.textContent, 10) - 1;
+                    countEl.textContent = Math.max(0, n);
+                }
+                const timeline = document.getElementById('status-history-timeline');
+                if (timeline) {
+                    const emptyPlaceholder = timeline.querySelector('.status-history-empty');
+                    if (!emptyPlaceholder && timeline.querySelectorAll('.timeline-item').length === 0) {
+                        timeline.insertAdjacentHTML('beforeend',
+                            '<div class="status-history-empty alert alert-info mb-0"><i class="fas fa-info-circle"></i> No status updates available for this product yet.</div>');
+                    }
+                    timeline.querySelectorAll('.timeline-item').forEach((item, index) => {
+                        const title = item.querySelector('.card-title');
+                        if (title) title.innerHTML = (title.innerHTML || '').replace(/Status Update #\d+/, 'Status Update #' + (index + 1));
+                    });
+                }
+                // Close the modal
+                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteStatusModal'));
+                deleteModal.hide();
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred while deleting the status.');
+        })
+        .finally(() => {
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+});
+</script>
+{% endblock %}

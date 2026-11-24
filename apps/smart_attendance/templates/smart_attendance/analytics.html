@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <a href="{% url 'smart_attendance:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+      </a>
+    </div>
+    <form method="get" class="d-flex align-items-center">
+      <select name="period" class="form-control form-control-sm me-2">
+        <option value="daily" {% if period == 'daily' %}selected{% endif %}>Daily</option>
+        <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>Weekly</option>
+        <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
+        <option value="quarterly" {% if period == 'quarterly' %}selected{% endif %}>Quarterly</option>
+        <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Yearly</option>
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <a href="{% url 'smart_attendance:export_analytics_excel' %}?period={{ period }}" class="btn btn-outline-secondary btn-sm ms-2">
+        Export Excel
+      </a>
+    </form>
+  </div>
+  
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-chart-line me-2"></i>Attendance Analytics</h2>
+    <span class="badge bg-secondary">{{ analytics|length }} records</span>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Employee ID</th>
+            <th>Period</th>
+            <th>Period Start</th>
+            <th>Times In</th>
+            <th>Times Out</th>
+            <th>Work Hours</th>
+            <th>Late (min)</th>
+            <th>Overtime (min)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in analytics %}
+          <tr>
+            <td>
+              <a href="{% url 'smart_attendance:employee_profile' a.employee.pk %}">
+                {{ a.employee.first_name }} {{ a.employee.last_name }}
+              </a>
+            </td>
+            <td>{{ a.employee.employee_id }}</td>
+            <td>{{ a.get_period_display }}</td>
+            <td>{{ a.date }}</td>
+            <td>{{ a.times_entered }}</td>
+            <td>{{ a.times_exited }}</td>
+            <td>{% if a.work_hours %}{{ a.work_hours }}{% else %}—{% endif %}</td>
+            <td>
+              {% if a.late_minutes > 0 %}
+                <span class="text-warning">{{ a.late_minutes }}</span>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if a.overtime_minutes > 0 %}
+                <span class="text-success">{{ a.overtime_minutes }}</span>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-3">No analytics yet. Attendance data will appear here after employees clock in/out.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

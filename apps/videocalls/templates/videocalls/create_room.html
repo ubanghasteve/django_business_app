@@ -1,0 +1,740 @@
+{% extends 'videocalls/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Video Room - {{ block.super }}{% endblock %}
+
+{% block video_content %}
+<style>
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --success: #10b981;
+    --bg-dark: #0a0a14;
+    --glass: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+}
+
+/* Override body background for dark theme */
+body {
+    background: linear-gradient(135deg, #0a0a14 0%, #12122a 50%, #0f0f23 100%) !important;
+    min-height: 100vh;
+}
+
+.main-panel, .main-content, .page-container, .content-wrapper {
+    background: transparent !important;
+}
+
+.create-room-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0a0a14 0%, #12122a 50%, #0f0f23 100%);
+    padding: 40px 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.create-room-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.create-room-container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.create-room-header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.create-room-header h2 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.create-room-header h2 i {
+    -webkit-text-fill-color: initial;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.create-room-header p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.create-room-content {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 32px;
+}
+
+.form-card {
+    background: linear-gradient(145deg, rgba(20, 20, 40, 0.9), rgba(15, 15, 30, 0.95));
+    backdrop-filter: blur(20px);
+    border-radius: 28px;
+    padding: 40px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.form-card h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-primary);
+}
+
+.form-card h3 i {
+    color: var(--primary);
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--glass-border);
+    border-radius: 14px;
+    color: white;
+    font-size: 15px;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.form-group input::placeholder {
+    color: var(--text-secondary);
+}
+
+.form-group select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 18px;
+    padding-right: 50px;
+}
+
+.form-group select option {
+    background: #1a1a2e;
+    color: white;
+    padding: 12px;
+}
+
+/* Custom Checkbox */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 14px;
+    border: 2px solid var(--glass-border);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.checkbox-group:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.checkbox-group input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-custom {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--glass-border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.checkbox-group input:checked + .checkbox-custom {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.checkbox-custom i {
+    color: white;
+    font-size: 14px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.2s ease;
+}
+
+.checkbox-group input:checked + .checkbox-custom i {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.checkbox-label {
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+/* Password Field */
+#password-field {
+    display: none;
+    margin-top: 16px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#password-field.show {
+    display: block;
+}
+
+/* Room Type Cards */
+.room-type-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.room-type-card {
+    padding: 24px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--glass-border);
+    border-radius: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.room-type-card:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-4px);
+}
+
+.room-type-card.active {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+}
+
+.room-type-card input {
+    display: none;
+}
+
+.room-type-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 14px;
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.room-type-card:nth-child(2) .room-type-icon {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.room-type-card.active .room-type-icon {
+    transform: scale(1.1);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+}
+
+.room-type-card h5 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+}
+
+.room-type-card p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Submit Button */
+.btn-create {
+    width: 100%;
+    padding: 18px 32px;
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 10px 35px rgba(99, 102, 241, 0.4);
+    margin-top: 32px;
+}
+
+.btn-create:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 50px rgba(99, 102, 241, 0.5);
+}
+
+.btn-create i {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.btn-create:hover i {
+    transform: translateX(4px);
+}
+
+/* Back Button */
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: transparent;
+    border: 2px solid var(--glass-border);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    margin-top: 24px;
+}
+
+.btn-back:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateX(-4px);
+}
+
+/* Info Sidebar */
+.info-sidebar {
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.info-card {
+    background: linear-gradient(145deg, rgba(20, 20, 40, 0.9), rgba(15, 15, 30, 0.95));
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 28px;
+    border: 1px solid var(--glass-border);
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.info-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.3);
+}
+
+.info-card h5 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+}
+
+.info-card h5 i {
+    color: var(--primary);
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.info-item:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.info-item-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.info-item:nth-child(2) .info-item-icon {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.info-item:nth-child(3) .info-item-icon {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.info-item h6 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.info-item p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Quick Actions */
+.quick-actions {
+    background: linear-gradient(145deg, rgba(20, 20, 40, 0.9), rgba(15, 15, 30, 0.95));
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 28px;
+    border: 1px solid var(--glass-border);
+}
+
+.quick-actions h5 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+}
+
+.quick-actions h5 i {
+    color: var(--primary);
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin-bottom: 10px;
+}
+
+.quick-action-btn:last-child {
+    margin-bottom: 0;
+}
+
+.quick-action-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--primary);
+    transform: translateX(6px);
+}
+
+.quick-action-btn i {
+    width: 36px;
+    height: 36px;
+    background: var(--glass);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+}
+
+@media (max-width: 900px) {
+    .create-room-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-sidebar {
+        order: -1;
+    }
+}
+
+@media (max-width: 600px) {
+    .create-room-header h2 {
+        font-size: 1.8rem;
+    }
+    
+    .form-card {
+        padding: 28px 24px;
+    }
+    
+    .room-type-cards {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="create-room-page">
+    <div class="create-room-container">
+        <div class="create-room-header">
+            <h2><i class="bi bi-plus-circle-fill"></i> Create Video Room</h2>
+            <p>Set up your video call room in seconds</p>
+        </div>
+        
+        <div class="create-room-content">
+            <div class="form-card">
+                <h3><i class="bi bi-gear-fill"></i> Room Settings</h3>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="room-type-cards">
+                        <label class="room-type-card active" id="group-card">
+                            <input type="radio" name="room_type" value="group" checked>
+                            <div class="room-type-icon">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                            <h5>Group Meeting</h5>
+                            <p>Multiple participants</p>
+                        </label>
+                        <label class="room-type-card" id="one-to-one-card">
+                            <input type="radio" name="room_type" value="one_to_one">
+                            <div class="room-type-icon">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <h5>One-to-One</h5>
+                            <p>Private conversation</p>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_room_name">Room Name</label>
+                        <input type="text" id="id_room_name" name="room_name" 
+                               placeholder="Enter a name for your room" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_max_participants">Max Participants</label>
+                        <select id="id_max_participants" name="max_participants">
+                            <option value="2">2 People</option>
+                            <option value="4">4 People</option>
+                            <option value="6" selected>6 People</option>
+                            <option value="8">8 People</option>
+                            <option value="10">10 People</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-group">
+                            <input type="checkbox" name="use_password" id="id_use_password">
+                            <span class="checkbox-custom">
+                                <i class="bi bi-check-lg"></i>
+                            </span>
+                            <span class="checkbox-label">Require password to join</span>
+                        </label>
+                        <div id="password-field">
+                            <input type="password" name="password" placeholder="Enter room password">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-create">
+                        <i class="bi bi-rocket-takeoff"></i>
+                        Create Room
+                    </button>
+                </form>
+                
+                <a href="{% url 'videocalls:lobby' %}" class="btn-back">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Lobby
+                </a>
+            </div>
+            
+            <div class="info-sidebar">
+                <div class="info-card">
+                    <h5><i class="bi bi-lightbulb-fill"></i> Room Types</h5>
+                    
+                    <div class="info-item">
+                        <div class="info-item-icon">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div>
+                            <h6>Group Meeting</h6>
+                            <p>Perfect for team meetings, webinars, and conferences with multiple participants</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-item-icon">
+                            <i class="bi bi-shield-fill"></i>
+                        </div>
+                        <div>
+                            <h6>End-to-End Encrypted</h6>
+                            <p>Your video calls are secured with industry-standard encryption</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-item-icon">
+                            <i class="bi bi-mic-fill"></i>
+                        </div>
+                        <div>
+                            <h6>AI Noise Cancellation</h6>
+                            <p>Crystal clear audio with AI-powered noise suppression</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="quick-actions">
+                    <h5><i class="bi bi-lightning-fill"></i> Quick Actions</h5>
+                    
+                    <a href="{% url 'videocalls:join_room' %}" class="quick-action-btn">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Join Existing Room
+                    </a>
+                    
+                    <a href="{% url 'videocalls:schedule_meeting' %}" class="quick-action-btn">
+                        <i class="bi bi-calendar-event"></i>
+                        Schedule a Meeting
+                    </a>
+                    
+                    <a href="{% url 'videocalls:my_rooms' %}" class="quick-action-btn">
+                        <i class="bi bi-collection"></i>
+                        My Rooms
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Room type cards
+    const cards = document.querySelectorAll('.room-type-card');
+    const maxParticipants = document.getElementById('id_max_participants');
+    
+    cards.forEach(card => {
+        card.addEventListener('click', function() {
+            cards.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            
+            const value = this.querySelector('input').value;
+            if (value === 'one_to_one') {
+                maxParticipants.value = '2';
+                maxParticipants.disabled = true;
+            } else {
+                maxParticipants.disabled = false;
+            }
+        });
+    });
+    
+    // Password toggle
+    const usePasswordCheckbox = document.querySelector('input[name="use_password"]');
+    const passwordField = document.getElementById('password-field');
+    
+    if (usePasswordCheckbox && passwordField) {
+        usePasswordCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                passwordField.classList.add('show');
+            } else {
+                passwordField.classList.remove('show');
+            }
+        });
+    }
+    
+    // Form validation feedback
+    const form = document.querySelector('form');
+    const roomName = document.getElementById('id_room_name');
+    
+    roomName.addEventListener('input', function() {
+        if (this.value.length > 0) {
+            this.style.borderColor = 'var(--success)';
+        } else {
+            this.style.borderColor = '';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Custom Field - {{ field.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-container { max-width: 500px; margin: 50px auto; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
+    .delete-header { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 30px; text-align: center; }
+    .delete-content { padding: 30px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="delete-container">
+        <div class="delete-header">
+            <div style="font-size:3rem;margin-bottom:15px;"><i class="fas fa-trash-alt"></i></div>
+            <h2>Delete Custom Field</h2>
+        </div>
+        <div class="delete-content">
+            <p class="text-center">Are you sure you want to delete the custom field <strong>"{{ field.name }}"</strong>?</p>
+            <p class="text-muted small text-center">This will also remove all values stored for this field. This action cannot be undone.</p>
+            <div class="d-flex gap-2 mt-4">
+                <a href="{% url 'store:custom_field_list' %}" class="btn btn-secondary flex-fill">Cancel</a>
+                <form method="post" class="flex-fill">{% csrf_token %}
+                    <button type="submit" class="btn btn-danger w-100">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

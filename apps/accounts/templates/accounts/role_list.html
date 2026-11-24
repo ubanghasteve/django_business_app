@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}Roles & Permissions | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}Roles & Permissions{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="mb-1">
+          <i class="fas fa-user-shield me-2"></i>Roles &amp; Permissions
+        </h2>
+        <p class="text-muted mb-0">
+          Define roles for your account and control which actions users are allowed to perform.
+        </p>
+      </div>
+      <div>
+        <a href="{% url 'accounts:security_dashboard' %}" class="btn btn-outline-secondary me-2">
+          <i class="fas fa-arrow-left me-1"></i>Back to Security
+        </a>
+        <button type="button" class="btn btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#rolePermissionGuideModal" aria-label="Open role and permission guide">
+          <i class="fas fa-book me-1"></i>Role &amp; Permission Guide
+        </button>
+        {% if perms.auth.add_group %}
+        <a href="{% url 'accounts:role_create' %}" class="btn btn-primary">
+          <i class="fas fa-plus me-1"></i>Create Role
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if perms.auth.add_group %}
+    <div class="card border-info shadow-sm mb-4">
+      <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h6 class="mb-1 text-info">
+              <i class="fas fa-eye me-2"></i>Full company visibility roles
+            </h6>
+            <p class="text-muted small mb-0">
+              Create roles that see all company data (e.g. Company Read Only 1, 2, 3). When creating the role, check &quot;Full company visibility&quot; and choose any name and permissions. Each role can have different permissions.
+            </p>
+          </div>
+          <a href="{% url 'accounts:role_create' %}?role_name=Company%20Read%20Only" class="btn btn-outline-info btn-sm">
+            <i class="fas fa-plus me-1"></i>Create role (suggested name: Company Read Only)
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="card border-secondary shadow-sm mb-4">
+      <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h6 class="mb-1 text-secondary">
+              <i class="fas fa-user-tie me-2"></i>Full HR &amp; Staff role
+            </h6>
+            <p class="text-muted small mb-0">
+              Create a role for HR &amp; Staff. The &quot;Full HR &amp; Staff role&quot; shortcut only checks the HR boxes in the form — other modules (e.g. Staff Offences) are never added unless you select them.
+            </p>
+          </div>
+          <a href="{% url 'accounts:role_create' %}?role_name=HR&amp;full_hr_staff=1" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-plus me-1"></i>Create role (suggested name: HR)
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <!-- Search bar for roles (tenant-scoped; enforced server-side) -->
+        <form method="get" class="mb-3" id="roleSearchForm">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-5 col-sm-7">
+              <label for="roleSearch" class="form-label mb-1 small text-muted fw-semibold">Search roles</label>
+              <div class="position-relative">
+                <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+                  <i class="fas fa-search"></i>
+                </span>
+                <input
+                  type="search"
+                  name="search"
+                  id="roleSearch"
+                  value="{{ search_query }}"
+                  class="form-control ps-5"
+                  placeholder="Type a few letters of role name or permission…"
+                  autocomplete="off"
+                  aria-label="Search roles by name or permission">
+              </div>
+            </div>
+            {% if search_query %}
+            <div class="col-auto">
+              <label class="form-label mb-1 d-block">&nbsp;</label>
+              <a href="{% url 'accounts:role_list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+            </div>
+            {% endif %}
+          </div>
+        </form>
+
+        <div id="roleTableWrapper">
+          {% if roles %}
+          <p class="text-muted small mb-3">
+            {% if search_query %}
+              Showing {{ roles|length }} of {{ total_count }} role{{ total_count|pluralize }} matching "<strong>{{ search_query }}</strong>".
+            {% else %}
+              Showing {{ roles|length }} role{{ roles|length|pluralize }}.
+            {% endif %}
+          </p>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>S/N</th>
+                  <th>Role Name</th>
+                  <th>Permissions</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for role in roles %}
+                <tr>
+                  <td>{{ forloop.counter }}</td>
+                  <td><strong>{{ role.role_name }}</strong></td>
+                  <td>
+                    {% if role.display_grouped or role.display_grouped_full %}
+                      {% for group in role.display_grouped %}
+                        <div class="mb-1">
+                          <span class="text-muted small text-uppercase">{{ group.module_label }}</span>
+                          {% for perm, display_label in group.permissions %}
+                            <span class="badge bg-light text-dark mb-1">{{ display_label }}</span>
+                          {% endfor %}
+                        </div>
+                      {% endfor %}
+                      {% if role.permission_more_count > 0 %}
+                        <span class="text-muted small">+ {{ role.permission_more_count }} more permission{{ role.permission_more_count|pluralize }}</span>
+                      {% endif %}
+                      <div class="mt-1">
+                        <button type="button" class="btn btn-sm btn-link p-0 text-primary" data-bs-toggle="modal" data-bs-target="#rolePermissionsModal" data-role-name="{{ role.role_name|escapejs }}" data-role-id="{{ role.id }}" aria-label="View all permissions for {{ role.role_name }}">
+                          <i class="fas fa-list-ul me-1"></i>View all permissions
+                        </button>
+                      </div>
+                    {% else %}
+                      <span class="text-muted">No permissions yet</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if perms.auth.change_group %}
+                    <a href="{% url 'accounts:role_members' role.id %}" class="btn btn-sm btn-outline-info me-1">
+                      <i class="fas fa-users"></i>
+                    </a>
+                    <a href="{% url 'accounts:role_edit' role.id %}" class="btn btn-sm btn-outline-primary me-1">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    {% endif %}
+                    {% if perms.auth.delete_group %}
+                    <form method="post" action="{% url 'accounts:role_delete' role.id %}" class="d-inline" data-offline-queue="true" onsubmit="return confirm('Delete this role? Users will lose the associated permissions.');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {# Hidden content for "View all permissions" modal (one per role) #}
+          {% for role in roles %}
+          <div id="role-perms-content-{{ role.id }}" class="d-none" data-role-name="{{ role.role_name }}">
+            {% for group in role.display_grouped_full %}
+            <div class="mb-3">
+              <h6 class="text-uppercase text-muted small mb-2">{{ group.module_label }}</h6>
+              <div class="d-flex flex-wrap gap-1">
+                {% for perm, display_label in group.permissions %}
+                <span class="badge bg-light text-dark">{{ display_label }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+          {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-user-shield fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No roles defined yet</h5>
+            <p class="text-muted">Create roles to group permissions and assign them to your team members.</p>
+            {% if perms.auth.add_group %}
+            <a href="{% url 'accounts:role_create' %}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>Create Your First Role
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-info mt-4">
+      <strong><i class="fas fa-info-circle me-2"></i>How roles work</strong>
+      <ul class="mb-0 mt-2">
+        <li>Each role is backed by a Django <code>Group</code> and scoped to <strong>your account only</strong>.</li>
+        <li>Permissions follow Django’s built-in system (e.g. <code>invoices.add_invoice</code>, <code>expense_management.change_expense</code>).</li>
+        <li>Users assigned to a role automatically inherit its permissions via <code>user.has_perm()</code>.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% include 'accounts/role_permission_guide_modal.html' %}
+
+{# Modal: all permissions for a role (populated by JS when "View all permissions" is clicked) #}
+<div class="modal fade" id="rolePermissionsModal" tabindex="-1" aria-labelledby="rolePermissionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5 mb-0" id="rolePermissionsModalLabel">Permissions</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="rolePermissionsModalBody">
+        <p class="text-muted mb-0">Loading…</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Make role search field clearly visible */
+#roleSearch.form-control {
+  border: 1px solid #4a5568; /* darker, more visible border */
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.75rem 0.4rem 2.5rem; /* extra left for icon */
+  background-color: #ffffff;
+  font-size: 0.9rem;
+}
+
+#roleSearch.form-control::placeholder {
+  color: #a0aec0;
+}
+
+#roleSearch.form-control:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 0.18rem rgba(25, 118, 210, 0.18);
+  outline: none;
+}
+</style>
+
+<script>
+(function() {
+  // Live role search without full page refresh (server-side filtering keeps tenant isolation + RBAC)
+  var searchForm = document.getElementById('roleSearchForm');
+  var tableWrapper = document.getElementById('roleTableWrapper');
+  if (searchForm) {
+    var searchInput = document.getElementById('roleSearch');
+    if (searchInput) {
+      var debounce;
+      searchInput.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(function () {
+          if (!tableWrapper) {
+            // Fallback: full submit if wrapper not found
+            searchForm.submit();
+            return;
+          }
+          var value = searchInput.value || '';
+          var url = window.location.pathname;
+          var params = new URLSearchParams(window.location.search);
+          if (value) {
+            params.set('search', value);
+          } else {
+            params.delete('search');
+          }
+          var queryString = params.toString();
+          if (queryString) {
+            url += '?' + queryString;
+          }
+          fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          })
+          .then(function (r) { return r.text(); })
+          .then(function (html) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+            var newWrapper = doc.getElementById('roleTableWrapper');
+            if (newWrapper && tableWrapper) {
+              tableWrapper.innerHTML = newWrapper.innerHTML;
+            }
+          })
+          .catch(function () {
+            // On error, fall back to normal form submit
+            searchForm.submit();
+          });
+        }, 300);
+      });
+    }
+  }
+
+  var modal = document.getElementById('rolePermissionsModal');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function(e) {
+    var btn = e.relatedTarget;
+    if (!btn || !btn.dataset.roleId) return;
+    var roleId = btn.dataset.roleId;
+    var roleName = btn.dataset.roleName || ('Role #' + roleId);
+    var titleEl = document.getElementById('rolePermissionsModalLabel');
+    var bodyEl = document.getElementById('rolePermissionsModalBody');
+    var contentEl = document.getElementById('role-perms-content-' + roleId);
+    if (titleEl) titleEl.textContent = 'Permissions for ' + roleName;
+    if (bodyEl && contentEl) {
+      bodyEl.innerHTML = contentEl.innerHTML;
+    }
+  });
+})();
+</script>
+{% endblock %}
+

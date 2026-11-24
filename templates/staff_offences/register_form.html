@@ -1,0 +1,391 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}Staff Offence Management{% endblock %}
+{% block breadcrumb %}Staff Offences / New Register{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --so-primary: {{ theme_primary_color|default:"#f97316" }};
+  --so-soft: {{ theme_accent_color|default:"#ffedd5" }};
+  --so-card: {{ theme_secondary_color|default:"#fff7ed" }};
+  --so-text: {{ theme_text_color|default:"#111827" }};
+  --so-muted: #6b7280;
+  --so-line: #e5e7eb;
+}
+.so-create-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.so-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.25rem;
+  animation: soFadeUp 0.45s ease both;
+}
+.so-hero-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--so-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--so-primary) 28%, transparent);
+}
+.so-hero h1 { margin: 0; font-size: 1.45rem; font-weight: 700; color: var(--so-text); }
+.so-hero p { margin: 0.2rem 0 0; color: var(--so-muted); font-size: 0.9rem; }
+
+.so-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.95fr) minmax(340px, 1.15fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 991px) {
+  .so-grid { grid-template-columns: 1fr; }
+}
+
+.so-panel {
+  background: #fff;
+  border: 1px solid var(--so-line);
+  border-radius: 18px;
+  padding: 1.35rem 1.4rem 1.45rem;
+  animation: soFadeUp 0.5s ease both;
+}
+.so-panel-preview { animation-delay: 0.08s; }
+
+.so-panel-kicker {
+  font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--so-muted); font-weight: 600; margin-bottom: 0.35rem;
+}
+.so-panel-title { font-size: 1.1rem; font-weight: 700; color: var(--so-text); margin: 0 0 0.35rem; }
+.so-panel-copy { color: var(--so-muted); font-size: 0.88rem; margin: 0 0 1.15rem; line-height: 1.45; }
+
+.so-field { margin-bottom: 1rem; }
+.so-field label {
+  display: block; font-size: 0.78rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--so-muted); margin-bottom: 0.4rem;
+}
+.so-field .form-control,
+.so-field .form-select {
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.so-field .form-control:focus,
+.so-field .form-select:focus {
+  border-color: var(--so-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--so-primary) 18%, transparent);
+  outline: none;
+}
+.so-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+@media (max-width: 575px) { .so-row-2 { grid-template-columns: 1fr; } }
+
+.so-actions-row {
+  display: flex; gap: 0.65rem; flex-wrap: wrap;
+  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;
+}
+.so-btn-primary {
+  background: var(--so-primary); border: none; color: #fff;
+  font-weight: 600; border-radius: 10px; padding: 0.7rem 1.15rem;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--so-primary) 30%, transparent);
+}
+.so-btn-primary:hover { filter: brightness(0.96); color: #fff; transform: translateY(-1px); }
+.so-btn-ghost {
+  background: #fff; border: 1.5px solid #d1d5db; color: #374151;
+  font-weight: 600; border-radius: 10px; padding: 0.7rem 1.15rem; text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.so-btn-ghost:hover { background: #f9fafb; color: #111827; border-color: #9ca3af; }
+
+/* Live preview — matches monthly register mockup */
+.so-preview {
+  background: #fff;
+  border: 1px solid var(--so-line);
+  border-radius: 18px;
+  padding: 1.4rem 1.45rem 1.3rem;
+  position: sticky; top: 1rem;
+}
+.so-preview-badge {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--so-primary);
+  background: var(--so-soft); border-radius: 999px; padding: 0.28rem 0.7rem;
+  margin-bottom: 0.9rem;
+}
+.so-preview .so-header {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding-bottom: 1rem; border-bottom: 1px solid var(--so-line); margin-bottom: 1.1rem;
+}
+.so-preview .so-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--so-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.so-preview .so-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--so-text); }
+.so-preview .so-subtitle { margin: 0.15rem 0 0; font-size: 0.82rem; color: var(--so-muted); }
+.so-meta {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.95rem 1.5rem; margin-bottom: 1.1rem;
+}
+.so-meta-label {
+  font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #9ca3af; margin-bottom: 0.15rem;
+}
+.so-meta-value {
+  font-weight: 700; color: var(--so-text); font-size: 0.98rem;
+  transition: color 0.2s ease;
+}
+.so-meta-value.is-empty { color: #c4c4c4; font-weight: 600; }
+.so-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1.15rem; }
+.so-stat-card {
+  background: var(--so-card); border-radius: 12px; padding: 1rem 1.05rem;
+  transition: transform 0.2s ease;
+}
+.so-stat-label {
+  font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #9ca3af; margin-bottom: 0.3rem;
+}
+.so-stat-value {
+  margin: 0; font-size: 1.55rem; font-weight: 700;
+  color: color-mix(in srgb, var(--so-primary) 75%, #7c2d12);
+}
+.so-section-head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.65rem;
+}
+.so-section-head h5 { margin: 0; font-weight: 700; font-size: 1rem; }
+.so-btn-add-demo {
+  background: var(--so-primary); color: #fff; border: none; border-radius: 8px;
+  padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; opacity: 0.85; cursor: default;
+}
+.so-table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  overflow: hidden; border-radius: 10px; border: 1px solid #f3f4f6;
+}
+.so-table thead th {
+  background: var(--so-soft); color: #6b7280; font-size: 0.78rem;
+  font-weight: 600; padding: 0.7rem 0.85rem; border: none;
+}
+.so-table tbody td {
+  padding: 0.75rem 0.85rem; border-top: 1px solid #f3f4f6;
+  color: var(--so-text); font-size: 0.9rem;
+}
+.so-table .so-ghost { color: #c4c4c4; }
+.so-footer-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px solid #f3f4f6;
+}
+.so-grand-amount { font-size: 1.2rem; font-weight: 700; color: var(--so-primary); }
+.so-preview-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-top: 1.1rem;
+}
+.so-preview-actions span {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.65rem; border: 1.5px solid #111827; border-radius: 10px;
+  font-weight: 600; font-size: 0.85rem; color: #111827; opacity: 0.55;
+}
+
+@keyframes soFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes soPulseSoft {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+.so-pulse { animation: soPulseSoft 0.35s ease; }
+</style>
+
+<div class="container-fluid py-4">
+  <div class="so-create-wrap">
+    <div class="so-hero">
+      <div class="so-hero-icon"><i class="fas fa-building"></i></div>
+      <div>
+        <h1>Staff Offence Management</h1>
+        <p>Human Resources · Start a monthly register</p>
+      </div>
+    </div>
+
+    <div class="so-grid">
+      <div class="so-panel">
+        <div class="so-panel-kicker">Step 1</div>
+        <h2 class="so-panel-title">Create monthly register</h2>
+        <p class="so-panel-copy">
+          Type the staff member’s name and month. You will then open their register to add offence entries in real time.
+        </p>
+
+        <form method="post" novalidate id="so-create-form">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="so-field">
+            <label for="{{ form.staff_name.id_for_label }}">Staff Member</label>
+            {{ form.staff_name }}
+            {% if form.staff_name.errors %}<div class="text-danger text-xs mt-1">{{ form.staff_name.errors }}</div>{% endif %}
+          </div>
+
+          <div class="so-field">
+            <label for="{{ form.department_name.id_for_label }}">Department</label>
+            {{ form.department_name }}
+            {% if form.department_name.errors %}<div class="text-danger text-xs mt-1">{{ form.department_name.errors }}</div>{% endif %}
+          </div>
+
+          <div class="so-row-2">
+            <div class="so-field">
+              <label for="{{ form.month.id_for_label }}">Month</label>
+              {{ form.month }}
+              {% if form.month.errors %}<div class="text-danger text-xs mt-1">{{ form.month.errors }}</div>{% endif %}
+            </div>
+            <div class="so-field">
+              <label for="{{ form.year.id_for_label }}">Year</label>
+              {{ form.year }}
+              {% if form.year.errors %}<div class="text-danger text-xs mt-1">{{ form.year.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          <div class="so-actions-row">
+            <a href="{% url 'staff_offences:list' %}" class="so-btn-ghost">Cancel</a>
+            <button type="submit" class="so-btn-primary">
+              <i class="fas fa-arrow-right me-1"></i> Open register
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="so-panel so-panel-preview so-preview">
+        <div class="so-preview-badge"><i class="fas fa-eye"></i> Live preview</div>
+
+        <div class="so-header">
+          <div class="so-icon"><i class="fas fa-building"></i></div>
+          <div>
+            <h2 class="so-title">Staff Offence Management</h2>
+            <p class="so-subtitle">Human Resources · Monthly Register</p>
+          </div>
+        </div>
+
+        <div class="so-meta">
+          <div>
+            <div class="so-meta-label">Staff Member</div>
+            <div class="so-meta-value is-empty" id="pv-staff">Staff name</div>
+          </div>
+          <div>
+            <div class="so-meta-label">Department</div>
+            <div class="so-meta-value is-empty" id="pv-dept">Department</div>
+          </div>
+          <div>
+            <div class="so-meta-label">Month</div>
+            <div class="so-meta-value" id="pv-month">—</div>
+          </div>
+          <div>
+            <div class="so-meta-label">Record No.</div>
+            <div class="so-meta-value" id="pv-ref">OFF-····-····</div>
+          </div>
+        </div>
+
+        <div class="so-stats">
+          <div class="so-stat-card">
+            <div class="so-stat-label">Total Offences</div>
+            <p class="so-stat-value">0</p>
+          </div>
+          <div class="so-stat-card">
+            <div class="so-stat-label">Monthly Total</div>
+            <p class="so-stat-value">{{ currency_symbol }}0</p>
+          </div>
+        </div>
+
+        <div class="so-section-head">
+          <h5>Offence History</h5>
+          <button type="button" class="so-btn-add-demo" tabindex="-1">+ Add Offence</button>
+        </div>
+
+        <table class="so-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Amount</th>
+              <th>Edit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="5" class="so-ghost text-center py-4">
+                Offence entries will appear here after you create the register.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="so-footer-row">
+          <div>
+            <strong>Grand Total</strong>
+            <div class="text-sm text-secondary">0 offence entries</div>
+          </div>
+          <div class="so-grand-amount">{{ currency_symbol }}0</div>
+        </div>
+
+        <div class="so-preview-actions">
+          <span><i class="fas fa-print"></i> Print Register</span>
+          <span><i class="fas fa-file-download"></i> Download PDF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var months = {
+    '1': 'January', '2': 'February', '3': 'March', '4': 'April',
+    '5': 'May', '6': 'June', '7': 'July', '8': 'August',
+    '9': 'September', '10': 'October', '11': 'November', '12': 'December'
+  };
+  var staff = document.getElementById('{{ form.staff_name.id_for_label }}');
+  var dept = document.getElementById('{{ form.department_name.id_for_label }}');
+  var month = document.getElementById('{{ form.month.id_for_label }}');
+  var year = document.getElementById('{{ form.year.id_for_label }}');
+  var pvStaff = document.getElementById('pv-staff');
+  var pvDept = document.getElementById('pv-dept');
+  var pvMonth = document.getElementById('pv-month');
+  var pvRef = document.getElementById('pv-ref');
+
+  function setText(el, value, placeholder) {
+    var v = (value || '').trim();
+    el.textContent = v || placeholder;
+    el.classList.toggle('is-empty', !v);
+    el.classList.remove('so-pulse');
+    void el.offsetWidth;
+    el.classList.add('so-pulse');
+  }
+
+  function sync() {
+    setText(pvStaff, staff && staff.value, 'Staff name');
+    setText(pvDept, dept && dept.value, 'Department');
+    var m = month ? month.value : '';
+    var y = year ? year.value : '';
+    var label = (months[m] || '—') + (y ? (' ' + y) : '');
+    pvMonth.textContent = label;
+    pvMonth.classList.remove('is-empty');
+    pvRef.textContent = y ? ('OFF-' + y + '-····') : 'OFF-····-····';
+  }
+
+  ['input', 'change', 'keyup'].forEach(function(evt) {
+    if (staff) staff.addEventListener(evt, sync);
+    if (dept) dept.addEventListener(evt, sync);
+    if (month) month.addEventListener(evt, sync);
+    if (year) year.addEventListener(evt, sync);
+  });
+  sync();
+})();
+</script>
+{% endblock %}

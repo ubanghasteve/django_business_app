@@ -1,0 +1,23 @@
+{# Preserve other report filters when submitting a ledger sub-form #}
+<input type="hidden" name="search" value="{{ search }}">
+<input type="hidden" name="approval_status" value="{{ approval_status_filter }}">
+<input type="hidden" name="stock_status" value="{{ stock_status_filter }}">
+<input type="hidden" name="date_from" value="{{ date_from }}">
+<input type="hidden" name="date_to" value="{{ date_to }}">
+<input type="hidden" name="min_quantity" value="{{ min_quantity }}">
+<input type="hidden" name="max_quantity" value="{{ max_quantity }}">
+{% if not skip_receipt %}
+<input type="hidden" name="receipt_supplier" value="{{ receipt_supplier }}">
+<input type="hidden" name="receipt_date_from" value="{{ receipt_date_from }}">
+<input type="hidden" name="receipt_date_to" value="{{ receipt_date_to }}">
+{% endif %}
+{% if not skip_waste %}
+<input type="hidden" name="waste_reason" value="{{ waste_reason }}">
+<input type="hidden" name="waste_date_from" value="{{ waste_date_from }}">
+<input type="hidden" name="waste_date_to" value="{{ waste_date_to }}">
+{% endif %}
+{% if not skip_issue %}
+<input type="hidden" name="issue_recipient" value="{{ issue_recipient }}">
+<input type="hidden" name="issue_date_from" value="{{ issue_date_from }}">
+<input type="hidden" name="issue_date_to" value="{{ issue_date_to }}">
+{% endif %}

@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 col-md-10">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+      <div>
+        <h2 class="mb-1">
+          <i class="fas fa-user-shield me-2"></i>{{ title }}
+        </h2>
+        <p class="text-muted mb-0">
+          Define a role name and select the permissions this role should grant.
+        </p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#rolePermissionGuideModal" aria-label="Open role and permission guide">
+          <i class="fas fa-book me-1"></i>Role &amp; Permission Guide
+        </button>
+        <a href="{% url 'accounts:role_list' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i>Back to Roles
+        </a>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post" data-offline-queue="true">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Role Name</label>
+            {{ form.role_name }}
+            {% if form.role_name.errors %}
+              <div class="text-danger small mt-1">
+                {{ form.role_name.errors.0 }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              {{ form.full_company_visibility }}
+              <label class="form-check-label" for="{{ form.full_company_visibility.id_for_label }}">Full company visibility</label>
+            </div>
+            <small class="text-muted d-block mt-1">When checked, users in this role see all company records (no data isolation). Use for read-only style roles with any name (e.g. Company Read Only 1, 2, 3). Permissions below are exactly what you assign—nothing is added or removed.</small>
+            {% if form.full_company_visibility.errors %}
+              <div class="text-danger small mt-1">
+                {{ form.full_company_visibility.errors.0 }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              {{ form.full_hr_staff_role }}
+              <label class="form-check-label" for="{{ form.full_hr_staff_role.id_for_label }}">Full HR &amp; Staff role</label>
+            </div>
+            <small class="text-muted d-block mt-1">
+              Optional shortcut: checks or clears <strong>only</strong> the HR &amp; Staff boxes in the list below.
+              It does <strong>not</strong> add hidden permissions. Staff Offences, Store, Invoices, etc. stay exactly as you tick them.
+            </small>
+            {% if form.full_hr_staff_role.errors %}
+              <div class="text-danger small mt-1">
+                {{ form.full_hr_staff_role.errors.0 }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Permissions</label>
+            <small class="d-block text-muted mb-2">Only the boxes you check are saved for this role. Unchecked permissions are removed on save.</small>
+            <div class="border rounded p-3 bg-light permissions-checkbox-list" id="so-role-permissions-list" style="max-height: 420px; overflow-y: auto;">
+              {% if grouped_permissions %}
+                {% for group in grouped_permissions %}
+                  <div class="mb-3" data-permission-module="{{ group.app_label }}">
+                    <h6 class="text-uppercase text-muted small mb-2">{{ group.module_label }}</h6>
+                    <ul class="list-unstyled mb-0 ms-2">
+                      {% for perm, display_label in group.permissions %}
+                        <li class="form-check py-1">
+                          <input class="form-check-input permission-cb" type="checkbox" name="permissions" value="{{ perm.pk }}" id="perm_{{ perm.pk }}" data-app-label="{{ group.app_label }}"{% if perm.pk in selected_permission_ids %} checked{% endif %}>
+                          <label class="form-check-label ms-2" for="perm_{{ perm.pk }}">{{ display_label }}</label>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <ul id="id_permissions" class="list-unstyled mb-0">
+                  {% for choice in form.permissions %}
+                    <li class="form-check py-1">
+                      <span class="text-muted small me-2" style="min-width: 2.5rem; display: inline-block;">{{ forloop.counter }}.</span>
+                      {{ choice.tag }}
+                      <label class="form-check-label ms-2" for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+            {% if form.permissions.errors %}
+              <div class="text-danger small mt-1">
+                {{ form.permissions.errors.0 }}
+              </div>
+            {% endif %}
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Save Role
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include 'accounts/role_permission_guide_modal.html' %}
+
+<script>
+(function() {
+  if (window.location.hash === '#guide') {
+    var modal = document.getElementById('rolePermissionGuideModal');
+    if (modal) {
+      var bsModal = new bootstrap.Modal(modal);
+      bsModal.show();
+      history.replaceState(null, '', window.location.pathname);
+    }
+  }
+
+  // "Full HR & Staff role" only toggles visible hr_staff checkboxes — never injects perms on save.
+  var hrToggle = document.getElementById('{{ form.full_hr_staff_role.id_for_label }}');
+  function hrCheckboxes() {
+    return document.querySelectorAll('input.permission-cb[data-app-label="hr_staff"]');
+  }
+  function setHrBoxes(checked) {
+    hrCheckboxes().forEach(function(cb) { cb.checked = !!checked; });
+  }
+  function syncHrToggleFromBoxes() {
+    if (!hrToggle) return;
+    var boxes = hrCheckboxes();
+    if (!boxes.length) {
+      hrToggle.checked = false;
+      return;
+    }
+    var allOn = true;
+    boxes.forEach(function(cb) { if (!cb.checked) allOn = false; });
+    hrToggle.checked = allOn;
+  }
+  if (hrToggle) {
+    hrToggle.addEventListener('change', function() {
+      setHrBoxes(hrToggle.checked);
+    });
+    // If opened via ?full_hr_staff=1, apply once after paint
+    if (hrToggle.checked) {
+      setHrBoxes(true);
+    }
+    hrCheckboxes().forEach(function(cb) {
+      cb.addEventListener('change', syncHrToggleFromBoxes);
+    });
+  }
+})();
+</script>
+{% endblock %}
+

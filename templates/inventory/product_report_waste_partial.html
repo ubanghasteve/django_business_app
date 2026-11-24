@@ -1,0 +1,16 @@
+{% load inventory_extras %}
+{% for row in waste_meta %}
+<tr{% if row.is_legacy %} class="table-secondary"{% endif %}>
+    <td class="text-center">{{ forloop.counter }}</td>
+    <td>{{ row.waste_at_display }}</td>
+    <td class="text-warning fw-semibold">{{ row.quantity_input }}</td>
+    <td class="text-end">{{ row.unit_price|format_currency:user_currency_symbol }}</td>
+    <td class="text-end fw-semibold">{{ row.line_value|format_currency:user_currency_symbol }}</td>
+    <td>{{ row.reason_display }}</td>
+    <td class="text-primary fw-semibold">{{ row.available_after|default:"—" }}</td>
+    <td>{{ row.description|default:"" }}</td>
+    <td class="small text-muted">{{ row.created_by }}</td>
+</tr>
+{% empty %}
+<tr data-empty-waste><td colspan="9" class="text-muted text-center">No waste logged. Use <strong>Record waste</strong> on the inventory list.</td></tr>
+{% endfor %}

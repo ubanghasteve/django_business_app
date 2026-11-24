@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load humanize expense_extras %}
+{% block title %}Expense Ledger - {{ expense.product_name|default:expense.transaction_id }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">Expense Ledger / Report: {{ expense.product_name|default:expense.transaction_id }}</h5>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="report-refresh-btn" title="Refresh to show latest data"><i class="fas fa-sync-alt me-1"></i><span id="report-refresh-label">Refresh</span></button>
+                <a href="{% url 'expense:list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back to list</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">
+                Movement history for this expense record. Each row shows <strong>one change</strong>: quantity purchased/out, remaining quantity, and values. Totals reflect the live expense row.
+            </p>
+
+            <style>
+            .ledger-filters { border: 1px solid #cbd3da; border-radius: 10px; padding: 12px 14px; margin-bottom: 1rem; background-color: #fff; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+            .ledger-filters .form-control, .ledger-filters .form-select { border-radius: 6px; border: 1px solid #adb5bd; }
+            .report-current-row-box { background-color: #f8f9fa; border-color: #dee2e6 !important; border-radius: 8px; }
+            </style>
+
+            <form method="get" class="mb-3 ledger-filters" id="expenseReportFilterForm">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="Search remark, user, status…">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">All status</option>
+                            {% for v,l in status_choices %}
+                            <option value="{{ v }}" {% if status_filter == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" placeholder="From date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" placeholder="To date">
+                    </div>
+                </div>
+                <div class="row g-2 mt-2">
+                    <div class="col-md-2">
+                        <input type="text" name="min_quantity" value="{{ min_quantity }}" class="form-control form-control-sm" placeholder="Min rem. qty">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="max_quantity" value="{{ max_quantity }}" class="form-control form-control-sm" placeholder="Max rem. qty">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                        <a href="?" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="report-current-row-box border mb-3 py-3 px-3">
+                <h6 class="mb-2 text-dark fw-semibold">This report matches this expense row (same as main expense table)</h6>
+                <div class="row g-3 small text-dark">
+                    <div class="col-md-2"><strong class="text-dark">Qty Purchased</strong><br><span class="text-success fw-semibold" id="report-current-qty-in">{% if expense.quantity_purchased_input %}{{ expense.quantity_purchased_input }}{% else %}{{ expense.quantity_purchased|format_number }}{% endif %}{% if expense.unit_of_measurement and not expense.quantity_purchased_input %} {{ expense.unit_of_measurement }}{% endif %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Qty Out</strong><br><span class="text-danger fw-semibold" id="report-current-qty-out">{% if expense.quantity_out_input %}{{ expense.quantity_out_input }}{% else %}{{ expense.quantity_out|format_number }}{% endif %}{% if expense.unit_of_measurement and not expense.quantity_out_input %} {{ expense.unit_of_measurement }}{% endif %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Rem. Qty</strong><br><span class="fw-bold text-dark" id="report-current-rem-qty">{{ expense.remaining_quantity|format_number }}{% if expense.unit_label %} {{ expense.unit_label }}{% elif expense.unit_of_measurement %} {{ expense.unit_of_measurement }}{% endif %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Unit Price</strong><br><span class="text-dark" id="report-current-unit-price">{{ user_currency_symbol|default:"₦" }}{% if expense.unit_price_input %}{{ expense.unit_price_input }}{% else %}{{ expense.unit_price|format_number }}{% endif %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Total Purchase Value</strong><br><span class="text-dark" id="report-current-total-purchase">{{ user_currency_symbol|default:"₦" }}{{ expense.total_purchase_value|format_number }}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Stock Value Remaining</strong><br><span class="text-dark" id="report-current-stock-value">{{ user_currency_symbol|default:"₦" }}{{ expense.stock_value_remaining|format_number }}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Total Amount (invoice)</strong><br><span class="text-dark" id="report-current-balance">{{ user_currency_symbol|default:"₦" }}{{ expense.total_amount|format_number }}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Qty Threshold</strong><br><span class="text-dark" id="report-current-threshold">{% if expense.quantity_threshold_input %}{{ expense.quantity_threshold_input }}{% else %}{{ expense.quantity_threshold|format_number }}{% endif %}{% if expense.unit_of_measurement and not expense.quantity_threshold_input %} {{ expense.unit_of_measurement }}{% endif %}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Status</strong><br><span class="badge bg-{% if expense.status == 'approved' %}success{% elif expense.status == 'rejected' %}danger{% else %}warning text-dark{% endif %}" id="report-current-status">{{ expense.get_status_display }}</span></div>
+                    <div class="col-md-2"><strong class="text-dark">Low Stock Alert</strong><br><span id="report-current-low-stock">{% if expense.low_stock_alert %}<span class="badge bg-warning text-dark">Yes</span>{% else %}<span class="badge bg-success">No</span>{% endif %}</span></div>
+                </div>
+                <p class="mb-0 mt-2 small text-body-secondary">Each row below is a snapshot at the time of a change. Status and values above are current from the main table.</p>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>S/N</th>
+                            <th>Date</th>
+                            <th>Qty Purchased</th>
+                            <th>Qty Out</th>
+                            <th>Rem. Qty</th>
+                            <th>Unit Price</th>
+                            <th>Balance</th>
+                            <th>Stock Value Remaining</th>
+                            <th>Status</th>
+                            <th>Low Stock</th>
+                            <th>User</th>
+                            <th>Remark</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expense-ledger-tbody">
+                        {% include 'expense/expense_report_rows_partial.html' %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj %}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                {% include 'expense/expense_list_pagination_partial.html' %}
+            </div>
+            {% endif %}
+
+            <div class="row mt-4">
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Qty Purchased</small>
+                            <div class="fw-bold" id="card-total-qty-in">{{ total_qty_in|format_number|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Qty Out</small>
+                            <div class="fw-bold" id="card-total-qty-out">{{ total_qty_out|format_number|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Current Stock (Rem. Qty)</small>
+                            <div class="fw-bold" id="card-current-stock">{{ current_stock|format_number|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Stock Value Remaining</small>
+                            <div class="fw-bold" id="card-total-stock-value">{{ user_currency_symbol|default:"₦" }}{{ total_stock_value_remaining|format_number|default:"0.00" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var tbody = document.getElementById('expense-ledger-tbody');
+    var cardIn = document.getElementById('card-total-qty-in');
+    var cardOut = document.getElementById('card-total-qty-out');
+    var cardStock = document.getElementById('card-current-stock');
+    var cardValue = document.getElementById('card-total-stock-value');
+    var elStatus = document.getElementById('report-current-status');
+    var elLowStock = document.getElementById('report-current-low-stock');
+    var headerQtyIn = document.getElementById('report-current-qty-in');
+    var headerQtyOut = document.getElementById('report-current-qty-out');
+    var headerRemQty = document.getElementById('report-current-rem-qty');
+    var headerTotalPurchase = document.getElementById('report-current-total-purchase');
+    var headerBalance = document.getElementById('report-current-balance');
+    var headerStockValue = document.getElementById('report-current-stock-value');
+    var headerUnitPrice = document.getElementById('report-current-unit-price');
+    var headerThreshold = document.getElementById('report-current-threshold');
+    var currencySymbol = '{{ user_currency_symbol|default:"₦" }}';
+    if (!tbody) return;
+    function getRefreshUrl() {
+        var params = new URLSearchParams(window.location.search);
+        params.set('format', 'json');
+        return window.location.pathname + '?' + params.toString();
+    }
+    function formatNumber(val) {
+        var n = parseFloat(String(val).replace(/,/g, ''));
+        if (isNaN(n)) return '0.00';
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    var refreshInProgress = false;
+    function refreshLedger() {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        fetch(getRefreshUrl(), {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            cache: 'no-store',
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function(data) {
+            if (data.rows_html) tbody.innerHTML = data.rows_html;
+            if (cardIn && data.total_qty_in !== undefined) cardIn.textContent = formatNumber(data.total_qty_in);
+            if (cardOut && data.total_qty_out !== undefined) cardOut.textContent = formatNumber(data.total_qty_out);
+            if (cardStock && data.current_stock !== undefined) cardStock.textContent = formatNumber(data.current_stock);
+            if (cardValue && data.total_stock_value_remaining !== undefined) cardValue.textContent = currencySymbol + formatNumber(data.total_stock_value_remaining);
+            if (elStatus && data.status_display !== undefined) {
+                elStatus.textContent = data.status_display;
+                elStatus.className = 'badge bg-' + (data.status === 'approved' ? 'success' : data.status === 'rejected' ? 'danger' : 'warning text-dark');
+            }
+            if (elLowStock && data.low_stock_alert !== undefined) {
+                elLowStock.innerHTML = data.low_stock_alert ? '<span class="badge bg-warning text-dark">Yes</span>' : '<span class="badge bg-success">No</span>';
+            }
+            if (headerQtyIn && (data.total_qty_in !== undefined || data.quantity_purchased_input !== undefined)) headerQtyIn.textContent = (data.quantity_purchased_input && String(data.quantity_purchased_input).trim() !== '') ? data.quantity_purchased_input : formatNumber(data.total_qty_in);
+            if (headerQtyOut && (data.total_qty_out !== undefined || data.quantity_out_input !== undefined)) headerQtyOut.textContent = (data.quantity_out_input && String(data.quantity_out_input).trim() !== '') ? data.quantity_out_input : formatNumber(data.total_qty_out);
+            if (headerRemQty && data.current_stock !== undefined) {
+                headerRemQty.textContent = formatNumber(data.current_stock) + (data.unit_label && String(data.unit_label).trim() ? ' ' + data.unit_label : '');
+            }
+            if (headerTotalPurchase && (data.total_purchase_value !== undefined)) headerTotalPurchase.textContent = currencySymbol + formatNumber(data.total_purchase_value);
+            if (headerBalance && data.total_amount !== undefined) headerBalance.textContent = currencySymbol + formatNumber(data.total_amount);
+            if (headerStockValue && data.total_stock_value_remaining !== undefined) headerStockValue.textContent = currencySymbol + formatNumber(data.total_stock_value_remaining);
+            if (headerUnitPrice && (data.unit_price !== undefined || data.unit_price_input !== undefined)) headerUnitPrice.textContent = currencySymbol + ((data.unit_price_input && String(data.unit_price_input).trim() !== '') ? data.unit_price_input : formatNumber(data.unit_price));
+            if (headerThreshold && (data.quantity_threshold !== undefined || data.quantity_threshold_input !== undefined)) headerThreshold.textContent = (data.quantity_threshold_input && String(data.quantity_threshold_input).trim() !== '') ? data.quantity_threshold_input : formatNumber(data.quantity_threshold);
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone();
+        }).catch(function() {
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone(true);
+        }).finally(function() {
+            refreshInProgress = false;
+        });
+    }
+    var POLL_FAST_MS = 2000;
+    var POLL_SLOW_MS = 10000;
+    var pollTimer = null;
+    function scheduleNext(intervalMs) {
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(function run() {
+            refreshLedger();
+            pollTimer = setTimeout(run, document.hidden ? POLL_SLOW_MS : POLL_FAST_MS);
+        }, intervalMs);
+    }
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = setTimeout(function run() {
+                refreshLedger();
+                pollTimer = setTimeout(run, POLL_SLOW_MS);
+            }, POLL_SLOW_MS);
+        } else {
+            refreshLedger();
+            scheduleNext(POLL_FAST_MS);
+        }
+    });
+    scheduleNext(500);
+    var refreshBtn = document.getElementById('report-refresh-btn');
+    var refreshLabel = document.getElementById('report-refresh-label');
+    window._reportRefreshDone = function(isError) {
+        if (refreshLabel) refreshLabel.textContent = isError ? 'Try again' : 'Updated';
+        setTimeout(function() { if (refreshLabel) refreshLabel.textContent = 'Refresh'; }, 1500);
+    };
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (refreshInProgress) return;
+            if (refreshLabel) refreshLabel.textContent = 'Refreshing…';
+            refreshLedger();
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Performance Reviews - HR & Staff{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+  <li class="breadcrumb-item active">Performance</li>
+{% endblock %}
+{% block page_title %}Performance Reviews{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+  {% include 'hr_staff/partials/hr_top_nav.html' %}
+  
+  <div class="card border-0 shadow-sm rounded-3 mt-3">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between pt-3 pb-0">
+      <h5 class="mb-0 fw-bold">Performance Reviews</h5>
+      <a href="{% url 'hr_staff:performance_review_create' %}" class="btn btn-primary btn-sm rounded-2">
+        <i class="fas fa-plus me-1"></i> Create Review
+      </a>
+    </div>
+    <div class="card-body pt-2">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" id="reviewsTable">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Period</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="reviewsTableBody">
+            {% for review in reviews %}
+            <tr>
+              <td><a href="{% url 'hr_staff:performance_review_detail' review.pk %}">{{ review.title }}</a></td>
+              <td>{{ review.get_review_type_display }}</td>
+              <td>{{ review.start_date }} - {{ review.end_date }}</td>
+              <td><span class="badge bg-{% if review.status == 'active' %}success{% elif review.status == 'completed' %}info{% else %}secondary{% endif %}">{{ review.get_status_display }}</span></td>
+              <td><a href="{% url 'hr_staff:performance_review_detail' review.pk %}" class="btn btn-sm btn-outline-secondary">View</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No performance reviews yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+  var POLL_MS = 20000;
+  var csrfToken = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  function getCookie(n) {
+    var v = document.cookie.match('(?:^|;)\\s*' + n.replace(/[\\.*+?^${}()|[\]\\\\]/g, '\\\\$&') + '\\s*=\\s*([^;]*)');
+    return v ? decodeURIComponent(v[1]) : '';
+  }
+  var csrf = csrfToken || getCookie('csrftoken');
+  
+  function getStatusBadge(status) {
+    if (status === 'active') return 'success';
+    if (status === 'completed') return 'info';
+    return 'secondary';
+  }
+  
+  function getTypeDisplay(type) {
+    var types = {'annual': 'Annual', 'quarterly': 'Quarterly', 'probation': 'Probation', 'mid_year': 'Mid-Year', 'custom': 'Custom'};
+    return types[type] || type;
+  }
+  
+  function renderReviews(data) {
+    var tbody = document.getElementById('reviewsTableBody');
+    if (!tbody || !data.results || data.results.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No performance reviews yet.</td></tr>';
+      return;
+    }
+    var html = '';
+    data.results.forEach(function(review) {
+      var detailUrl = '/hr-staff/performance/' + review.id + '/';
+      html += '<tr>';
+      html += '<td><a href="' + detailUrl + '">' + (review.title || '') + '</a></td>';
+      html += '<td>' + getTypeDisplay(review.review_type) + '</td>';
+      html += '<td>' + (review.start_date || '') + ' - ' + (review.end_date || '') + '</td>';
+      html += '<td><span class="badge bg-' + getStatusBadge(review.status) + '">' + (review.status_display || review.status || '') + '</span></td>';
+      html += '<td><a href="' + detailUrl + '" class="btn btn-sm btn-outline-secondary">View</a></td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+  
+  function loadReviews() {
+    var url = '/api/hr-staff/performance-reviews/?page_size=500';
+    fetch(url, { 
+      method: 'GET', 
+      credentials: 'same-origin', 
+      cache: 'no-store', 
+      headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+    })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) { if (data) renderReviews(data); })
+    .catch(function() {});
+  }
+  
+  loadReviews();
+  setInterval(loadReviews, POLL_MS);
+})();
+</script>
+{% endblock %}

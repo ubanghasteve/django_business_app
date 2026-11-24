@@ -1,0 +1,15 @@
+{% load humanize %}
+<div id="payrollDepartmentCostContainer">
+    {% if metrics.department_cost %}
+    <ul class="list-group list-group-flush border-0">
+        {% for dept in metrics.department_cost|slice:":5" %}
+        <li class="list-group-item border-0 border-bottom px-0 py-2 d-flex align-items-center justify-content-between">
+            <span>{{ dept.employee__department__name|default:"Unassigned" }}</span>
+            <span class="fw-semibold">{{ user_currency_symbol|default:"₦" }}{{ dept.total|floatformat:2|intcomma }} <small class="text-muted">({{ dept.count }})</small></span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted small mb-0">No department data yet.</p>
+    {% endif %}
+</div>

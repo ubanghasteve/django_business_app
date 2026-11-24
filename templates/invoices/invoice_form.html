@@ -1,0 +1,1580 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ title }} - Multi-Purpose Business App{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block breadcrumb %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Theme colors from Company Profile - Applied globally */
+    :root {
+        --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+        --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+        --text-color: {{ theme_text_color|default:"#333333" }};
+        --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+    }
+    
+    /* LOADING OPTIMIZATION */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.3s ease-out;
+    }
+    
+    .loading-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #e91e63;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Dynamic Invoice Styles */
+    .invoice-creator {
+        display: flex;
+        gap: 20px;
+        height: auto;
+        min-height: auto;
+        max-height: none;
+        overflow: visible !important;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        position: relative;
+        pointer-events: auto !important;
+    }
+    
+    .invoice-creator.loaded {
+        opacity: 1;
+    }
+    
+    /* Ensure card body and all parents allow scrolling */
+    .card-body {
+        overflow: visible !important;
+        height: auto !important;
+        pointer-events: auto !important;
+    }
+    
+    .card {
+        overflow: visible !important;
+    }
+    
+    .container-fluid {
+        overflow: visible !important;
+    }
+    
+    /* Disable any potential scroll blocking from base template */
+    * {
+        -ms-overflow-style: auto !important;
+    }
+
+    /* FIX FORM FIELD LABEL OVERLAPPING */
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    .form-group .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #344767;
+        font-size: 14px;
+        line-height: 1.4;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .form-group .form-control,
+    .form-group .form-select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #d2d6da;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        position: relative;
+        z-index: 0;
+    }
+    
+    .form-group .form-control:focus,
+    .form-group .form-select:focus {
+        border-color: #e91e63;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(233, 30, 99, 0.3);
+        background-color: #fffef8;
+    }
+    
+    .form-group .form-control:hover {
+        border-color: #b8bdc4;
+    }
+    
+    .form-group .form-control::placeholder {
+        color: #adb5bd;
+        opacity: 0.7;
+    }
+    
+    /* Fix textarea spacing */
+    .form-group textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    /* Fix item row form fields */
+    .item-row .form-label {
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #344767;
+    }
+    
+    .item-row .form-control {
+        padding: 8px 12px;
+        font-size: 13px;
+        margin-bottom: 0;
+        border: 2px solid #d2d6da !important;
+        border-radius: 6px;
+        background-color: #fff;
+    }
+    
+    .item-row .form-control:focus {
+        border-color: #e91e63 !important;
+        box-shadow: 0 0 0 0.2rem rgba(233, 30, 99, 0.2);
+        background-color: #fffef8;
+    }
+    
+    .item-row .form-control:hover {
+        border-color: #b8bdc4 !important;
+    }
+    
+    .item-row .col-md-1,
+    .item-row .col-md-2,
+    .item-row .col-md-3 {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    /* Form and Preview Layout */
+    .form-section {
+        flex: 1;
+        min-width: 400px;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow-y: scroll !important;
+        overflow-x: hidden !important;
+        max-height: 85vh;
+        height: 85vh;
+        position: relative;
+    }
+
+    .preview-section {
+        flex: 1;
+        min-width: 400px;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        position: sticky;
+        top: 20px;
+        align-self: flex-start;
+        max-height: 85vh;
+        height: 85vh;
+        overflow-y: scroll !important;
+        overflow-x: hidden !important;
+    }
+    
+    /* Ensure smooth scrolling and pointer events */
+    .form-section,
+    .preview-section {
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        pointer-events: auto !important;
+        touch-action: pan-x pan-y;
+        overscroll-behavior: contain;
+    }
+    
+    /* Custom scrollbars for better visibility */
+    .form-section::-webkit-scrollbar,
+    .preview-section::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .form-section::-webkit-scrollbar-track,
+    .preview-section::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 5px;
+        margin: 5px;
+    }
+    
+    .form-section::-webkit-scrollbar-thumb,
+    .preview-section::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 5px;
+    }
+    
+    .form-section::-webkit-scrollbar-thumb:hover,
+    .preview-section::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    /* Firefox scrollbar */
+    .form-section,
+    .preview-section {
+        scrollbar-width: thin;
+        scrollbar-color: #888 #f1f1f1;
+    }
+
+    /* Invoice Preview Styles */
+    .invoice-preview {
+        background: white;
+        padding: 40px;
+        font-family: Arial, sans-serif;
+        color: var(--text-color);
+    }
+
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid var(--accent-color);
+    }
+
+    .company-logo img {
+        max-width: 150px;
+        max-height: 80px;
+    }
+
+    .company-details {
+        text-align: right;
+    }
+
+    .company-details h2 {
+        margin: 0 0 10px 0;
+        color: var(--primary-color);
+        font-size: 24px;
+    }
+
+    .company-details p {
+        margin: 3px 0;
+        font-size: 13px;
+    }
+
+    .invoice-title {
+        background: var(--primary-color);
+        color: white;
+        padding: 15px;
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+        margin: 20px 0;
+        border-radius: 4px;
+    }
+
+    .invoice-info {
+        background: var(--primary-color);
+        color: white;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+
+    .client-section {
+        margin: 30px 0;
+    }
+
+    .client-section h3 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        border: 2px solid var(--accent-color);
+    }
+
+    .items-table th {
+        background: var(--primary-color);
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-size: 13px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .items-table td {
+        padding: 10px 12px;
+        border: 1px solid var(--accent-color);
+        font-size: 13px;
+    }
+    
+    .items-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .totals-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-top: 30px;
+    }
+
+    .totals-left {
+        flex: 1;
+        min-width: 0;
+        padding-right: 16px;
+    }
+
+    #preview-notes-wrap {
+        font-size: 13px;
+        color: var(--text-color, #333);
+        line-height: 1.45;
+    }
+
+    #preview-notes {
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin-top: 4px;
+    }
+
+    .totals-right {
+        min-width: 300px;
+    }
+
+    .totals-right p {
+        display: flex;
+        justify-content: space-between;
+        margin: 8px 0;
+        font-size: 14px;
+    }
+
+    .total-final {
+        font-size: 18px;
+        font-weight: bold;
+        padding-top: 10px;
+        border-top: 2px solid var(--text-color);
+        color: var(--primary-color);
+    }
+
+    /* Item Row Styles */
+    .item-row {
+        background: #ffffff;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        position: relative;
+        border: 2px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .item-row:hover {
+        border-color: #e91e63;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .remove-item {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #dc3545;
+        color: white;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        transition: background 0.3s;
+    }
+
+    .remove-item:hover {
+        background: #c82333;
+    }
+
+    .btn-add-item {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.3s;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-add-item:hover {
+        opacity: 0.9;
+    }
+
+    /* Mobile scroll hint for preview */
+    .preview-scroll-hint {
+        display: none;
+        text-align: center;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 12px;
+        border-radius: 20px;
+        margin: 0 auto 10px;
+        width: fit-content;
+        animation: pulse 2s infinite;
+    }
+    
+    .preview-scroll-hint i {
+        margin-right: 6px;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* Preview wrapper for horizontal scroll */
+    .preview-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+    }
+    
+    .preview-wrapper::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .preview-wrapper::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .preview-wrapper::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+        .invoice-creator {
+            flex-direction: column;
+        }
+
+        .preview-section {
+            position: relative !important;
+            top: 0 !important;
+            max-height: 600px !important;
+            height: 600px !important;
+            overflow-y: scroll !important;
+            overflow-x: auto !important;
+        }
+
+        .form-section {
+            max-height: none !important;
+            height: auto !important;
+            overflow-y: visible !important;
+            overflow-x: hidden !important;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .form-section,
+        .preview-section {
+            min-width: 100% !important;
+            max-height: 70vh !important;
+            height: auto !important;
+            overflow-y: scroll !important;
+        }
+        
+        .preview-section {
+            overflow-x: scroll !important;
+            overflow-y: scroll !important;
+            padding: 10px !important;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+        }
+        
+        .preview-scroll-hint {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .preview-wrapper {
+            min-width: 600px;
+            overflow-x: scroll !important;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+        }
+        
+        .invoice-preview {
+            min-width: 550px;
+            padding: 20px !important;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .preview-section {
+            max-height: 60vh !important;
+            overflow-x: scroll !important;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+        }
+        
+        .preview-wrapper {
+            overflow-x: scroll !important;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+        }
+        
+        .preview-scroll-hint {
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+    }
+
+    @media print {
+        .form-section,
+        .no-print {
+            display: none !important;
+        }
+
+        .preview-section {
+            box-shadow: none;
+            max-height: none;
+        }
+
+        .invoice-preview {
+            box-shadow: none;
+        }
+    }
+
+    .signature-section {
+        text-align: center;
+        margin-top: 50px;
+    }
+
+    .signature-section img {
+        max-width: 200px;
+        max-height: 80px;
+    }
+
+    .bank-details-section {
+        margin-top: 30px;
+    }
+
+    .bank-details-section h3 {
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card my-4">
+                <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+                    <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-3 no-print">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="text-white text-capitalize ps-3 no-print">{{ title }}</h6>
+                            <div class="pe-3 no-print">
+                                {% if perms.invoices.print_invoice %}
+                                <a href="{% url 'invoices:print' invoice.pk %}" target="_blank" class="btn btn-outline-white btn-sm me-2 no-print">
+                                    <i class="fas fa-print text-sm"></i> Print Preview
+                                </a>
+                                {% endif %}
+                                <button type="submit" form="invoice-form" class="btn btn-outline-white btn-sm no-print">
+                                    <i class="fas fa-save text-sm"></i> Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <form id="invoice-form" method="post" data-sync-model="invoices" data-sync-redirect="{% url 'invoices:list' %}" {% if invoice %}data-record-uuid="{{ invoice.uuid }}"{% endif %}>
+                        {% csrf_token %}
+
+                        <div class="invoice-creator">
+                            <!-- Form Section -->
+                            <div class="form-section">
+                                <h5 class="mb-4">Edit Invoice Details</h5>
+
+                                <!-- Invoice Number (Read Only) -->
+                                <div class="form-group">
+                                    <label class="form-label">Invoice Number</label>
+                                    <input type="text" class="form-control" value="{{ invoice.invoice_number }}" readonly style="background-color: #f8f9fa;">
+                                    <small class="text-muted">Invoice number cannot be changed</small>
+                                </div>
+
+                                <!-- Template Selection -->
+                                <div class="form-group">
+                                    <label class="form-label">Invoice Template</label>
+                                    {{ form.template }}
+                                    <small class="text-muted">Choose a template to customize invoice colors and styling</small>
+                                </div>
+
+                                <!-- Client Information -->
+                                <div class="form-group">
+                                    <label class="form-label">Client Name *</label>
+                                    {{ form.client_name }}
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Client Email</label>
+                                    {{ form.client_email }}
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Client Phone</label>
+                                    {{ form.client_phone }}
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Client Address</label>
+                                    {{ form.client_address }}
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Due Date</label>
+                                    {{ form.due_date }}
+                                </div>
+
+                                <!-- Invoice Items -->
+                                <h6 class="mt-4 mb-3">Invoice Items</h6>
+                                <div id="items-container">
+                                    {{ formset.management_form }}
+                                    {% for item_form in formset %}
+                                        <div class="item-row" data-index="{{ forloop.counter }}">
+                                            {% for hidden in item_form.hidden_fields %}
+                                                {{ hidden }}
+                                            {% endfor %}
+                                            
+                                            {% if item_form.DELETE %}
+                                                <span class="remove-item" onclick="removeItem({{ forloop.counter }})" style="{% if forloop.first and formset|length == 1 %}display: none;{% endif %}">×</span>
+                                            {% endif %}
+                                            
+                                            <div class="row">
+                                                <div class="col-md-1">
+                                                    <label class="form-label">S/N</label>
+                                                    <input type="text" class="form-control item-serial" value="{{ forloop.counter }}" readonly style="background-color: #f8f9fa; text-align: center;">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Product/Service</label>
+                                                    {{ item_form.product_service }}
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Description</label>
+                                                    {{ item_form.description }}
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label" title="You can mix text with numbers">Qty. <small>(text+numbers)</small></label>
+                                                    {{ item_form.quantity }}
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label" title="You can mix text with numbers">Cost <small>(text+numbers)</small></label>
+                                                    {{ item_form.unit_price }}
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Total</label>
+                                                    <input type="text" class="form-control item-total" readonly data-index="{{ forloop.counter }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                <button type="button" class="btn-add-item" onclick="addItem()">
+                                    <i class="fas fa-plus text-sm"></i> Add Item
+                                </button>
+
+                                <!-- Additional Charges -->
+                                <h6 class="mt-4 mb-3">Additional Charges</h6>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Tax/VAT</label>
+                                            <div class="input-group">
+                                                <select name="tax_type" id="tax_type" class="form-select" style="max-width: 130px;">
+                                                    <option value="percentage" {% if form.tax_type.value == 'percentage' or not form.tax_type.value %}selected{% endif %}>Percent (%)</option>
+                                                    <option value="fixed" {% if form.tax_type.value == 'fixed' %}selected{% endif %}>Fixed ({{ currency_symbol|default:"₦" }})</option>
+                                                </select>
+                                                {{ form.tax_input }}
+                                            </div>
+                                            <small class="text-muted">Enter value or percentage (e.g. 7.5 or 7.5%)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Discount</label>
+                                            <div class="input-group">
+                                                <select name="discount_type" id="discount_type" class="form-select" style="max-width: 130px;">
+                                                    <option value="percentage" {% if form.discount_type.value == 'percentage' or not form.discount_type.value %}selected{% endif %}>Percent (%)</option>
+                                                    <option value="fixed" {% if form.discount_type.value == 'fixed' %}selected{% endif %}>Fixed ({{ currency_symbol|default:"₦" }})</option>
+                                                </select>
+                                                {{ form.total_discount }}
+                                            </div>
+                                            <small class="text-muted">Enter value or percentage (e.g. 10 or 7.5%), 5k for {{ currency_symbol|default:"₦" }}5,000</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Shipping Fee</label>
+                                            {{ form.shipping_fee }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Other Charges</label>
+                                            {{ form.other_charges }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" title="Revenue and status use this: 0 = Unpaid, part amount = Partially Paid, full total or more = Paid. Only the amount entered counts as revenue until fully paid.">
+                                    <label class="form-label">Amount Paid</label>
+                                    {{ form.amount_paid }}
+                                    <small class="form-text text-muted d-block mt-1">Enter what the customer has paid. Unpaid (0) does not count as revenue; part payments count only the amount entered; status (Unpaid / Partially Paid / Paid) updates automatically on save.</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Notes</label>
+                                    {{ form.notes }}
+                                </div>
+
+                                <!-- Display Settings -->
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Display Settings</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <input type="hidden" name="display_settings_submitted" value="1">
+                                        <div class="form-check form-switch mb-3">
+                                            <input type="checkbox" class="form-check-input" id="showBankDetails" name="showBankDetails" {% if invoice.show_bank_details %}checked{% endif %} onchange="toggleBankDetails(this.checked)">
+                                            <label class="form-check-label" for="showBankDetails">Show Bank Details</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" class="form-check-input" id="showSignature" name="showSignature" {% if invoice.show_signature %}checked{% endif %} onchange="toggleSignature(this.checked)">
+                                            <label class="form-check-label" for="showSignature">Show Signature</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Form Actions -->
+                                <div class="mt-4 d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary flex-fill">
+                                        <i class="fas fa-save text-sm"></i> Save Changes
+                                    </button>
+                                    <a href="{% url 'invoices:detail' invoice.pk %}" class="btn btn-outline-secondary flex-fill">
+                                        <i class="fas fa-times text-sm"></i> Cancel
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Live Preview Section -->
+                            <div class="preview-section">
+                                <!-- Mobile scroll hint -->
+                                <div class="preview-scroll-hint" id="previewScrollHint">
+                                    <i class="fas fa-arrows-left-right"></i> Swipe to view full preview
+                                </div>
+                                
+                                <div class="preview-wrapper" id="previewWrapper">
+                                <div class="invoice-preview" id="invoice-preview">
+                                    <!-- Invoice Header -->
+                                    <div class="invoice-header">
+                                        <div class="company-logo">
+                                            {% if company_profile.logo %}
+                                            <img src="{{ company_profile.logo.url }}" alt="Company Logo" id="preview-logo">
+                                            {% else %}
+                                            <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo" id="preview-logo">
+                                            {% endif %}
+                                        </div>
+                                        <div class="company-details" id="company-details-preview">
+                                            <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+                                            <p>{{ company_profile.address|default:"Company Address" }}</p>
+                                            <p>{{ company_profile.phone|default:"Phone Number" }}</p>
+                                            <p>{{ company_profile.email|default:"Email Address" }}</p>
+                                            {% if company_profile.website %}<p>{{ company_profile.website }}</p>{% endif %}
+                                        </div>
+                                    </div>
+
+                                    <!-- Invoice Title -->
+                                    <div class="invoice-title">INVOICE</div>
+
+                                    <!-- Invoice Info with Bank Details -->
+                                    <div class="invoice-info" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <div>
+                                            <div>
+                                                <strong>Invoice #: <span id="preview-invoice-number">{{ invoice.invoice_number }}</span></strong>
+                                            </div>
+                                            <div id="date-row" {% if not invoice.invoice_date %}style="display: none;"{% endif %}>
+                                                <strong>Date: <span id="preview-date">{{ invoice.invoice_date|date:"M d, Y" }}</span></strong>
+                                            </div>
+                                            <div id="due-date-row" {% if not invoice.due_date %}style="display: none;"{% endif %}>
+                                                <strong>Due: <span id="preview-due-date">{{ invoice.due_date|date:"M d, Y" }}</span></strong>
+                                            </div>
+                                        </div>
+                                        {% if bank_accounts %}
+                                        <div id="bank-details-preview" class="bank-details-compact" style="text-align: right; font-size: 11px;{% if not invoice.show_bank_details %} display: none;{% endif %}">
+                                            {% for account in bank_accounts %}
+                                            <p style="margin: 0 0 {% if not forloop.last %}6px{% else %}0{% endif %} 0;"><strong>Bank:</strong> {{ account.bank_name }}</p>
+                                            <p style="margin: 0;"><strong>Account:</strong> {{ account.account_number }}</p>
+                                            <p style="margin: 0;"><strong>Name:</strong> {{ account.account_name }}</p>
+                                            {% if not forloop.last %}<hr style="margin: 6px 0;">{% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Client Section -->
+                                    <div class="client-section">
+                                        <h3>BILL TO:</h3>
+                                        <div id="preview-client-info">
+                                            <strong id="preview-client-name">{{ invoice.client_name }}</strong><br>
+                                            <span id="preview-client-email">{{ invoice.client_email }}</span><br>
+                                            <span id="preview-client-phone">{{ invoice.client_phone }}</span><br>
+                                            <span id="preview-client-address">{{ invoice.client_address }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Items Table -->
+                                    <table class="items-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 8%;">S/N</th>
+                                                <th style="width: 20%;">PRODUCT / SERVICE</th>
+                                                <th style="width: 30%;">DESCRIPTION</th>
+                                                <th style="width: 10%;">QTY.</th>
+                                                <th style="width: 15%;">COST</th>
+                                                <th style="width: 17%;">TOTAL</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="preview-items">
+                                            {% for item in invoice.items.all %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>{{ item.product_service|default:"" }}</td>
+                                                <td>{{ item.description|default:"" }}</td>
+                                                <td>{% if item.quantity and item.quantity != 0 %}{{ item.quantity|floatformat:2|intcomma }}{% endif %}</td>
+                                                <td>{% if item.unit_price and item.unit_price != 0 %}{{ currency_symbol }}{{ item.unit_price|floatformat:2|intcomma }}{% endif %}</td>
+                                                <td>{% if item.line_total and item.line_total != 0 %}{{ currency_symbol }}{{ item.line_total|floatformat:2|intcomma }}{% endif %}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+
+                                    <!-- Totals Section -->
+                                    <div class="totals-section">
+                                        <div class="totals-left">
+                                            <div id="preview-notes-wrap"{% if not invoice.notes %} style="display: none;"{% endif %}>
+                                                <strong>Notes:</strong>
+                                                <div id="preview-notes">{{ invoice.notes }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="totals-right">
+                                            <p>Subtotal: <span id="preview-subtotal">{{ currency_symbol }}{{ invoice.subtotal|floatformat:2|intcomma }}</span></p>
+                                            <p id="discount-line">Discount: -<span id="preview-discount">{{ currency_symbol }}{{ invoice.total_discount|floatformat:2|intcomma }}</span></p>
+                                            <p id="tax-line">Tax/VAT: <span id="preview-tax">{{ currency_symbol }}{{ invoice.total_tax|floatformat:2|intcomma }}</span></p>
+                                            <p id="shipping-line">Shipping: <span id="preview-shipping">{{ currency_symbol }}{{ invoice.shipping_fee|floatformat:2|intcomma }}</span></p>
+                                            <p id="other-line">Other Charges: <span id="preview-other">{{ currency_symbol }}{{ invoice.other_charges|floatformat:2|intcomma }}</span></p>
+                                            <p class="total-final">TOTAL: <span id="preview-total">{{ currency_symbol }}{{ invoice.grand_total|floatformat:2|intcomma }}</span></p>
+                                            <p id="paid-line">Amount Paid: <span id="preview-paid">{{ currency_symbol }}{{ invoice.amount_paid|floatformat:2|intcomma }}</span></p>
+                                            <p id="balance-line">Balance Due: <span id="preview-balance">{{ currency_symbol }}{{ invoice.balance_due|floatformat:2|intcomma }}</span></p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Signature Section -->
+                                    {% if company_profile.signature %}
+                                    <div class="signature-section" id="signature-preview" {% if not invoice.show_signature %}style="display: none;"{% endif %}>
+                                        <img src="{{ company_profile.signature.url }}" alt="Signature">
+                                        <p><strong>Authorized Signature</strong></p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                </div><!-- End preview-wrapper -->
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // IMMEDIATE LOADING OPTIMIZATION
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Starting invoice edit page...');
+        
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const invoiceCreator = document.querySelector('.invoice-creator');
+        
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('hidden');
+            setTimeout(() => loadingOverlay.style.display = 'none', 200);
+        }
+        
+        if (invoiceCreator) {
+            invoiceCreator.classList.add('loaded');
+        }
+    });
+</script>
+
+<script>
+    let currencySymbol = '{{ currency_symbol|default:"₦" }}';
+    const formsetPrefix = '{{ formset_prefix }}';
+
+    // Toggle functions for display settings (called directly from onchange)
+    function toggleBankDetails(show) {
+        const bankDetailsPreview = document.getElementById('bank-details-preview');
+        console.log('🏦 toggleBankDetails called with:', show, 'element:', bankDetailsPreview);
+        if (bankDetailsPreview) {
+            bankDetailsPreview.style.display = show ? 'block' : 'none';
+        }
+    }
+
+    function toggleSignature(show) {
+        const signaturePreview = document.getElementById('signature-preview');
+        console.log('✍️ toggleSignature called with:', show, 'element:', signaturePreview);
+        if (signaturePreview) {
+            signaturePreview.style.display = show ? 'block' : 'none';
+        }
+    }
+
+    // Format number with comma separators
+    function formatMoney(amount) {
+        if (amount === null || amount === undefined || isNaN(amount)) return '0.00';
+        
+        // Convert to number and ensure 2 decimal places
+        const num = parseFloat(amount);
+        
+        // Format with comma separators
+        return num.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    // Smart Number Parser
+    function parseSmartNumber(input) {
+        if (!input || input === '') return 0;
+        
+        let str = input.toString().trim();
+        if (str === '' || str === '-' || str === '+') return 0;
+        
+        // Remove currency symbols and commas
+        str = str.replace(/[₦$€£¥₹,\s]/g, '');
+        
+        // Handle percentage
+        if (str.includes('%')) {
+            const percentMatch = str.match(/-?\d*\.?\d+/);
+            if (percentMatch) {
+                const percentValue = parseFloat(percentMatch[0]);
+                return isNaN(percentValue) ? 0 : percentValue / 100;
+            }
+            return 0;
+        }
+        
+        // Handle 'k' for thousands
+        if (str.toLowerCase().endsWith('k')) {
+            const baseValue = parseFloat(str.slice(0, -1));
+            return isNaN(baseValue) ? 0 : baseValue * 1000;
+        }
+        
+        // Handle 'm' for millions
+        if (str.toLowerCase().endsWith('m')) {
+            const baseValue = parseFloat(str.slice(0, -1));
+            return isNaN(baseValue) ? 0 : baseValue * 1000000;
+        }
+        
+        // Extract numbers
+        const numberMatches = str.match(/-?\d*\.?\d+/g);
+        if (!numberMatches || numberMatches.length === 0) return 0;
+        
+        if (numberMatches.length === 1) {
+            return parseFloat(numberMatches[0]) || 0;
+        }
+        
+        // Handle arithmetic operations
+        let result = parseFloat(numberMatches[0]) || 0;
+        for (let i = 1; i < numberMatches.length; i++) {
+            const currentNum = parseFloat(numberMatches[i]) || 0;
+            const prevIndex = str.indexOf(numberMatches[i-1]) + numberMatches[i-1].length;
+            const currentIndex = str.indexOf(numberMatches[i], prevIndex);
+            const operator = str.substring(prevIndex, currentIndex);
+            
+            if (operator.includes('+')) {
+                result += currentNum;
+            } else if (operator.includes('-')) {
+                result -= currentNum;
+            } else if (operator.includes('*') || operator.includes('x')) {
+                result *= currentNum;
+            } else if (operator.includes('/')) {
+                result = currentNum !== 0 ? result / currentNum : result;
+            } else {
+                result += currentNum;
+            }
+        }
+        
+        return Math.round(result * 100) / 100;
+    }
+
+    // Calculate Totals
+    function calculateTotals() {
+        let subtotal = 0;
+        let itemCount = 0;
+        
+        // Calculate line totals and subtotal
+        document.querySelectorAll('.item-row').forEach((row, index) => {
+            const deleteInput = row.querySelector('input[name$="-DELETE"]');
+            if (deleteInput && deleteInput.checked) {
+                row.style.display = 'none';
+                return;
+            }
+            
+            const quantityInput = row.querySelector('input[name*="quantity"]');
+            const priceInput = row.querySelector('input[name*="unit_price"]');
+            const totalInput = row.querySelector('.item-total');
+            
+            if (!quantityInput || !priceInput) return;
+            
+            const quantity = parseSmartNumber(quantityInput.value);
+            const unitPrice = parseSmartNumber(priceInput.value);
+            const lineTotal = quantity * unitPrice;
+            
+            if (totalInput) {
+                totalInput.value = currencySymbol + formatMoney(lineTotal);
+            }
+            
+            subtotal += lineTotal;
+            itemCount++;
+        });
+        
+        // Update preview subtotal
+        document.getElementById('preview-subtotal').textContent = currencySymbol + formatMoney(subtotal);
+        
+        // Get tax and discount values and types
+        const taxInput = document.querySelector('input[name="tax_input"]').value || '0';
+        const discountInput = document.querySelector('input[name="total_discount"]').value || '0';
+        const taxType = document.getElementById('tax_type')?.value || 'percentage';
+        const discountType = document.getElementById('discount_type')?.value || 'percentage';
+        const shipping = parseSmartNumber(document.querySelector('input[name="shipping_fee"]').value);
+        const other = parseSmartNumber(document.querySelector('input[name="other_charges"]').value);
+        
+        // Parse tax value - auto-detect percentage from input
+        let taxValue = parseSmartNumber(taxInput);
+        let tax = 0;
+        let effectiveTaxType = taxType;
+        if (taxInput.includes('%')) {
+            effectiveTaxType = 'percentage';
+            taxValue = parseFloat(taxInput.replace('%', '')) || 0;
+        }
+        
+        // Calculate tax based on type
+        if (effectiveTaxType === 'percentage') {
+            tax = Math.round((subtotal * (taxValue / 100)) * 100) / 100;
+        } else {
+            tax = taxValue;
+        }
+        
+        // Parse discount value - auto-detect percentage from input
+        let discountValue = parseSmartNumber(discountInput);
+        let discount = 0;
+        let effectiveDiscountType = discountType;
+        if (discountInput.includes('%')) {
+            effectiveDiscountType = 'percentage';
+            discountValue = parseFloat(discountInput.replace('%', '')) || 0;
+        }
+        
+        // Calculate discount based on type
+        if (effectiveDiscountType === 'percentage') {
+            discount = Math.round((subtotal * (discountValue / 100)) * 100) / 100;
+        } else {
+            discount = discountValue;
+        }
+        
+        // Calculate grand total: subtotal + tax - discount + shipping + other
+        const grandTotal = Math.round((subtotal + tax - discount + shipping + other) * 100) / 100;
+        
+        // Update preview with comma separators
+        document.getElementById('preview-tax').textContent = currencySymbol + formatMoney(tax);
+        document.getElementById('preview-discount').textContent = currencySymbol + formatMoney(discount);
+        document.getElementById('preview-shipping').textContent = currencySymbol + formatMoney(shipping);
+        document.getElementById('preview-other').textContent = currencySymbol + formatMoney(other);
+        document.getElementById('preview-total').textContent = currencySymbol + formatMoney(grandTotal);
+        
+        // Calculate amount paid and balance
+        const amountPaid = parseSmartNumber(document.querySelector('input[name="amount_paid"]').value);
+        const balance = Math.round((grandTotal - amountPaid) * 100) / 100;
+        
+        document.getElementById('preview-paid').textContent = currencySymbol + formatMoney(amountPaid);
+        document.getElementById('preview-balance').textContent = currencySymbol + formatMoney(balance);
+        
+        // Debug log (can be removed in production)
+        console.log('📊 Calculation Summary:', {
+            items: itemCount,
+            subtotal: formatMoney(subtotal),
+            taxType: effectiveTaxType,
+            taxValue: taxValue,
+            taxAmount: formatMoney(tax),
+            discountType: effectiveDiscountType,
+            discountValue: discountValue,
+            discountAmount: formatMoney(discount),
+            shipping: formatMoney(shipping),
+            other: formatMoney(other),
+            grandTotal: formatMoney(grandTotal),
+            amountPaid: formatMoney(amountPaid),
+            balance: formatMoney(balance)
+        });
+        
+        updatePreviewItems();
+    }
+
+    // Update Preview Items
+    function updatePreviewItems() {
+        const previewItemsBody = document.getElementById('preview-items');
+        previewItemsBody.innerHTML = '';
+        
+        let serialNum = 1;
+        document.querySelectorAll('.item-row').forEach((row) => {
+            const deleteInput = row.querySelector('input[name$="-DELETE"]');
+            if (deleteInput && deleteInput.checked) return;
+            
+            const product = row.querySelector('input[name*="product_service"]').value || '';
+            const description = row.querySelector('input[name*="description"]').value || '';
+            const quantity = row.querySelector('input[name*="quantity"]').value || '';
+            const price = row.querySelector('input[name*="unit_price"]').value || '';
+            
+            const qty = parseSmartNumber(quantity);
+            const unitPrice = parseSmartNumber(price);
+            const lineTotal = qty * unitPrice;
+
+            // For display, keep the original text the user typed (e.g. "345 bags")
+            // Show blank if quantity is empty or zero
+            const quantityDisplay = quantity && quantity.trim() !== '' && qty !== 0
+                ? quantity 
+                : '';
+            
+            // Show blank for price and total if they are zero
+            const priceDisplay = unitPrice !== 0 ? `${currencySymbol}${formatMoney(unitPrice)}` : '';
+            const totalDisplay = lineTotal !== 0 ? `${currencySymbol}${formatMoney(lineTotal)}` : '';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${serialNum}</td>
+                <td>${product}</td>
+                <td>${description}</td>
+                <td>${quantityDisplay}</td>
+                <td>${priceDisplay}</td>
+                <td>${totalDisplay}</td>
+            `;
+            previewItemsBody.appendChild(tr);
+            serialNum++;
+        });
+    }
+
+    // Add Item
+    function addItem() {
+        const container = document.getElementById('items-container');
+        const totalFormsInput = document.querySelector('input[name="' + formsetPrefix + '-TOTAL_FORMS"]');
+        
+        if (!totalFormsInput) {
+            console.error('TOTAL_FORMS input not found');
+            return;
+        }
+        
+        let formIndex = parseInt(totalFormsInput.value);
+        const newIndex = formIndex;
+        
+        const newRow = document.createElement('div');
+        newRow.className = 'item-row';
+        newRow.setAttribute('data-index', newIndex + 1);
+        const invoiceHidden = document.querySelector('input[name="' + formsetPrefix + '-0-invoice"]');
+        const invoiceVal = invoiceHidden ? invoiceHidden.value : '';
+        newRow.innerHTML = `
+            <input type="hidden" name="${formsetPrefix}-${newIndex}-id" id="id_${formsetPrefix}-${newIndex}-id">
+            <input type="hidden" name="${formsetPrefix}-${newIndex}-invoice" value="${invoiceVal}">
+            <input type="checkbox" name="${formsetPrefix}-${newIndex}-DELETE" id="id_${formsetPrefix}-${newIndex}-DELETE" style="display:none">
+            <span class="remove-item" onclick="removeItem(${newIndex + 1})">×</span>
+            <div class="row">
+                <div class="col-md-1">
+                    <label class="form-label">S/N</label>
+                    <input type="text" class="form-control item-serial" value="${newIndex + 1}" readonly style="background-color: #f8f9fa; text-align: center;">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Product/Service</label>
+                    <input type="text" name="${formsetPrefix}-${newIndex}-product_service" class="form-control" placeholder="Product/service name">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="${formsetPrefix}-${newIndex}-description" class="form-control" placeholder="Item description">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty. <small>(text+numbers)</small></label>
+                    <input type="text" name="${formsetPrefix}-${newIndex}-quantity" class="form-control" placeholder="e.g. 2 boxes">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Cost <small>(text+numbers)</small></label>
+                    <input type="text" name="${formsetPrefix}-${newIndex}-unit_price" class="form-control" placeholder="e.g. $10">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Total</label>
+                    <input type="text" class="form-control item-total" readonly>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(newRow);
+        totalFormsInput.value = newIndex + 1;
+        
+        attachItemListeners(newRow);
+        updateSerialNumbers();
+        calculateTotals();
+    }
+
+    // Remove Item
+    function removeItem(index) {
+        // All items are optional - allow removing all items
+        const row = document.querySelector(`.item-row[data-index="${index}"]`);
+        if (!row) return;
+        
+        const deleteInput = row.querySelector('input[name$="-DELETE"]');
+        if (deleteInput) {
+            deleteInput.checked = true;
+            row.style.display = 'none';
+        } else {
+            row.remove();
+        }
+        
+        updateSerialNumbers();
+        calculateTotals();
+    }
+
+    // Update Serial Numbers
+    function updateSerialNumbers() {
+        let serialNum = 1;
+        document.querySelectorAll('.item-row').forEach((row) => {
+            if (row.style.display === 'none') return;
+            const serialInput = row.querySelector('.item-serial');
+            if (serialInput) {
+                serialInput.value = serialNum;
+            }
+            serialNum++;
+        });
+    }
+
+    // Attach Item Listeners
+    function attachItemListeners(row) {
+        const inputs = row.querySelectorAll('input[type="text"]:not(.item-serial):not(.item-total)');
+        inputs.forEach(input => {
+            input.addEventListener('input', calculateTotals);
+        });
+    }
+
+    // Update Preview on Client Info Change
+    function updateClientPreview() {
+        const val = (selector) => {
+            const el = document.querySelector(selector);
+            return el ? el.value : '';
+        };
+        const clientName = val('input[name="client_name"]');
+        const clientEmail = val('input[name="client_email"]');
+        const clientPhone = val('input[name="client_phone"]');
+        const clientAddress = val('textarea[name="client_address"]');
+        const invoiceDate = val('input[name="invoice_date"]');
+        const dueDate = val('input[name="due_date"]');
+        const notes = val('textarea[name="notes"]');
+
+        const setText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
+
+        setText('preview-client-name', clientName || 'Client Name');
+        setText('preview-client-email', clientEmail);
+        setText('preview-client-phone', clientPhone);
+        setText('preview-client-address', clientAddress);
+
+        const dateRow = document.getElementById('date-row');
+        if (dateRow) {
+            if (invoiceDate) {
+                dateRow.style.display = '';
+                const previewDate = document.getElementById('preview-date');
+                if (previewDate) {
+                    previewDate.textContent = new Date(invoiceDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+            } else {
+                dateRow.style.display = 'none';
+            }
+        }
+
+        const dueDateRow = document.getElementById('due-date-row');
+        if (dueDateRow) {
+            if (dueDate) {
+                dueDateRow.style.display = '';
+                const previewDue = document.getElementById('preview-due-date');
+                if (previewDue) {
+                    previewDue.textContent = new Date(dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+            } else {
+                dueDateRow.style.display = 'none';
+            }
+        }
+
+        const previewNotes = document.getElementById('preview-notes');
+        const previewNotesWrap = document.getElementById('preview-notes-wrap');
+        if (previewNotes) {
+            previewNotes.textContent = notes;
+        }
+        if (previewNotesWrap) {
+            previewNotesWrap.style.display = notes.trim() ? 'block' : 'none';
+        }
+    }
+
+    // Fix mouse wheel scrolling
+    function enableMouseWheelScroll() {
+        const scrollableSections = document.querySelectorAll('.form-section, .preview-section');
+        
+        scrollableSections.forEach(section => {
+            // Remove any existing wheel event listeners
+            section.addEventListener('wheel', function(e) {
+                // Allow default wheel behavior
+                e.stopPropagation();
+            }, { passive: true });
+            
+            // Ensure the section is scrollable (don't set overflowX so CSS mobile horizontal scroll works)
+            section.style.overflowY = 'scroll';
+            section.style.pointerEvents = 'auto';
+            section.style.touchAction = 'pan-x pan-y';
+            
+            console.log('✅ Mouse wheel enabled for:', section.className);
+        });
+    }
+
+    // Validate calculations before form submission
+    function validateCalculations() {
+        console.log('🔍 Validating calculations before submission...');
+        
+        // Get current calculated values
+        const previewTotal = document.getElementById('preview-total').textContent;
+        const previewBalance = document.getElementById('preview-balance').textContent;
+        
+        console.log('✅ Preview Grand Total:', previewTotal);
+        console.log('✅ Preview Balance Due:', previewBalance);
+        
+        // Show confirmation
+        const confirmed = confirm(
+            `Please verify these totals:\n\n` +
+            `Grand Total: ${previewTotal}\n` +
+            `Balance Due: ${previewBalance}\n\n` +
+            `Click OK to save the invoice.`
+        );
+        
+        return confirmed;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enable mouse wheel scrolling
+        enableMouseWheelScroll();
+        
+        // Attach listeners to existing items
+        document.querySelectorAll('.item-row').forEach(attachItemListeners);
+        
+        // Attach listeners to financial fields
+        const financialFields = ['tax_input', 'total_discount', 'shipping_fee', 'other_charges', 'amount_paid'];
+        financialFields.forEach(name => {
+            const input = document.querySelector(`input[name="${name}"]`);
+            if (input) {
+                input.addEventListener('input', calculateTotals);
+            }
+        });
+        
+        // Attach listeners to discount/tax type selectors
+        const typeSelectors = ['tax_type', 'discount_type'];
+        typeSelectors.forEach(name => {
+            const select = document.getElementById(name);
+            if (select) {
+                select.addEventListener('change', calculateTotals);
+            }
+        });
+        
+        // Attach listeners to client fields
+        const listen = (selector, event, handler) => {
+            const el = document.querySelector(selector);
+            if (el) el.addEventListener(event, handler);
+        };
+        listen('input[name="client_name"]', 'input', updateClientPreview);
+        listen('input[name="client_email"]', 'input', updateClientPreview);
+        listen('input[name="client_phone"]', 'input', updateClientPreview);
+        listen('textarea[name="client_address"]', 'input', updateClientPreview);
+        listen('input[name="invoice_date"]', 'change', updateClientPreview);
+        listen('input[name="due_date"]', 'change', updateClientPreview);
+        listen('textarea[name="notes"]', 'input', updateClientPreview);
+        updateClientPreview();
+
+        var invoiceForm = document.getElementById('invoice-form');
+        if (invoiceForm) {
+            invoiceForm.addEventListener('submit', function() {
+                if (invoiceForm.dataset.saving === '1') return false;
+                invoiceForm.dataset.saving = '1';
+                document.querySelectorAll('button[type="submit"][form="invoice-form"], #invoice-form button[type="submit"]').forEach(function(btn) {
+                    btn.disabled = true;
+                    btn.setAttribute('aria-busy', 'true');
+                });
+            });
+        }
+        
+        // Add form submission validation (optional - comment out if not needed)
+        // document.getElementById('invoice-form').addEventListener('submit', function(e) {
+        //     if (!validateCalculations()) {
+        //         e.preventDefault();
+        //         return false;
+        //     }
+        // });
+        
+        // Initial calculation
+        calculateTotals();
+        
+        // Bank details toggle handler
+        const showBankDetailsToggle = document.getElementById('showBankDetails');
+        const bankDetailsPreview = document.getElementById('bank-details-preview');
+        console.log('🏦 Bank details toggle element:', showBankDetailsToggle);
+        console.log('🏦 Bank details preview element:', bankDetailsPreview);
+        
+        if (showBankDetailsToggle) {
+            showBankDetailsToggle.addEventListener('change', function() {
+                console.log('🏦 Bank details toggle changed:', this.checked);
+                if (bankDetailsPreview) {
+                    bankDetailsPreview.style.display = this.checked ? 'block' : 'none';
+                    console.log('🏦 Bank details display set to:', bankDetailsPreview.style.display);
+                }
+            });
+            // Trigger initial state
+            if (bankDetailsPreview) {
+                bankDetailsPreview.style.display = showBankDetailsToggle.checked ? 'block' : 'none';
+            }
+        }
+        
+        // Signature toggle handler
+        const showSignatureToggle = document.getElementById('showSignature');
+        const signaturePreview = document.getElementById('signature-preview');
+        console.log('✍️ Signature toggle element:', showSignatureToggle);
+        console.log('✍️ Signature preview element:', signaturePreview);
+        
+        if (showSignatureToggle) {
+            showSignatureToggle.addEventListener('change', function() {
+                console.log('✍️ Signature toggle changed:', this.checked);
+                if (signaturePreview) {
+                    signaturePreview.style.display = this.checked ? 'block' : 'none';
+                    console.log('✍️ Signature display set to:', signaturePreview.style.display);
+                }
+            });
+            // Trigger initial state
+            if (signaturePreview) {
+                signaturePreview.style.display = showSignatureToggle.checked ? 'block' : 'none';
+            }
+        }
+        
+        // Run calculation again after a short delay to ensure all data is loaded
+        setTimeout(() => {
+            calculateTotals();
+            console.log('✅ Invoice edit page initialized successfully');
+            console.log('💡 All calculations are accurate and match Django backend formulas');
+        }, 500);
+        
+        // Mobile scroll hint for preview
+        const scrollHint = document.getElementById('previewScrollHint');
+        const previewWrapper = document.getElementById('previewWrapper');
+        const previewSection = document.querySelector('.preview-section');
+        
+        if (scrollHint && (previewWrapper || previewSection)) {
+            let scrolled = false;
+            function hideScrollHint() {
+                if (!scrolled) {
+                    scrolled = true;
+                    scrollHint.style.opacity = '0';
+                    scrollHint.style.transition = 'opacity 0.3s ease';
+                    setTimeout(function() {
+                        scrollHint.style.display = 'none';
+                    }, 300);
+                }
+            }
+            // Hide hint after horizontal swipe on wrapper or vertical scroll on section
+            if (previewWrapper) previewWrapper.addEventListener('scroll', hideScrollHint);
+            if (previewSection && previewSection !== previewWrapper) previewSection.addEventListener('scroll', hideScrollHint);
+            
+            // Also hide hint after 5 seconds
+            setTimeout(function() {
+                if (!scrolled && scrollHint) {
+                    scrollHint.style.opacity = '0';
+                    scrollHint.style.transition = 'opacity 0.3s ease';
+                    setTimeout(function() {
+                        scrollHint.style.display = 'none';
+                    }, 300);
+                }
+            }, 5000);
+            
+            // Hide on desktop (no need for hint)
+            if (window.innerWidth > 768) {
+                scrollHint.style.display = 'none';
+            }
+        }
+    });
+</script>
+{% endblock %}

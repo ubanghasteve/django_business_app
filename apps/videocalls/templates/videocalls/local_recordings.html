@@ -1,0 +1,269 @@
+{% extends 'videocalls/base.html' %}
+{% load static %}
+
+{% block title %}My Recordings - Downloads Folder{% endblock %}
+
+{% block extra_css %}
+<style>
+    .recordings-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .info-card h3 {
+        margin-bottom: 15px;
+    }
+    
+    .device-guide {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    
+    .device-icon {
+        width: 60px;
+        height: 60px;
+        background: #f8f9fa;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        font-size: 1.8rem;
+    }
+    
+    .device-guide h5 {
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .path-display {
+        background: #f8f9fa;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #666;
+        word-break: break-all;
+    }
+    
+    .file-naming {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    
+    .file-naming code {
+        background: #e9ecef;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    
+    .step-number {
+        width: 30px;
+        height: 30px;
+        background: #667eea;
+        color: white;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 30px;
+    }
+    
+    .btn-start {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 10px;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        transition: transform 0.2s;
+    }
+    
+    .btn-start:hover {
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .btn-outline-start {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+        padding: 13px 28px;
+        border-radius: 10px;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .btn-outline-start:hover {
+        background: #667eea;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5 recordings-container">
+    <div class="text-center mb-4">
+        <h1 class="h2 mb-2">
+            <i class="bi bi-folder2-open me-2 text-primary"></i>
+            My Recordings
+        </h1>
+        <p class="text-muted">Recordings are saved directly to your device's Downloads folder</p>
+    </div>
+
+    <div class="info-card">
+        <h3>
+            <i class="bi bi-download me-2"></i>
+            Where Are My Recordings?
+        </h3>
+        <p class="mb-0 opacity-90">
+            When you record a video call, the file is automatically saved to your device's 
+            <strong>Downloads folder</strong>. No server storage used!
+        </p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="device-guide text-center">
+                <div class="device-icon">
+                    <i class="bi bi-laptop text-primary"></i>
+                </div>
+                <h5>Desktop (Windows/Mac/Linux)</h5>
+                <p class="text-muted small mb-3">Open your Downloads folder</p>
+                <div class="path-display">
+                    Downloads/
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="device-guide text-center">
+                <div class="device-icon">
+                    <i class="bi bi-phone text-success"></i>
+                </div>
+                <h5>Android Phone</h5>
+                <p class="text-muted small mb-3">Open Files app or Downloads app</p>
+                <div class="path-display">
+                    Internal Storage > Downloads
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="device-guide text-center">
+                <div class="device-icon">
+                    <i class="bi bi-phone text-info"></i>
+                </div>
+                <h5>iPhone/iPad</h5>
+                <p class="text-muted small mb-3">Open Files app</p>
+                <div class="path-display">
+                    Files > On My iPhone > Downloads
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="file-naming mt-4">
+        <h4 class="mb-3">
+            <i class="bi bi-file-earmark-video me-2 text-primary"></i>
+            File Naming Format
+        </h4>
+        <p class="text-muted mb-3">Each recording is saved with a descriptive name:</p>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-2"><strong>Example filename:</strong></p>
+                <code>VideoCall_ABC12345_2024-01-15_10-30-45.webm</code>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Contains:</strong></p>
+                <ul class="list-unstyled text-muted small">
+                    <li><i class="bi bi-check2 me-2"></i>Prefix: VideoCall</li>
+                    <li><i class="bi bi-check2 me-2"></i>Room code: ABC12345</li>
+                    <li><i class="bi bi-check2 me-2"></i>Date: 2024-01-15</li>
+                    <li><i class="bi bi-check2 me-2"></i>Time: 10:30:45</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h4 class="mb-3">
+            <i class="bi bi-question-circle me-2 text-primary"></i>
+            How to Find Your Recordings
+        </h4>
+        
+        <div class="mb-3">
+            <span class="step-number">1</span>
+            <strong>Open the Downloads folder</strong> on your device
+        </div>
+        
+        <div class="mb-3">
+            <span class="step-number">2</span>
+            <strong>Look for files starting with</strong> <code>VideoCall_</code>
+        </div>
+        
+        <div class="mb-3">
+            <span class="step-number">3</span>
+            <strong>Sort by date</strong> to find the most recent recording at the top
+        </div>
+        
+        <div class="mb-3">
+            <span class="step-number">4</span>
+            <strong>Click to play</strong> or drag to another app to share
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <a href="{% url 'videocalls:lobby' %}" class="btn-start">
+            <i class="bi bi-video"></i>
+            Start Video Call
+        </a>
+        <a href="{% url 'videocalls:create_room' %}" class="btn-outline-start">
+            <i class="bi bi-plus-circle"></i>
+            Create New Room
+        </a>
+    </div>
+
+    <div class="text-center mt-5 pt-4 border-top">
+        <div class="alert alert-info mb-0 d-inline-flex align-items-center">
+            <i class="bi bi-info-circle me-2"></i>
+            <span>
+                <strong>Tip:</strong> Recordings are saved automatically when you stop recording.
+                The file will appear in your Downloads folder.
+            </span>
+        </div>
+    </div>
+</div>
+{% endblock %}

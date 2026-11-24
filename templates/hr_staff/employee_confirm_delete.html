@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Delete {{ employee.full_name }} - HR & Staff{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Delete Employee{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-page-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:employee_list' %}" class="text-decoration-none">Employees</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:employee_detail' employee.pk %}" class="text-decoration-none">{{ employee.full_name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Delete</li>
+                </ol>
+            </nav>
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-3 border-danger">
+                        <div class="card-body p-4 text-center">
+                            <div class="text-danger mb-3"><i class="fas fa-exclamation-triangle fa-3x"></i></div>
+                            <h5 class="fw-bold text-dark mb-2">Delete employee "{{ employee.full_name }}"?</h5>
+                            <p class="text-muted mb-4">This action cannot be undone. All leave requests for this employee will also be removed.</p>
+                            <form method="post" class="d-flex gap-2 justify-content-center flex-wrap" data-employee-delete="true" data-offline-queue="true" data-record-uuid="{{ employee.uuid|default:'' }}">
+                                {% csrf_token %}
+                                <a href="{% url 'hr_staff:employee_detail' employee.pk %}" class="btn btn-outline-secondary rounded-2">Cancel</a>
+                                <button type="submit" class="btn btn-danger rounded-2">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<style>
+.hr-page-wrap { max-width: 100%; background-color: #f0f2f5; }
+@media (max-width: 575.98px) { .hr-page-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; } }
+</style>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form[data-employee-delete="true"]');
+  if (!form) return;
+
+  form.addEventListener('submit', function (ev) {
+    if (typeof navigator === 'undefined' ||
+        navigator.onLine ||
+        !window.OfflineSync ||
+        typeof window.OfflineSync.wrapDelete !== 'function') {
+      return;
+    }
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+    }
+
+    var uuid = form.getAttribute('data-record-uuid') || '';
+    if (!uuid) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      alert('Cannot delete this employee offline because they have no sync identifier.');
+      return;
+    }
+
+    var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+
+    window.OfflineSync.wrapDelete(
+      'hr_staff',
+      uuid,
+      tenantId,
+      function () {
+        return Promise.reject(new Error('online'));
+      }
+    ).then(function () {
+      alert('Deletion queued offline. It will sync when you are back online.');
+      window.location.href = '{% url "hr_staff:employee_list" %}';
+    }).catch(function (err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      if (!err || err.message !== 'online') {
+        alert('Could not queue this delete operation offline. Please try again when you are back online.');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

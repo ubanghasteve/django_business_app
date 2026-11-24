@@ -1,0 +1,180 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>{% block title %}Print{% endblock %}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Roboto+Slab:wght@400;700&display=swap">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="{% static 'css/nucleo-icons.css' %}" rel="stylesheet">
+  <link href="{% static 'css/nucleo-svg.css' %}" rel="stylesheet">
+  <link href="{% static 'css/material-dashboard.css' %}?v=3.0.0" rel="stylesheet" />
+  <style>
+    @media print {
+      @page { size: A4; margin: 0.5cm; }
+      .no-print { display: none !important; }
+      .print-nav-bar { display: none !important; }
+      html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+      body.paper-a5 .a5-fit-wrapper { width: 148mm !important; height: 210mm !important; overflow: hidden !important; }
+    }
+    body.paper-a5 .a5-fit-wrapper {
+      width: 148mm; height: 210mm; overflow: hidden; margin: 0 auto;
+    }
+    /* zoom applied via JS - affects print pagination */
+    body { background: #fff; padding-bottom: 80px; }
+    
+    /* Navigation Bar - Only visible on screen */
+    .print-nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 15px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+    }
+    
+    .print-nav-bar .nav-btn {
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .print-nav-bar .btn-back {
+      background: linear-gradient(135deg, #6c757d, #495057);
+      color: white;
+    }
+    
+    .print-nav-bar .btn-list {
+      background: linear-gradient(135deg, #1976d2, #1565c0);
+      color: white;
+    }
+    
+    .print-nav-bar .btn-print {
+      background: linear-gradient(135deg, #28a745, #218838);
+      color: white;
+    }
+    
+    .print-nav-bar .btn-close-tab {
+      background: linear-gradient(135deg, #dc3545, #c82333);
+      color: white;
+    }
+    
+    .print-nav-bar .nav-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    @media screen and (max-width: 600px) {
+      .print-nav-bar {
+        padding: 12px 15px;
+        gap: 10px;
+      }
+      .print-nav-bar .nav-btn {
+        padding: 8px 15px;
+        font-size: 12px;
+      }
+    }
+    .paper-size-select { display: flex; align-items: center; gap: 8px; }
+    .paper-size-select label { color: #fff; font-size: 13px; font-weight: 500; }
+    .paper-size-select select {
+      padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.15); color: #fff; font-size: 13px; cursor: pointer;
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="a5-fit-wrapper" id="a5FitWrapper">
+    <div id="printContent">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+  
+  <!-- Navigation Bar (only visible on screen, hidden when printing) -->
+  <div class="print-nav-bar no-print">
+    <div class="paper-size-select">
+      <label>Paper:</label>
+      <select id="paperSize" onchange="setPaperSize(this.value)">
+        <option value="a4">A4</option>
+        <option value="a5">A5</option>
+      </select>
+    </div>
+    {% block print_nav_links %}
+    <a href="{% url 'core:dashboard' %}" class="nav-btn btn-back">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    {% endblock %}
+    <button onclick="if(document.body.classList.contains('paper-a5'))applyA5Scale();window.print()" class="nav-btn btn-print">
+      <i class="fas fa-print"></i> Print
+    </button>
+    <button onclick="window.close()" class="nav-btn btn-close-tab">
+      <i class="fas fa-times"></i> Close
+    </button>
+  </div>
+  
+  {% block extra_js %}{% endblock %}
+  <script>
+  function applyA5Scale() {
+    var content = document.getElementById('printContent');
+    if (!content || !document.body.classList.contains('paper-a5')) return;
+    content.style.zoom = '1';
+    var cw = content.scrollWidth || content.offsetWidth || 800;
+    var ch = content.scrollHeight || content.offsetHeight || 600;
+    var aw = 148 * 96 / 25.4 - 24, ah = 210 * 96 / 25.4 - 24;
+    var scale = Math.min(aw / cw, ah / ch, 1);
+    content.style.zoom = scale;
+  }
+  function setPaperSize(size) {
+    var styleId = 'paper-size-style';
+    var existing = document.getElementById(styleId);
+    if (existing) existing.remove();
+    document.body.classList.remove('paper-a5');
+    var content = document.getElementById('printContent');
+    if (content) { content.style.zoom = ''; }
+    if (size === 'a5') {
+      document.body.classList.add('paper-a5');
+      var s = document.createElement('style');
+      s.id = styleId;
+      s.textContent = '@media print { @page { size: A5; margin: 0.3cm; } }';
+      document.head.appendChild(s);
+      if (content) {
+        applyA5Scale();
+        requestAnimationFrame(applyA5Scale);
+        setTimeout(applyA5Scale, 200);
+        setTimeout(applyA5Scale, 800);
+      }
+    }
+    try { localStorage.setItem('printPaperSize', size); } catch(e) {}
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    var saved = null;
+    try { saved = localStorage.getItem('printPaperSize'); } catch(e) {}
+    var sel = document.getElementById('paperSize');
+    if (sel) {
+      if (saved === 'a5') { sel.value = 'a5'; setPaperSize('a5'); }
+      else sel.value = 'a4';
+    }
+  });
+  window.addEventListener('beforeprint', function() {
+    if (document.body.classList.contains('paper-a5') && typeof applyA5Scale === 'function') applyA5Scale();
+  });
+  </script>
+</body>
+</html> 

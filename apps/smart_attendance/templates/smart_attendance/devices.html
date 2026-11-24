@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Biometric Devices{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Devices page: responsive layout, no overflow */
+  .devices-page {
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+  .devices-page .container-fluid {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (max-width: 575.98px) {
+    .devices-page .container-fluid {
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+  }
+
+  /* Header: wrap on small screens, prevent overlap */
+  .devices-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .devices-header h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
+    font-size: 1.5rem;
+  }
+  .devices-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+  @media (max-width: 575.98px) {
+    .devices-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .devices-header h2 { font-size: 1.25rem; }
+    .devices-header-actions {
+      width: 100%;
+      justify-content: stretch;
+    }
+    .devices-header-actions .btn {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  /* Alert: break long URL so it doesn’t overflow */
+  .devices-alert {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .devices-alert code {
+    word-break: break-all;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  /* Table: scroll horizontally on small screens, stay inside card */
+  .devices-card {
+    overflow: hidden;
+    max-width: 100%;
+  }
+  .devices-card .card-body {
+    padding: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+  .devices-table-wrap {
+    min-width: 0;
+  }
+  .devices-table-wrap .table {
+    min-width: 640px;
+    margin-bottom: 0;
+  }
+
+  /* Desktop: show table, hide mobile cards */
+  .devices-mobile-list {
+    display: none;
+  }
+  /* Mobile: show cards, hide table */
+  @media (max-width: 767.98px) {
+    .devices-table-wrap {
+      display: none;
+    }
+    .devices-mobile-list {
+      display: block;
+      padding: 1rem;
+    }
+  }
+  .devices-mobile-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .devices-mobile-card:last-child {
+    margin-bottom: 0;
+  }
+  .devices-mobile-card a {
+    font-weight: 600;
+    word-break: break-word;
+  }
+  .devices-mobile-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+  }
+  .devices-mobile-row span:first-child {
+    color: #6c757d;
+    flex: 0 0 auto;
+  }
+  .devices-mobile-row span:last-child {
+    word-break: break-word;
+    min-width: 0;
+  }
+  .devices-mobile-empty {
+    text-align: center;
+    color: #6c757d;
+    padding: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="devices-page">
+  <div class="container-fluid py-3">
+    <a href="{% url 'smart_attendance:dashboard' %}" class="btn btn-outline-secondary btn-sm mb-3">
+      <i class="fas fa-arrow-left me-1"></i> Back to Attendance Dashboard
+    </a>
+    <div class="alert alert-info mb-3 devices-alert" role="alert">
+      <strong><i class="fas fa-cog me-1"></i>Immediate updates on clock in/out:</strong> Register each device with its <strong>IP address</strong> and <strong>device secret</strong>, then configure the device firmware to push to: <code>{{ request.scheme }}://{{ request.get_host }}/api/biometric/push</code>
+    </div>
+
+    <div class="devices-header">
+      <h2>Biometric Devices</h2>
+      <div class="devices-header-actions">
+        <a href="{% url 'smart_attendance:register_device' %}" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus me-1"></i> Register Device
+        </a>
+        <button type="button" id="btn-discover-devices" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-search me-1"></i> Discover Devices
+        </button>
+      </div>
+    </div>
+
+    <div class="card shadow-sm devices-card">
+      <div class="card-body">
+        <div class="devices-table-wrap">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Serial</th>
+                <th>IP</th>
+                <th>Model</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Last Seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in devices %}
+              <tr>
+                <td><a href="{% url 'smart_attendance:device_detail' d.id %}">{{ d.device_name }}</a></td>
+                <td>{{ d.device_serial }}</td>
+                <td>{{ d.device_ip }}:{{ d.device_port }}</td>
+                <td>{{ d.device_model|default:"—" }}</td>
+                <td>{{ d.location|default:"—" }}</td>
+                <td>
+                  <span class="badge {% if d.status == 'online' %}bg-success{% elif d.status == 'offline' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ d.status|title }}
+                  </span>
+                </td>
+                <td>{{ d.last_seen|default:"—" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-3">No devices registered yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="devices-mobile-list">
+          {% for d in devices %}
+          <div class="devices-mobile-card">
+            <a href="{% url 'smart_attendance:device_detail' d.id %}">{{ d.device_name }}</a>
+            <div class="devices-mobile-row">
+              <span>Status</span>
+              <span>
+                <span class="badge {% if d.status == 'online' %}bg-success{% elif d.status == 'offline' %}bg-danger{% else %}bg-secondary{% endif %}">
+                  {{ d.status|title }}
+                </span>
+              </span>
+            </div>
+            <div class="devices-mobile-row">
+              <span>Serial</span>
+              <span>{{ d.device_serial }}</span>
+            </div>
+            <div class="devices-mobile-row">
+              <span>IP</span>
+              <span>{{ d.device_ip }}:{{ d.device_port }}</span>
+            </div>
+            <div class="devices-mobile-row">
+              <span>Model</span>
+              <span>{{ d.device_model|default:"—" }}</span>
+            </div>
+            <div class="devices-mobile-row">
+              <span>Location</span>
+              <span>{{ d.location|default:"—" }}</span>
+            </div>
+            <div class="devices-mobile-row">
+              <span>Last Seen</span>
+              <span>{{ d.last_seen|default:"—" }}</span>
+            </div>
+          </div>
+          {% empty %}
+          <div class="devices-mobile-card devices-mobile-empty">No devices registered yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('btn-discover-devices');
+  if (!btn) return;
+  btn.addEventListener('click', function() {
+    btn.disabled = true;
+    fetch('/api/devices/discover', {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || ''
+      },
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      btn.disabled = false;
+      var msg = 'Discovery complete. Devices found: ' + (data.discovered || 0);
+      if (window.showNotification) {
+        showNotification(msg, 'info');
+      } else {
+        alert(msg);
+      }
+      window.location.reload();
+    }).catch(function() {
+      btn.disabled = false;
+      if (window.showNotification) {
+        showNotification('Device discovery failed.', 'danger');
+      } else {
+        alert('Device discovery failed.');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
+

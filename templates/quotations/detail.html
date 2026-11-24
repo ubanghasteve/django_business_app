@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load quotation_extras %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Quotation {{ quotation.number }}</h2>
+    <div class="mb-3">
+        {% if is_company_admin or perms.quotations.change_quotation %}
+        <a href="{% url 'quotations:quotation_edit' quotation.pk %}" class="btn btn-warning">Edit</a>
+        {% endif %}
+        {% if is_company_admin or perms.quotations.delete_quotation %}
+        <a href="{% url 'quotations:quotation_delete' quotation.pk %}" class="btn btn-danger">Delete</a>
+        {% endif %}
+        {% if is_company_admin or perms.quotations.print_quotation %}
+        <a href="{% url 'quotations:quotation_print' quotation.pk %}" class="btn btn-info" target="_blank">Print</a>
+        {% endif %}
+        {% if is_company_admin or perms.quotations.download_quotation %}
+        <a href="{% url 'quotations:quotation_export_excel' %}" class="btn btn-success">Export Excel</a>
+        {% endif %}
+        {% if perms.invoices.add_invoice %}
+        <a href="{% url 'quotations:convert_to_invoice' quotation.pk %}" class="btn btn-primary">Convert to Invoice</a>
+        {% endif %}
+        <a href="{% url 'quotations:quotation_list' %}" class="btn btn-secondary">Back to List</a>
+    </div>
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5>Client: {{ quotation.client }}</h5>
+            <p>Status: <span class="badge badge-info">{{ quotation.get_status_display }}</span></p>
+            <p>Date: {{ quotation.date }}</p>
+            <p>Subtotal: {{ quotation.subtotal|currency_format_with_symbol:company_profile }}</p>
+            <p>Tax: {{ quotation.total_tax|currency_format_with_symbol:company_profile }}</p>
+            <p>Discount{% if quotation.discount_type == 'percentage' and quotation.discount_value %} ({{ quotation.discount_value|floatformat:2 }}%){% endif %}: {{ quotation.total_discount|currency_format_with_symbol:company_profile }}</p>
+            <p>Shipping: {{ quotation.shipping_fee|currency_format_with_symbol:company_profile }}</p>
+            <p>Other Charges: {{ quotation.other_charges|currency_format_with_symbol:company_profile }}</p>
+            <p>Total: <strong>{{ quotation.grand_total|currency_format_with_symbol:company_profile }}</strong></p>
+            <p>Total (in words): <em>{{ total_words }}</em></p>
+            <p>Terms: {{ quotation.terms }}</p>
+            <p>Notes: {{ quotation.notes }}</p>
+        </div>
+    </div>
+    {% if quotation.template and quotation.template.header_fields_config %}
+        <h4>Custom Header Fields</h4>
+        <ul>
+            {% for field in quotation.template.header_fields_config %}
+                <li><strong>{{ field.name }}:</strong> {{ quotation.header_custom_fields|get_item:field.name }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <h4>Line Items</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+                {% if quotation.template and quotation.template.layout_config %}
+                    {% for col in quotation.template.layout_config|safe|json_loads %}
+                        <th>{{ col }}</th>
+                    {% endfor %}
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.description }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit_price|currency_format_with_symbol:company_profile }}</td>
+                <td>{{ item.line_total|currency_format_with_symbol:company_profile }}</td>
+                {% if quotation.template and quotation.template.layout_config %}
+                    {% for col in quotation.template.layout_config|safe|json_loads %}
+                        <td>{{ item.custom_fields|get_item:col }}</td>
+                    {% endfor %}
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

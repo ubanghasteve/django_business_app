@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Chart of Accounts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Chart of Accounts</h1>
+            <p class="text-muted">Manage ledger accounts used for double-entry posting.</p>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="mb-0">Create / Edit Account</h5>
+        </div>
+        <div class="card-body">
+            <form id="chartAccountForm">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Code</label>
+                        <input type="text" name="code" class="form-control" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Category</label>
+                        {{ form.category }}
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        <label class="form-label">Account Type</label>
+                        {{ form.account_type }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Parent Account</label>
+                        {{ form.parent }}
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label ms-1">Active</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-primary" onclick="saveAccount()">Save Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Accounts</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="chartAccountsTable">
+                    {% include 'accounting/partials/account_table.html' %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCsrfToken() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function loadChartOfAccounts() {
+    fetch('{% url "accounting_api:api_chart_of_accounts" %}')
+        .then(resp => resp.json())
+        .then(data => {
+            const tbody = document.querySelector('#chartAccountsTable tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            (data.results || []).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.code}</td>
+                    <td>${row.name}</td>
+                    <td>${row.category_type || ''}</td>
+                    <td>${row.is_active ? 'Yes' : 'No'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => console.error('Error loading chart of accounts:', err));
+}
+
+function saveAccount() {
+    const form = document.getElementById('chartAccountForm');
+    const data = new FormData(form);
+    const payload = {};
+    data.forEach((v, k) => payload[k] = v);
+
+    fetch('{% url "accounting_api:api_chart_of_accounts" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.detail || data.code) {
+            alert('Error saving account. Please check your input.');
+        } else {
+            loadChartOfAccounts();
+            form.reset();
+        }
+    })
+    .catch(err => console.error('Error saving account:', err));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadChartOfAccounts();
+    // Periodically refresh COA so external changes appear without reload
+    setInterval(loadChartOfAccounts, 60000);
+});
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Store Layouts{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; border-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; border-color: #28a745 !important; }
+    .btn-danger { background-color: #dc3545 !important; border-color: #dc3545 !important; }
+    .btn-secondary { background-color: #6c757d !important; border-color: #6c757d !important; }
+    .layout-card { border-radius: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">Store Layouts</h5><p class="text-muted text-sm mb-0">Configure table columns and appearance</p></div>
+        <div class="col-auto">
+            <a href="{% url 'store:layout_create' %}" class="btn btn-success"><i class="fas fa-plus"></i> New Layout</a>
+            <a href="{% url 'store:list' %}" class="btn btn-secondary"><i class="fas fa-boxes"></i> Store Items</a>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search layouts...">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                {% if search %}<a href="{% url 'store:layout_list' %}" class="btn btn-secondary"><i class="fas fa-times"></i></a>{% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for layout in page_obj %}
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card layout-card h-100">
+                <div class="card-header" style="background: linear-gradient(135deg, {{ layout.primary_color }} 0%, {{ layout.secondary_color }} 100%); color: {{ layout.text_color }};">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>{{ layout.name }}</strong>
+                        {% if layout.is_default %}<span class="badge bg-warning text-dark">Default</span>{% endif %}
+                    </div>
+                    {% if layout.description %}<small style="opacity:0.8;">{{ layout.description|truncatewords:2 }}</small>{% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="fw-bold">{{ layout.get_visible_columns|length }}</div>
+                            <small class="text-muted">Columns</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold">{% if layout.supports_calculations %}Yes{% else %}No{% endif %}</div>
+                            <small class="text-muted">Calculations</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold">{% if layout.show_grand_total %}Yes{% else %}No{% endif %}</div>
+                            <small class="text-muted">Grand Total</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-0">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'store:layout_preview' layout.pk %}" class="btn btn-sm btn-primary flex-fill"><i class="fas fa-eye"></i> Preview</a>
+                        <a href="{% url 'store:layout_update' layout.pk %}" class="btn btn-sm btn-warning flex-fill"><i class="fas fa-edit"></i></a>
+                        <button class="btn btn-sm btn-danger flex-fill" onclick="confirmDelete({{ layout.pk }}, '{{ layout.name|escapejs }}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-th-large fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No layouts yet</h5>
+                    <a href="{% url 'store:layout_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Create Layout</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav><ul class="pagination justify-content-center mt-3">
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>{% endif %}
+        {% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>{% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Layout</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body"><p>Delete layout "<strong id="deleteItemName"></strong>"?</p></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" action=""><button type="submit" class="btn btn-danger">Delete</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(pk, name) {
+    document.getElementById('deleteItemName').textContent = name;
+    document.getElementById('deleteForm').action = '/store/layout/delete/' + pk + '/';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

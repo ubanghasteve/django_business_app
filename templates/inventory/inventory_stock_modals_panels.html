@@ -1,0 +1,255 @@
+{% include 'inventory/inventory_modal_form_styles.html' %}
+
+<!-- Stock receipt modal -->
+<div class="modal fade" id="inventoryReceiptModal" tabindex="-1" aria-labelledby="inventoryReceiptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="inventoryReceiptModalLabel"><i class="fas fa-truck-loading me-2"></i>Receive stock (new delivery)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1 fw-semibold" id="receipt-modal-product-info">Product: —</p>
+                <p class="mb-3 small">Total quantity in (all receipts): <span id="receipt-modal-total-in" class="fw-semibold text-success">—</span></p>
+                <div class="alert alert-warning py-2 mb-3 small" id="receipt-create-hint">
+                    <strong>Important:</strong> Enter only what you are receiving <em>now</em> (e.g. <strong>10 Rolls</strong>).
+                    The system adds it to Quantity In — do not type the running total.
+                </div>
+                <form id="inventoryReceiptForm">
+                    <input type="hidden" name="inventory" id="receipt-inventory-id" value="">
+                    <input type="hidden" name="edit_id" id="receipt-edit-id" value="">
+                    <div class="border border-success rounded p-3 mb-3 bg-light">
+                        <label class="form-label fw-bold text-success mb-2" for="receipt-quantity">How much are you receiving now? <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg inventory-modal-input" name="quantity" id="receipt-quantity" placeholder="e.g. 10 Rolls" required autocomplete="off">
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-semibold">Supplier / source</label>
+                            <input type="text" class="form-control form-control-sm inventory-modal-input" name="supplier_name" id="receipt-supplier" placeholder="Optional">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Date</label>
+                            <input type="date" class="form-control form-control-sm inventory-modal-input" name="received_date" id="receipt-date">
+                        </div>
+                        {% include 'inventory/inventory_time_ampm_field.html' with prefix='receipt' hidden_name='received_time' %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small" for="receipt-remark">Remark</label>
+                        <textarea class="form-control form-control-sm inventory-modal-input" name="remark" id="receipt-remark" rows="3" placeholder="Optional note"></textarea>
+                    </div>
+                    {% if perms.inventory.change_inventory %}
+                    <button type="submit" class="btn btn-success" id="receipt-submit-btn"><i class="fas fa-check me-1"></i>Record this receipt</button>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Waste log modal -->
+<div class="modal fade" id="inventoryWasteModal" tabindex="-1" aria-labelledby="inventoryWasteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="inventoryWasteModalLabel"><i class="fas fa-trash-alt me-2"></i>Record waste (this incident only)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1 fw-semibold" id="waste-modal-product-info">Product: —</p>
+                <p class="mb-2">Net remaining in stock: <span id="waste-modal-available" class="fs-5 fw-bold text-primary">—</span></p>
+                <p class="mb-3 small">Total waste (all logs): <span id="waste-modal-total" class="fw-semibold text-warning">—</span></p>
+                <div class="alert alert-warning py-2 mb-3 small">
+                    Enter only the amount wasted <em>in this incident</em>. The system updates the Waste total for you.
+                </div>
+                <form id="inventoryWasteForm">
+                    <input type="hidden" name="inventory" id="waste-inventory-id" value="">
+                    <input type="hidden" name="edit_id" id="waste-edit-id" value="">
+                    <div class="border border-warning rounded p-3 mb-3 bg-light">
+                        <label class="form-label fw-bold mb-2" for="waste-quantity">Waste quantity now <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg inventory-modal-input" name="quantity" id="waste-quantity" placeholder="e.g. 2 Rolls" required autocomplete="off">
+                        <div id="waste-qty-feedback" class="small mt-2" role="status"></div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Reason</label>
+                            <select class="form-select form-select-sm inventory-modal-input" name="reason" id="waste-reason">
+                                <option value="damaged">Damaged</option>
+                                <option value="expired">Expired</option>
+                                <option value="shrinkage">Shrinkage</option>
+                                <option value="spoilage">Spoilage</option>
+                                <option value="contamination">Contamination</option>
+                                <option value="quality_issue">Quality Issue</option>
+                                <option value="handling">Handling Loss</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Date</label>
+                            <input type="date" class="form-control form-control-sm inventory-modal-input" name="waste_date" id="waste-date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Details</label>
+                        <input type="text" class="form-control form-control-sm inventory-modal-input" name="description" id="waste-description" placeholder="Optional note">
+                    </div>
+                    {% if perms.inventory.change_inventory %}
+                    <button type="submit" class="btn btn-warning" id="waste-submit-btn"><i class="fas fa-check me-1"></i>Record waste</button>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating receipt log -->
+<div id="qty-in-floating-panel" class="qty-out-floating-panel shadow border rounded bg-white" style="display: none;" role="dialog" aria-label="Quantity in receipt log">
+    <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-start">
+        <div>
+            <div class="fw-semibold small">Quantity in — receipt log</div>
+            <div class="text-muted small">Total: <span class="stock-dd-total fw-semibold text-success">—</span></div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm stock-panel-close" aria-label="Close"></button>
+    </div>
+    <div class="px-2 py-2 border-bottom stock-panel-filters">
+        <input type="search" class="form-control form-control-sm stock-dd-search mb-1" placeholder="Search supplier, date, quantity, remark…" autocomplete="off" aria-label="Search receipts">
+        <p class="stock-dd-date-help text-muted small mt-1 mb-1">Date range (optional): use <strong>From</strong> and <strong>To</strong> to narrow the list. Leave both empty to show every receipt.</p>
+        <div class="row g-1 stock-dd-date-row">
+            <div class="col-6">
+                <label class="form-label small mb-0 text-secondary">From</label>
+                <input type="date" class="form-control form-control-sm stock-dd-filter-from" aria-label="From date">
+            </div>
+            <div class="col-6">
+                <label class="form-label small mb-0 text-secondary">To</label>
+                <input type="date" class="form-control form-control-sm stock-dd-filter-to" aria-label="To date">
+            </div>
+        </div>
+    </div>
+    <div class="stock-panel-scroll">
+        <div class="stock-dropdown-body p-2"><div class="text-muted small text-center py-2">Loading…</div></div>
+    </div>
+    <div class="border-top p-2 bg-light">
+        {% if perms.inventory.change_inventory %}
+        <button type="button" class="btn btn-sm btn-success receipt-stock-btn" data-bs-toggle="modal" data-bs-target="#inventoryReceiptModal" data-pk="">
+            <i class="fas fa-plus me-1"></i>Receive stock
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Floating waste log -->
+<div id="qty-waste-floating-panel" class="qty-out-floating-panel shadow border rounded bg-white" style="display: none;" role="dialog" aria-label="Waste log">
+    <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-start">
+        <div>
+            <div class="fw-semibold small">Waste — incident log</div>
+            <div class="text-muted small">Total: <span class="stock-dd-total fw-semibold text-warning">—</span></div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm stock-panel-close" aria-label="Close"></button>
+    </div>
+    <div class="px-2 py-2 border-bottom stock-panel-filters">
+        <input type="search" class="form-control form-control-sm stock-dd-search mb-1" placeholder="Search reason, date, quantity…" autocomplete="off" aria-label="Search waste logs">
+        <p class="stock-dd-date-help text-muted small mt-1 mb-1">Date range (optional): use <strong>From</strong> and <strong>To</strong> to narrow the list. Leave both empty to show every waste entry.</p>
+        <div class="row g-1 stock-dd-date-row">
+            <div class="col-6">
+                <label class="form-label small mb-0 text-secondary">From</label>
+                <input type="date" class="form-control form-control-sm stock-dd-filter-from" aria-label="From date">
+            </div>
+            <div class="col-6">
+                <label class="form-label small mb-0 text-secondary">To</label>
+                <input type="date" class="form-control form-control-sm stock-dd-filter-to" aria-label="To date">
+            </div>
+        </div>
+    </div>
+    <div class="stock-panel-scroll">
+        <div class="stock-dropdown-body p-2"><div class="text-muted small text-center py-2">Loading…</div></div>
+    </div>
+    <div class="border-top p-2 bg-light">
+        {% if perms.inventory.change_inventory %}
+        <button type="button" class="btn btn-sm btn-warning waste-stock-btn" data-bs-toggle="modal" data-bs-target="#inventoryWasteModal" data-pk="">
+            <i class="fas fa-plus me-1"></i>Record waste
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Balance calculation log -->
+<div id="balance-floating-panel" class="qty-out-floating-panel shadow border rounded bg-white" style="display: none;" role="dialog" aria-label="Balance calculation log">
+    <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-start">
+        <div>
+            <div class="fw-semibold small">Balance — calculation log</div>
+            <div class="text-muted small">Current: <span class="balance-dd-current fw-semibold">—</span></div>
+            <div class="text-muted small">Formula: Quantity In × Unit Price</div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm stock-panel-close" aria-label="Close"></button>
+    </div>
+    <div class="px-2 py-2 border-bottom stock-panel-filters">
+        <input type="search" class="form-control form-control-sm stock-dd-search mb-1" placeholder="Search date, receipt, calculation…" autocomplete="off" aria-label="Search balance log">
+    </div>
+    <div class="stock-panel-scroll">
+        <div class="stock-dropdown-body p-2"><div class="text-muted small text-center py-2">Loading…</div></div>
+    </div>
+    <div class="border-top p-2 bg-light">
+        <p class="small text-muted mb-0">Each line is recorded when you use <strong>Receive stock</strong> (Quantity In ▾) or change unit price. Issues do not reduce Balance (only stock value remaining).</p>
+    </div>
+</div>
+
+<!-- Stock balance remaining calculation log -->
+<div id="stock-remaining-floating-panel" class="qty-out-floating-panel shadow border rounded bg-white" style="display: none;" role="dialog" aria-label="Stock balance remaining log">
+    <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-start">
+        <div>
+            <div class="fw-semibold small">Stock balance remaining — log</div>
+            <div class="text-muted small">Current: <span class="stock-remaining-dd-current fw-semibold text-primary">—</span></div>
+            <div class="text-muted small">Formula: Net Qty × Unit Price</div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm stock-panel-close" aria-label="Close"></button>
+    </div>
+    <div class="px-2 py-2 border-bottom stock-panel-filters">
+        <input type="search" class="form-control form-control-sm stock-dd-search mb-1" placeholder="Search date, issue, waste, calculation…" autocomplete="off" aria-label="Search stock value log">
+    </div>
+    <div class="stock-panel-scroll">
+        <div class="stock-dropdown-body p-2"><div class="text-muted small text-center py-2">Loading…</div></div>
+    </div>
+    <div class="border-top p-2 bg-light">
+        <p class="small text-muted mb-0">Updates in real time after each <strong>Quantity In ▾</strong>, <strong>Quantity Out ▾</strong>, or <strong>Waste ▾</strong> entry.</p>
+    </div>
+</div>
+
+<!-- Unit price & financial history -->
+<div id="unit-price-floating-panel" class="qty-out-floating-panel shadow border rounded bg-white" style="display: none;" role="dialog" aria-label="Unit price and value history">
+    <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-start">
+        <div>
+            <div class="fw-semibold small">Unit price &amp; value history</div>
+            <div class="text-muted small">Price: <span class="price-dd-unit fw-semibold">—</span></div>
+            <div class="text-muted small">Balance: <span class="price-dd-balance fw-semibold">—</span> · Remaining: <span class="price-dd-remaining fw-semibold">—</span></div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm stock-panel-close" aria-label="Close"></button>
+    </div>
+    <div class="px-2 py-2 border-bottom stock-panel-filters">
+        <input type="search" class="form-control form-control-sm stock-dd-search mb-1" placeholder="Search event, remark, amounts…" autocomplete="off" aria-label="Search price history">
+    </div>
+    <div class="stock-panel-scroll">
+        <div class="stock-dropdown-body p-2"><div class="text-muted small text-center py-2">Loading…</div></div>
+    </div>
+    <div class="border-top p-2 bg-light">
+        <p class="small text-muted mb-0">Each line is a snapshot when stock or price changed. Receipts and withdrawals in <strong>Quantity In ▾</strong> / <strong>Quantity Out ▾</strong> show the unit price recorded at that time.</p>
+    </div>
+</div>
+
+<!-- Stock balance breakdown (Net / Balance) -->
+<div id="qty-summary-floating-panel" class="qty-out-floating-panel shadow border rounded bg-white" style="display: none;" role="dialog" aria-label="Stock balance breakdown">
+    <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-start">
+        <div>
+            <div class="fw-semibold small stock-summary-title">Stock balance</div>
+            <div class="text-muted small stock-summary-product">—</div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm stock-panel-close" aria-label="Close"></button>
+    </div>
+    <div class="stock-panel-scroll">
+        <div class="stock-dropdown-body p-3"><div class="text-muted small text-center py-2">Loading…</div></div>
+    </div>
+</div>

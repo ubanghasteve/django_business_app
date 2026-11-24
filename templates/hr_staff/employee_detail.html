@@ -1,0 +1,548 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}HR & Staff - {{ employee.full_name }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Employee Staff Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-page-wrap hr-employee-detail-page">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb" class="mb-3 mb-md-4">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:employee_list' %}" class="text-decoration-none">Employees</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ employee.full_name }}</li>
+                </ol>
+            </nav>
+
+            <!-- Employee Profile Card -->
+            <div class="card border-0 shadow-sm rounded-3 mb-4 hr-detail-profile-card">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                        <div class="d-flex align-items-start flex-grow-1 min-w-0">
+                            <div class="hr-detail-avatar rounded-circle overflow-hidden bg-light flex-shrink-0 me-3" style="width: 80px; height: 80px;" title="{% if employee_display_photo_url %}Profile photo{% else %}Initials (no photo uploaded){% endif %}" aria-label="{% if employee_display_photo_url %}Profile photo of {{ employee.full_name }}{% else %}Initials for {{ employee.full_name }}{% endif %}">
+                                {% if employee_display_photo_url %}
+                                <img src="{{ employee_display_photo_url }}" alt="{{ employee.full_name }}" class="w-100 h-100 hr-detail-photo-img" id="hr-detail-photo">
+                                {% else %}
+                                <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted fw-bold text-uppercase" style="font-size: 1.75rem; letter-spacing: 0.02em;" id="hr-detail-initials">{% with fi=employee.first_name|slice:":1"|upper li=employee.last_name|slice:":1"|upper %}{% if fi or li %}{{ fi }}{{ li }}{% else %}—{% endif %}{% endwith %}</div>
+                                {% endif %}
+                            </div>
+                            <div class="min-w-0 flex-grow-1">
+                                <h4 class="fw-bold text-dark mb-1" id="hr-detail-name">{{ employee.full_name }}{% if employee_is_account_owner %} <span class="badge bg-secondary ms-1">Account owner</span>{% endif %}</h4>
+                                <p class="text-muted mb-2" id="hr-detail-position">{{ employee.position|default:"—" }}</p>
+                                <div class="d-flex flex-wrap align-items-center gap-2 hr-detail-meta-list">
+                                    {% if employee.department %}
+                                    <a href="{% url 'hr_staff:department_detail' employee.department.pk %}" class="hr-detail-meta-item hr-detail-meta-link d-inline-flex align-items-center" title="View department">
+                                        <svg class="me-1 hr-icon-dept" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                                        <span id="hr-detail-department">{{ employee.department.name }}</span>
+                                    </a>
+                                    {% else %}
+                                    <span class="hr-detail-meta-item d-inline-flex align-items-center">
+                                        <svg class="me-1 hr-icon-dept" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                                        <span id="hr-detail-department">—</span>
+                                    </span>
+                                    {% endif %}
+                                    <span class="hr-detail-meta-sep" aria-hidden="true">·</span>
+                                    <span class="hr-detail-meta-item d-inline-flex align-items-center">
+                                        <svg class="me-1 hr-icon-calendar" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                                        <span id="hr-detail-date-joined">Joined {{ employee.date_joined|date:"d/m/Y"|default:"—" }}</span>
+                                    </span>
+                                    <span class="hr-detail-meta-sep" aria-hidden="true">·</span>
+                                    <span class="hr-detail-meta-item d-inline-flex align-items-center" id="hr-detail-reports-to-wrap">
+                                        <svg class="me-1 hr-icon-report" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                        <span id="hr-detail-reports-to">{% if employee.reporting_manager %}Reports to {{ employee.reporting_manager }}{% else %}—{% endif %}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center flex-wrap gap-2 hr-detail-actions">
+                            {% if perms.hr_staff.add_employee %}
+                            <a href="{% url 'hr_staff:employee_create' %}" class="btn btn-outline-primary rounded-2 d-inline-flex align-items-center">Add Employee</a>
+                            {% endif %}
+                            <span class="badge rounded-pill hr-detail-status-badge {% if employee.status == 'active' %}bg-success text-white{% elif employee.status == 'on_leave' %}bg-warning bg-opacity-10 text-warning{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}" id="hr-detail-status">{{ employee.get_status_display }}</span>
+                            {% if perms.hr_staff.change_employee and not employee_is_account_owner %}
+                            <a href="{% url 'hr_staff:employee_edit' employee.pk %}" class="btn btn-primary rounded-2 d-inline-flex align-items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="me-1"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                                Edit
+                            </a>
+                            {% endif %}
+                            {% if perms.hr_staff.reset_employee_password and employee.is_portal_user and employee.portal_created_by_hr and not employee_is_account_owner %}
+                            <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-toggle="modal" data-bs-target="#hrResetPasswordModal">Reset password</button>
+                            {% endif %}
+                            {% comment %}HR cannot disable/delete company-admin-created team members; only profile edit allowed. Company Admin can always disable; HR only when portal_created_by_hr.{% endcomment %}
+                            {% if perms.hr_staff.change_employee and employee.is_portal_user and not employee_is_account_owner and is_company_admin or perms.hr_staff.change_employee and employee.is_portal_user and not employee_is_account_owner and employee.portal_created_by_hr %}
+                            <button type="button" class="btn rounded-2 {% if employee.linked_user.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" data-bs-toggle="modal" data-bs-target="#hrToggleActiveModal">{% if employee.linked_user.is_active %}Disable account{% else %}Activate account{% endif %}</button>
+                            {% endif %}
+                            {% if perms.hr_staff.delete_employee and not employee_is_account_owner and is_company_admin or perms.hr_staff.delete_employee and not employee_is_account_owner and not employee.is_portal_user or perms.hr_staff.delete_employee and not employee_is_account_owner and employee.portal_created_by_hr %}
+                            <a href="{% url 'hr_staff:employee_delete' employee.pk %}" class="btn btn-outline-danger rounded-2">Delete</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact, Employment, and Personal Details -->
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-xl-4">
+                    <div class="card border-0 shadow-sm rounded-3 h-100 hr-detail-contact-card hr-card-animate">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold text-dark mb-3 d-flex align-items-center">
+                                <span class="hr-pill-dot me-2"></span>Contact Information
+                            </h6>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-email" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                                    Email Address
+                                </p>
+                                <p class="fw-semibold text-dark mb-0 text-break" id="hr-detail-email">{{ employee.email|default:"—" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-phone" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                                    Phone Number
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-phone">{{ employee.phone|default:"—" }}</p>
+                            </div>
+                            <div>
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-location" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.69 2 6 4.69 6 8c0 4.17 6 12 6 12s6-7.83 6-12c0-3.31-2.69-6-6-6zm0 8.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 5.5 12 5.5s2.5 1.12 2.5 2.5S13.38 10.5 12 10.5z"/></svg>
+                                    Address
+                                </p>
+                                <p class="fw-semibold text-dark mb-1" id="hr-detail-address-line1">
+                                    {{ employee.street_address|default:"—" }}
+                                </p>
+                                <p class="text-muted mb-0 small" id="hr-detail-address-line2">
+                                    {% if employee.city or employee.state_province or employee.zip_code %}
+                                        {{ employee.city }}{% if employee.city and employee.state_province %}, {% endif %}{{ employee.state_province }} {% if employee.zip_code %}{{ employee.zip_code }}{% endif %}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <div class="card border-0 shadow-sm rounded-3 h-100 hr-detail-employment-card hr-card-animate hr-card-animate-delay-1">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold text-dark mb-3 d-flex align-items-center">
+                                <span class="hr-pill-dot me-2 bg-primary-subtle"></span>Employment Details
+                            </h6>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-id" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.11 0 2-.9 2-2V6c0-1.1-.89-2-2-2zm0 14H4V8h16v10zM8 10c1.11 0 2 .9 2 2s-.89 2-2 2-2-.9-2-2 .89-2 2-2zm0 6c1.66 0 3.14.83 4 2H4c.86-1.17 2.34-2 4-2zm6-4h4v2h-4v-2zm0-3h4v2h-4V9z"/></svg>
+                                    Employee ID
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-employee-id">{{ employee.employee_id|default:"—" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-calendar-purple" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                                    Join Date
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-join-date">{{ employee.date_joined|date:"F d, Y"|default:"—" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-salary" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                                    Annual Salary
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-salary">{% if annual_salary %}{{ user_currency_symbol|default:"$" }}{{ annual_salary|floatformat:0|intcomma }}{% else %}—{% endif %}</p>
+                            </div>
+                            <div>
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-status" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2zm-1 15-4-4 1.41-1.41L11 14.17l4.59-4.59L17 11l-6 6z"/></svg>
+                                    Employment Status
+                                </p>
+                                <p class="fw-semibold mb-0">
+                                    <span class="badge rounded-pill hr-detail-status-badge {% if employee.status == 'active' %}bg-success text-white{% elif employee.status == 'on_leave' %}bg-warning bg-opacity-10 text-warning{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}" id="hr-detail-status-inline">
+                                        {{ employee.get_status_display }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <div class="card border-0 shadow-sm rounded-3 h-100 hr-detail-personal-card hr-card-animate hr-card-animate-delay-2">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold text-dark mb-3 d-flex align-items-center">
+                                <span class="hr-pill-dot me-2 bg-success-subtle"></span>Personal & Emergency
+                            </h6>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-birthday" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-.83 0-1.5.67-1.5 1.5 0 .39.16.74.41 1L8 7v2h8V7l-2.91-2.5c.25-.26.41-.61.41-1C13.5 2.67 12.83 2 12 2zM6 11v9h12v-9H6zm2 2h2v2H8v-2zm0 3h2v2H8v-2zm6-3h2v2h-2v-2zm0 3h2v2h-2v-2z"/></svg>
+                                    Date of Birth
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-dob">
+                                    {% if employee.date_of_birth %}{{ employee.date_of_birth|date:"F d, Y" }}{% else %}—{% endif %}
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-emergency" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 4.84L19.53 19H4.47L12 6.84zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+                                    Emergency Contact
+                                </p>
+                                <p class="fw-semibold text-dark mb-1" id="hr-detail-emergency-name">
+                                    {{ employee.emergency_contact_name|default:"—" }}
+                                </p>
+                                <p class="text-muted mb-0 small" id="hr-detail-emergency-phone">
+                                    {{ employee.emergency_contact_phone|default:"—" }}
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-bio" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v2H4zm0 4h10v2H4zm0 4h8v2H4zm0 4h6v2H4z"/></svg>
+                                    Bio / Notes
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-bio">
+                                    {% if employee.bio %}{{ employee.bio }}{% else %}—{% endif %}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="small text-muted mb-1 d-flex align-items-center">
+                                    <svg class="me-2 hr-icon-manager" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                    Reporting Manager
+                                </p>
+                                <p class="fw-semibold text-dark mb-0" id="hr-detail-reports-to-secondary">
+                                    {% if employee.reporting_manager %}{{ employee.reporting_manager }}{% else %}—{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leave History -->
+            <div class="card border-0 shadow-sm rounded-3 hr-detail-leave-card hr-card-animate hr-card-animate-delay-3">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3">
+                        <h6 class="fw-bold text-dark mb-0">Leave History</h6>
+                        {% if perms.hr_staff.add_leaverequest %}
+                        <a href="{% url 'hr_staff:leave_create' %}?employee={{ employee.pk }}" class="btn btn-sm btn-primary rounded-2">Add Leave</a>
+                        {% endif %}
+                    </div>
+                    <div id="hr-detail-leave-container">
+                        {% for req in leave_requests %}
+                        <div class="d-flex align-items-center p-2 border-bottom hr-leave-row">
+                            <div class="flex-grow-1">
+                                <span class="fw-semibold d-block">{{ req.get_leave_type_display }}</span>
+                                <span class="text-muted small">{{ req.start_date|date:"M d, Y" }} – {{ req.end_date|date:"M d, Y" }}</span>
+                            </div>
+                            <span class="badge rounded-pill me-2 {% if req.status == 'approved' %}bg-success bg-opacity-10 text-success{% elif req.status == 'rejected' %}bg-danger bg-opacity-10 text-danger{% else %}bg-warning bg-opacity-10 text-warning{% endif %}">{{ req.get_status_display }}</span>
+                            <a href="{% url 'hr_staff:leave_detail' req.pk %}" class="btn btn-sm btn-link p-0">View</a>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center mb-0 py-4" id="hr-detail-leave-empty">No leave requests on record</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation modal: Reset password -->
+<div class="modal fade" id="hrResetPasswordModal" tabindex="-1" aria-labelledby="hrResetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title" id="hrResetPasswordModalLabel">Reset portal password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Generate a new temporary password for <strong>{{ employee.full_name }}</strong>? They will need to change it after first login. You will see the password only once.</p>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'hr_staff:employee_reset_password' employee.pk %}" class="d-inline" data-offline-queue="true">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary rounded-2">Reset password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation modal: Disable / Activate account -->
+<div class="modal fade" id="hrToggleActiveModal" tabindex="-1" aria-labelledby="hrToggleActiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title" id="hrToggleActiveModalLabel">{% if employee.linked_user.is_active %}Disable portal account{% else %}Activate portal account{% endif %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if employee.linked_user.is_active %}
+                <p class="mb-0">Disable login for <strong>{{ employee.full_name }}</strong>? They will not be able to sign in until the account is activated again.</p>
+                {% else %}
+                <p class="mb-0">Activate the portal account for <strong>{{ employee.full_name }}</strong>? They will be able to sign in again.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'hr_staff:employee_toggle_active' employee.pk %}" class="d-inline" data-offline-queue="true">
+                    {% csrf_token %}
+                    <button type="submit" class="btn rounded-2 {% if employee.linked_user.is_active %}btn-warning{% else %}btn-success{% endif %}">{% if employee.linked_user.is_active %}Disable account{% else %}Activate account{% endif %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-page-wrap { max-width: 100%; background-color: #f0f2f5; }
+.hr-detail-profile-card .card-body { padding: 1.5rem 1.5rem !important; }
+/* Profile meta row (department · joined · reports to) */
+.hr-detail-meta-list { gap: 0.5rem 0; }
+.hr-detail-meta-item {
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #5a6268;
+  background: rgba(0,0,0,.04);
+  transition: background .15s, color .15s;
+}
+.hr-detail-meta-link {
+  text-decoration: none !important;
+  color: #495057;
+}
+.hr-detail-meta-link:hover {
+  background: rgba(25, 118, 210, 0.1);
+  color: var(--theme-primary-color, #1976d2);
+}
+.hr-detail-meta-link:hover .hr-icon-dept { color: var(--theme-primary-color, #1976d2); }
+.hr-detail-meta-sep {
+  color: #adb5bd;
+  font-weight: 700;
+  padding: 0 0.15rem;
+  user-select: none;
+}
+.hr-icon-dept { color: #5a6268; transition: color .15s; }
+.hr-icon-calendar { color: #6c757d; }
+.hr-icon-calendar-purple { color: #7c4dff; }
+.hr-icon-report { color: #6c757d; }
+.hr-icon-email { color: #1976d2; }
+.hr-icon-phone { color: #43a047; }
+.hr-icon-salary { color: #43a047; }
+.hr-detail-status-badge { font-size: 0.875rem; font-weight: 600; }
+/* Ensure status text is visible */
+.hr-detail-status-badge.bg-success { color: #fff !important; }
+.hr-detail-status-badge.bg-warning { color: #856404 !important; }
+.hr-detail-status-badge.bg-danger { color: #dc3545 !important; }
+.hr-detail-status-badge.bg-secondary { color: #5a6268 !important; }
+/* Profile image: zoom to fit - entire image visible, all dimensions fit inside the circle (nothing cut off) */
+.hr-detail-avatar .hr-detail-photo-img {
+  object-fit: contain;
+  object-position: center;
+  width: 100%;
+  height: 100%;
+  background: #f0f2f5;
+}
+/* Actions (Add, Active, Edit, Reset, Disable, Delete) */
+.hr-detail-actions {
+  flex-shrink: 1 !important;
+}
+@media (min-width: 992px) {
+  .hr-detail-actions {
+    justify-content: flex-end;
+  }
+}
+/* Inline status badge inside cards */
+#hr-detail-status-inline { font-size: 0.85rem; }
+
+/* Layout & card animations */
+.hr-card-animate {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: hrFadeUp 480ms ease-out forwards;
+}
+.hr-card-animate-delay-1 { animation-delay: 80ms; }
+.hr-card-animate-delay-2 { animation-delay: 140ms; }
+.hr-card-animate-delay-3 { animation-delay: 200ms; }
+
+@keyframes hrFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hr-detail-profile-card,
+.hr-detail-contact-card,
+.hr-detail-employment-card,
+.hr-detail-personal-card,
+.hr-detail-leave-card {
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+.hr-detail-profile-card:hover,
+.hr-detail-contact-card:hover,
+.hr-detail-employment-card:hover,
+.hr-detail-personal-card:hover,
+.hr-detail-leave-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.75rem 1.75rem rgba(15, 23, 42, 0.08);
+}
+
+.hr-pill-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(25, 118, 210, 0.12);
+}
+
+/* Top actions: keep buttons tidy on small screens */
+.hr-employee-detail-page .hr-detail-profile-card .d-flex.flex-md-row {
+  row-gap: 0.75rem;
+}
+.hr-employee-detail-page .hr-detail-profile-card .d-flex.flex-md-row > .d-flex.flex-wrap {
+  justify-content: flex-start;
+}
+
+@media (max-width: 575.98px) {
+  .hr-page-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  .hr-detail-avatar { width: 56px !important; height: 56px !important; font-size: 1.25rem !important; }
+  .hr-detail-profile-card .card-body { padding: 1rem !important; }
+  .hr-detail-profile-card .d-flex.flex-md-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  .hr-detail-profile-card .d-flex.flex-md-row > .d-flex.flex-wrap {
+    width: 100%;
+  }
+  .hr-detail-profile-card .d-flex.flex-md-row > .d-flex.flex-wrap .btn,
+  .hr-detail-profile-card .d-flex.flex-md-row > .d-flex.flex-wrap .badge {
+    width: auto;
+  }
+}
+</style>
+
+<script>
+(function() {
+    var employeeId = {{ employee.pk }};
+    var jsonUrl = '{% url "hr_staff:employee_detail_json" employee.pk %}';
+    var leaveDetailUrlBase = '{% url "hr_staff:leave_detail" 0 %}'.replace('/0/', '/');
+
+    function getCookie(name) {
+        var v = document.cookie.match('(?:^|;)\\s*' + name.replace(/[\\.*+?^${}()|[\]\\\\]/g, '\\\\$&') + '\\s*=\\s*([^;]*)');
+        return v ? decodeURIComponent(v[1]) : '';
+    }
+    var csrf = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content') || getCookie('csrftoken');
+
+    function applyData(data) {
+        if (!data || data.error) return;
+        var el = document.getElementById('hr-detail-name');
+        if (el) el.childNodes[0].textContent = data.full_name;
+        el = document.getElementById('hr-detail-position');
+        if (el) el.textContent = data.position;
+        el = document.getElementById('hr-detail-department');
+        if (el) el.textContent = data.department_name;
+        el = document.getElementById('hr-detail-date-joined');
+        if (el) el.textContent = 'Joined ' + data.date_joined;
+        el = document.getElementById('hr-detail-reports-to');
+        if (el) el.textContent = (data.reporting_manager && data.reporting_manager !== '—') ? ('Reports to ' + data.reporting_manager) : '—';
+        el = document.getElementById('hr-detail-status');
+        if (el) {
+            el.textContent = data.status;
+            el.className = 'badge rounded-pill hr-detail-status-badge ' + (data.status_value === 'active' ? 'bg-success text-white' : (data.status_value === 'on_leave' ? 'bg-warning bg-opacity-10 text-warning' : 'bg-secondary bg-opacity-10 text-secondary'));
+        }
+        el = document.getElementById('hr-detail-status-inline');
+        if (el) {
+            el.textContent = data.status;
+            el.className = 'badge rounded-pill hr-detail-status-badge ' + (data.status_value === 'active' ? 'bg-success text-white' : (data.status_value === 'on_leave' ? 'bg-warning bg-opacity-10 text-warning' : 'bg-secondary bg-opacity-10 text-secondary'));
+        }
+        el = document.getElementById('hr-detail-email');
+        if (el) el.textContent = data.email;
+        el = document.getElementById('hr-detail-phone');
+        if (el) el.textContent = data.phone;
+        el = document.getElementById('hr-detail-join-date');
+        if (el) el.textContent = data.date_joined_long;
+        el = document.getElementById('hr-detail-dob');
+        if (el) el.textContent = data.date_of_birth_long;
+        el = document.getElementById('hr-detail-employee-id');
+        if (el) el.textContent = data.employee_id;
+        el = document.getElementById('hr-detail-address-line1');
+        if (el) el.textContent = data.street_address;
+        el = document.getElementById('hr-detail-address-line2');
+        if (el) el.textContent = data.full_address !== '—' ? (data.city + (data.city && data.state_province ? ', ' : ' ') + data.state_province + (data.zip_code ? ' ' + data.zip_code : '')) : '—';
+        el = document.getElementById('hr-detail-emergency-name');
+        if (el) el.textContent = data.emergency_contact_name;
+        el = document.getElementById('hr-detail-emergency-phone');
+        if (el) el.textContent = data.emergency_contact_phone;
+        el = document.getElementById('hr-detail-bio');
+        if (el) el.textContent = data.bio;
+        el = document.getElementById('hr-detail-salary');
+        if (el) el.textContent = data.annual_salary_display;
+        if (data.profile_photo_url) {
+            var img = document.getElementById('hr-detail-photo');
+            var initials = document.getElementById('hr-detail-initials');
+            if (img) { img.src = data.profile_photo_url; img.style.display = ''; }
+            if (initials) initials.style.display = 'none';
+        } else {
+            var img = document.getElementById('hr-detail-photo');
+            var initials = document.getElementById('hr-detail-initials');
+            if (img) img.style.display = 'none';
+            if (initials) {
+                initials.style.display = '';
+                var i1 = (data.first_name || '').charAt(0).toUpperCase();
+                var i2 = (data.last_name || '').charAt(0).toUpperCase();
+                initials.textContent = (i1 + i2) || '—';
+            }
+        }
+        var container = document.getElementById('hr-detail-leave-container');
+        var emptyEl = document.getElementById('hr-detail-leave-empty');
+        if (container && data.leave_requests !== undefined) {
+            if (data.leave_requests.length === 0) {
+                if (!emptyEl) {
+                    emptyEl = document.createElement('p');
+                    emptyEl.id = 'hr-detail-leave-empty';
+                    emptyEl.className = 'text-muted text-center mb-0 py-4';
+                    emptyEl.textContent = 'No leave requests on record';
+                    container.innerHTML = '';
+                    container.appendChild(emptyEl);
+                }
+            } else {
+                if (emptyEl) emptyEl.remove();
+                var html = '';
+                data.leave_requests.forEach(function(req) {
+                    var statusClass = req.status_class === 'success' ? 'bg-success bg-opacity-10 text-success' : (req.status_class === 'danger' ? 'bg-danger bg-opacity-10 text-danger' : 'bg-warning bg-opacity-10 text-warning');
+                    html += '<div class="d-flex align-items-center p-2 border-bottom hr-leave-row"><div class="flex-grow-1"><span class="fw-semibold d-block">' + (req.leave_type || '') + '</span><span class="text-muted small">' + req.start_date + ' – ' + req.end_date + '</span></div><span class="badge rounded-pill me-2 ' + statusClass + '">' + req.status + '</span><a href="' + leaveDetailUrlBase + req.id + '/" class="btn btn-sm btn-link p-0">View</a></div>';
+                });
+                container.innerHTML = html;
+            }
+        }
+    }
+
+    function fetchLatest() {
+        fetch(jsonUrl, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(applyData)
+            .catch(function() {});
+    }
+
+    var pollInterval = setInterval(fetchLatest, 15000);
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') fetchLatest();
+    });
+    window.addEventListener('focus', fetchLatest);
+})();
+</script>
+{% endblock %}
+
+
+
+
+
+

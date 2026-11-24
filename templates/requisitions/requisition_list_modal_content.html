@@ -1,0 +1,62 @@
+{% load humanize %}
+<div class="requisition-modal-table-wrap" data-total-count="{{ total_count }}">
+  {% if requisitions %}
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-items-center mb-0">
+      <thead>
+        <tr>
+          <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Reference</th>
+          <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Organization</th>
+          <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date</th>
+          <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Job Type</th>
+          {% if show_created_by_column %}<th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Created by</th>{% endif %}
+          <th class="text-secondary opacity-7">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in requisitions %}
+        <tr>
+          <td>
+            <h6 class="mb-0 text-sm">{{ req.reference_number }}</h6>
+          </td>
+          <td>
+            <p class="text-xs font-weight-bold mb-0">{{ req.organization_name }}</p>
+            {% if req.contact_number %}<p class="text-xs text-secondary mb-0">{{ req.contact_number }}</p>{% endif %}
+          </td>
+          <td class="align-middle text-center text-sm">
+            <span class="text-secondary text-xs font-weight-bold">{{ req.date|date:"M d, Y"|default:"—" }}</span>
+          </td>
+          <td class="align-middle text-center text-sm">
+            <span class="text-secondary text-xs">{{ req.job_type|default:"—" }}</span>
+          </td>
+          {% if show_created_by_column %}
+          <td class="align-middle text-sm">
+            <span class="text-secondary text-xs">{% if req.created_by %}{{ req.created_by.get_full_name|default:req.created_by.email }}{% else %}—{% endif %}</span>
+          </td>
+          {% endif %}
+          <td class="align-middle">
+            <div class="d-flex gap-1">
+              <a href="{% url 'requisitions:detail' req.pk %}" class="btn btn-sm btn-outline-info mb-0" title="View"><i class="fas fa-eye text-sm"></i></a>
+              {% if perms.requisitions.change_requisition %}
+              <a href="{% url 'requisitions:edit' req.pk %}" class="btn btn-sm btn-outline-warning mb-0" title="Edit"><i class="fas fa-edit text-sm"></i></a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="text-muted small mb-0 mt-2">
+    {% if total_count > 50 %}
+    Showing {{ requisitions|length }} of {{ total_count }} requisition{{ total_count|pluralize }}.
+    {% else %}
+    {{ total_count }} requisition{{ total_count|pluralize }}.
+    {% endif %}
+    <a href="{% url 'requisitions:list' %}{% if status %}?status={{ status }}{% endif %}">View full list</a>
+  </p>
+  {% else %}
+  <p class="text-secondary mb-0">No requisitions match your criteria.</p>
+  <a href="{% url 'requisitions:list' %}" class="btn btn-outline-secondary btn-sm mt-2">View all requisitions</a>
+  {% endif %}
+</div>

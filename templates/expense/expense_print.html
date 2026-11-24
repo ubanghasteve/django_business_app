@@ -1,0 +1,309 @@
+{% load static humanize expense_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Print Expense {{ object.transaction_id }}</title>
+    <style>
+        :root {
+            --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+            --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+            --text-color: {{ theme_text_color|default:"#333333" }};
+            --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: white;
+            padding: 20px;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .preview-scroll-wrapper { width: 100%; overflow-x: auto; }
+        @media print {
+            .preview-scroll-wrapper { overflow: visible; }
+        }
+        .expense-preview {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border: 2px solid var(--accent-color);
+            border-radius: 10px;
+        }
+        .expense-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--accent-color);
+            gap: 30px;
+        }
+        .company-logo { flex-shrink: 0; }
+        .company-logo img { max-height: 80px; max-width: 200px; }
+        .company-details { flex: 1; text-align: left; padding-left: 20px; }
+        .company-details h2 {
+            color: var(--primary-color) !important;
+            -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+            margin-bottom: 10px; font-size: 24px;
+        }
+        .company-details p { margin: 5px 0; color: #666; }
+        .doc-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color) !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+            -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+        }
+        .expense-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa !important;
+            border-radius: 6px;
+            -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+        }
+        .expense-info-left { display: flex; gap: 15px; flex-wrap: wrap; }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            background: white;
+        }
+        .items-table th, .items-table td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+        .items-table th {
+            background: var(--primary-color) !important;
+            color: white !important;
+            font-weight: bold;
+            text-transform: uppercase;
+            width: 35%;
+            -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+        }
+        .items-table tr:nth-child(even) { background: #f8f9fa !important; -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact; }
+
+        body.paper-a5 .preview-scroll-wrapper { overflow: visible; }
+        body.paper-a5 .a5-fit-wrapper {
+            width: 148mm;
+            height: 210mm;
+            overflow: hidden;
+            margin: 0 auto;
+            position: relative;
+        }
+        @media print {
+            @page { size: A4; margin: 0.5cm; }
+        }
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { padding: 0; margin: 0; }
+            .expense-preview { box-shadow: none; padding: 20px; margin: 0; max-width: none; border: none; }
+            body.paper-a5 .a5-fit-wrapper { width: 148mm !important; height: 210mm !important; overflow: hidden !important; }
+            .items-table th { background: var(--primary-color) !important; color: white !important; }
+            .doc-title { color: var(--primary-color) !important; }
+        }
+        .no-print { display: none; }
+        @media screen { .no-print { display: block; } }
+        @media print { .no-print { display: none !important; } }
+
+        .print-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        .print-nav-bar .nav-btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+        .print-nav-bar .btn-back { background: linear-gradient(135deg, #6c757d, #495057); }
+        .print-nav-bar .btn-list { background: linear-gradient(135deg, var(--primary-color), #0d47a1); }
+        .print-nav-bar .btn-print { background: linear-gradient(135deg, #28a745, #218838); }
+        .print-nav-bar .btn-pdf { background: linear-gradient(135deg, #dc3545, #c82333); }
+        .print-nav-bar .btn-close-tab { background: linear-gradient(135deg, #5a6268, #545b62); }
+        .print-nav-bar .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); }
+        body { padding-bottom: 80px; }
+        @media print {
+            .print-nav-bar { display: none !important; }
+            body { padding-bottom: 0; }
+        }
+        .paper-size-select { display: flex; align-items: center; gap: 8px; }
+        .paper-size-select label { color: #fff; font-size: 13px; font-weight: 500; }
+        .paper-size-select select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        function applyA5Scale() {
+            var content = document.getElementById('expensePreview');
+            if (!content || !document.body.classList.contains('paper-a5')) return;
+            content.style.zoom = '1';
+            var cw = content.scrollWidth || content.offsetWidth || 800;
+            var ch = content.scrollHeight || content.offsetHeight || 600;
+            var aw = 148 * 96 / 25.4 - 24;
+            var ah = 210 * 96 / 25.4 - 24;
+            var scale = Math.min(aw / cw, ah / ch, 1);
+            content.style.zoom = scale;
+        }
+        function setPaperSize(size) {
+            var styleId = 'paper-size-style';
+            var existing = document.getElementById(styleId);
+            if (existing) existing.remove();
+            document.body.classList.remove('paper-a5');
+            var wrapper = document.getElementById('a5FitWrapper');
+            var content = document.getElementById('expensePreview');
+            if (wrapper && content) content.style.zoom = '';
+            if (size === 'a5') {
+                document.body.classList.add('paper-a5');
+                var style = document.createElement('style');
+                style.id = styleId;
+                style.textContent = '@media print { @page { size: A5; margin: 0.3cm; } }';
+                document.head.appendChild(style);
+                if (wrapper && content) {
+                    wrapper.style.width = '148mm';
+                    wrapper.style.height = '210mm';
+                    wrapper.style.overflow = 'hidden';
+                    applyA5Scale();
+                    requestAnimationFrame(applyA5Scale);
+                    setTimeout(applyA5Scale, 200);
+                    setTimeout(applyA5Scale, 800);
+                }
+            }
+            try { localStorage.setItem('printPaperSize', size); } catch(e) {}
+        }
+        window.addEventListener('beforeprint', function() {
+            if (document.body.classList.contains('paper-a5')) applyA5Scale();
+        });
+        window.onload = function() {
+            var saved = null;
+            try { saved = localStorage.getItem('printPaperSize'); } catch(e) {}
+            var sel = document.getElementById('paperSize');
+            if (sel) {
+                if (saved === 'a5') { sel.value = 'a5'; setPaperSize('a5'); }
+                else sel.value = 'a4';
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="preview-scroll-wrapper">
+    <div class="a5-fit-wrapper" id="a5FitWrapper">
+    <div class="expense-preview" id="expensePreview">
+        <div class="expense-header">
+            <div class="company-logo">
+                {% if company_logo %}<img src="{{ company_logo }}" alt="Company Logo">{% endif %}
+            </div>
+            <div class="company-details">
+                <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+                <p>{{ company_profile.address|default:"Company Address" }}</p>
+                <p>{{ company_profile.phone|default:"Phone Number" }}</p>
+                <p>{{ company_profile.email|default:"Email Address" }}</p>
+                {% if company_profile.website %}<p>{{ company_profile.website }}</p>{% endif %}
+            </div>
+        </div>
+        <div class="expense-info">
+            <div class="expense-info-left">
+                <div class="doc-title">Expense Record</div>
+                <div><strong>Expense ID:</strong> {{ object.transaction_id }}</div>
+                <div><strong>Expense Date:</strong> {{ object.expense_date|date:"M d, Y"|default:"—" }}</div>
+                <div><strong>Created Date:</strong> {{ object.created_at|date:"M d, Y g:i:s A" }}</div>
+                {% if object.created_by %}
+                <div><strong>Created By:</strong> {{ object.created_by.get_full_name|default:object.created_by.email }}</div>
+                {% endif %}
+                {% if object.status == 'approved' and object.approved_by %}
+                <div><strong>Approved By:</strong> {{ object.approved_by.get_full_name|default:object.approved_by.email }}{% if object.approved_at %} on {{ object.approved_at|date:"M d, Y g:i:s A" }}{% endif %}</div>
+                {% endif %}
+            </div>
+        </div>
+        <table class="items-table">
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+                <tr><th>Expense Category</th><td>{{ object.expense_category|default:"—" }}</td></tr>
+                <tr><th>Department</th><td>{{ object.department|default:"—" }}</td></tr>
+                <tr><th>Vendor</th><td>{{ object.vendor|default:"—" }}</td></tr>
+                <tr><th>PO Number</th><td>{{ object.po_number|default:"—" }}</td></tr>
+                <tr><th>Description</th><td>{{ object.description|default:"—" }}</td></tr>
+                <tr><th>Product ID</th><td>{{ object.product_id|default:"—" }}</td></tr>
+                <tr><th>Product Name</th><td>{{ object.product_name|default:"—" }}</td></tr>
+                <tr><th>Unit of Measurement</th><td>{{ object.unit_of_measurement|default:"—" }}</td></tr>
+                <tr><th>Quantity Purchased</th><td>{% if object.quantity_purchased_input %}{{ object.quantity_purchased_input }}{% else %}{{ object.quantity_purchased|format_number }}{% endif %}</td></tr>
+                <tr><th>Quantity Out</th><td>{% if object.quantity_out_input %}{{ object.quantity_out_input }}{% else %}{{ object.quantity_out|format_number }}{% endif %}</td></tr>
+                <tr><th>Remaining Quantity</th><td>{{ object.remaining_quantity|format_number }}</td></tr>
+                <tr><th>Unit Price</th><td>{{ user_currency_symbol|default:"₦" }}{% if object.unit_price_input %}{{ object.unit_price_input }}{% else %}{{ object.unit_price|format_number }}{% endif %}</td></tr>
+                <tr><th>Total Purchase Value</th><td>{{ user_currency_symbol|default:"₦" }}{{ object.total_purchase_value|format_number }}</td></tr>
+                <tr><th>Stock Value Remaining</th><td>{{ user_currency_symbol|default:"₦" }}{{ object.stock_value_remaining|format_number }}</td></tr>
+                <tr><th>Quantity Threshold</th><td>{% if object.quantity_threshold_input %}{{ object.quantity_threshold_input }}{% else %}{{ object.quantity_threshold|format_number }}{% endif %}</td></tr>
+                <tr><th>Low Stock Alert</th><td>{% if object.low_stock_alert %}Yes{% else %}No{% endif %}</td></tr>
+                <tr><th>Subtotal</th><td>{{ user_currency_symbol|default:"₦" }}{{ object.subtotal|format_number }}</td></tr>
+                <tr><th>Tax</th><td>{{ user_currency_symbol|default:"₦" }}{{ object.tax|format_number }}</td></tr>
+                <tr><th>Discount</th><td>{{ user_currency_symbol|default:"₦" }}{{ object.discount|format_number }}</td></tr>
+                <tr><th>Payment Method</th><td>{{ object.get_payment_method_display|default:object.payment_method|default:"—" }}</td></tr>
+                <tr><th>Payment Date</th><td>{{ object.payment_date|date:"Y-m-d"|default:"—" }}</td></tr>
+                <tr><th>Receipt Upload</th><td>{% if object.receipt_upload %}Attached{% else %}—{% endif %}</td></tr>
+                <tr><th>Status</th><td>{{ object.get_status_display|default:"—" }}</td></tr>
+                <tr><th>Last Updated</th><td>{{ object.updated_at|date:"M d, Y g:i:s A"|default:"—" }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    </div>
+    </div>
+
+    <div class="print-nav-bar no-print">
+        <div class="paper-size-select">
+            <label>Paper:</label>
+            <select id="paperSize" onchange="setPaperSize(this.value)">
+                <option value="a4">A4</option>
+                <option value="a5">A5</option>
+            </select>
+        </div>
+        <a href="{% url 'expense:detail' object.pk %}" class="nav-btn btn-back">
+            <i class="fas fa-arrow-left"></i> Back to Record
+        </a>
+        <a href="{% url 'expense:list' %}" class="nav-btn btn-list">
+            <i class="fas fa-list"></i> Expense List
+        </a>
+        <button type="button" onclick="if(document.body.classList.contains('paper-a5'))applyA5Scale();window.print()" class="nav-btn btn-print">
+            <i class="fas fa-print"></i> Print / Save as PDF
+        </button>
+        <button type="button" onclick="window.close()" class="nav-btn btn-close-tab">
+            <i class="fas fa-times"></i> Close
+        </button>
+    </div>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,556 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Multi-Purpose Business App{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block breadcrumb %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+        --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+        --text-color: {{ theme_text_color|default:"#333333" }};
+        --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+    }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.3s ease-out;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .requisition-creator {
+        display: flex;
+        gap: 20px;
+        min-height: auto;
+        overflow: visible;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .requisition-creator.loaded { opacity: 1; }
+
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    .form-group .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #344767;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    .form-group .form-control,
+    .form-group .form-select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d2d6da;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    .form-group .form-control:focus,
+    .form-group .form-select:focus {
+        border-color: var(--primary-color);
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+    }
+    .form-group textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .form-section,
+    .preview-section {
+        flex: 1;
+        background: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-height: 90vh;
+        overflow-y: auto;
+        overflow-x: auto;
+        min-width: 0;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+    }
+    .requisition-preview {
+        font-family: Arial, sans-serif;
+        background: white;
+        min-height: auto;
+        width: 100%;
+        padding: 40px;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    .requisition-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid #e4e4e4;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+        gap: 30px;
+    }
+    .company-logo img { max-height: 80px; max-width: 200px; }
+    .company-details { flex: 1; text-align: left; padding-left: 20px; }
+    .company-details h2 { margin: 0; color: var(--primary-color) !important; font-size: 1.5em; }
+    .company-details p { margin: 2px 0; color: #666; font-size: 0.9em; }
+    .requisition-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: var(--primary-color) !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0;
+    }
+    .requisition-info {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: #f8f9fa !important;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+    .requisition-info > div {
+        text-align: center;
+    }
+    .requisition-doc-section {
+        margin: 20px 0;
+    }
+    .requisition-doc-section h3 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+        font-size: 14px;
+        text-transform: uppercase;
+    }
+    .requisition-doc-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+    }
+    .requisition-doc-table th,
+    .requisition-doc-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+    }
+    .requisition-doc-table th {
+        background: var(--primary-color);
+        color: white;
+        font-weight: bold;
+        width: 35%;
+    }
+
+    .signature-field-group .form-check-input { margin-top: 0.2em; }
+
+    @media (max-width: 768px) {
+        .requisition-creator { flex-direction: column; }
+        .form-section, .preview-section { max-height: 70vh; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card my-4">
+                <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+                    <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-3 no-print">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="text-white text-capitalize ps-3 no-print">{{ title }}</h6>
+                            <div class="pe-3 no-print">
+                                <a href="{% if form.instance.pk %}{% url 'requisitions:detail' form.instance.pk %}{% else %}{% url 'requisitions:list' %}{% endif %}" class="btn btn-outline-white btn-sm me-2 no-print">
+                                    <i class="fas fa-arrow-left text-sm"></i> {% if form.instance.pk %}Back to Detail{% else %}Back to List{% endif %}
+                                </a>
+                                <button type="submit" form="requisition-form" class="btn btn-outline-white btn-sm no-print">
+                                    <i class="fas fa-save text-sm"></i> {% if form.instance.pk %}Update{% else %}Save{% endif %} Requisition
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <form id="requisition-form" method="post" enctype="multipart/form-data" data-sync-model="requisitions" data-sync-redirect="{% url 'requisitions:list' %}">
+                        {% csrf_token %}
+
+                        <div class="requisition-creator">
+                            <!-- Form Section -->
+                            <div class="form-section">
+                                <h5 class="mb-4">Requisition Details</h5>
+                                {% if form.non_field_errors %}
+                                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                                {% endif %}
+
+                                <div class="form-group">
+                                    <label class="form-label" for="{{ form.organization_name.id_for_label }}">Organization name *</label>
+                                    {{ form.organization_name }}
+                                    {% if form.organization_name.errors %}<div class="invalid-feedback d-block">{{ form.organization_name.errors.0 }}</div>{% endif %}
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="{{ form.address.id_for_label }}">Address</label>
+                                    {{ form.address }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.contact_number.id_for_label }}">Contact number</label>
+                                            {{ form.contact_number }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.date.id_for_label }}">Date</label>
+                                            {{ form.date }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.job_type.id_for_label }}">Job type</label>
+                                            {{ form.job_type }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                                            {% if is_company_admin or perms.requisitions.can_approve_requisition %}
+                                            {{ form.status }}
+                                            {% else %}
+                                            {# Non-approvers: hide editable control, keep status fixed, show badge only #}
+                                            <input type="hidden"
+                                                   name="{{ form.status.html_name }}"
+                                                   value="{{ form.status.value|default:'draft' }}">
+                                            <div class="form-control-plaintext">
+                                                {% with current_status=form.instance.status|default:form.status.value|default:'draft' %}
+                                                  {% if current_status == 'approved' %}
+                                                    <span class="badge bg-success">Approved</span>
+                                                  {% elif current_status == 'pending' %}
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                  {% elif current_status == 'rejected' %}
+                                                    <span class="badge bg-danger">Rejected</span>
+                                                  {% elif current_status == 'completed' %}
+                                                    <span class="badge bg-info text-dark">Completed</span>
+                                                  {% else %}
+                                                    <span class="badge bg-secondary">Draft</span>
+                                                  {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="{{ form.print_product.id_for_label }}">Print product</label>
+                                    {{ form.print_product }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.quantity.id_for_label }}">Quantity</label>
+                                            {{ form.quantity }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.colors.id_for_label }}">Colors</label>
+                                            {{ form.colors }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.size.id_for_label }}">Size</label>
+                                            {{ form.size }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label" for="{{ form.micron.id_for_label }}">Micron</label>
+                                            {{ form.micron }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group signature-field-group">
+                                            <label class="form-label" for="{{ form.signature.id_for_label }}">Signature (image)</label>
+                                            {{ form.signature }}
+                                            {% if requisition and requisition.signature %}
+                                            <div class="form-check form-switch mt-3">
+                                                <input class="form-check-input" type="checkbox" name="{{ form.signature.name }}-clear" id="id_signature-clear" value="1" role="switch">
+                                                <label class="form-check-label" for="id_signature-clear">Remove signature</label>
+                                            </div>
+                                            <p class="small text-muted mt-1 mb-0">Current: <a href="{{ requisition.signature.url }}" target="_blank" rel="noopener">View current signature</a></p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="{{ form.other_info.id_for_label }}">Other information</label>
+                                    {{ form.other_info }}
+                                </div>
+
+                                <div class="d-flex gap-2 mt-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i> {% if form.instance.pk %}Update{% else %}Create{% endif %} Requisition
+                                    </button>
+                                    <a href="{% if form.instance.pk %}{% url 'requisitions:detail' form.instance.pk %}{% else %}{% url 'requisitions:list' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a>
+                                </div>
+                            </div>
+
+                            <!-- Live Preview Section -->
+                            <div class="preview-section">
+                                <div class="requisition-preview" id="requisition-preview">
+                                    <div class="requisition-header">
+                                        <div class="company-logo">
+                                            {% if company_logo %}
+                                            <img src="{{ company_logo }}" alt="Company Logo" id="preview-logo">
+                                            {% else %}
+                                            <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo" id="preview-logo">
+                                            {% endif %}
+                                        </div>
+                                        <div class="company-details">
+                                            <h2 id="preview-company-name">{% if company_profile.company_name %}{{ company_profile.company_name }}{% else %}Your Company Name{% endif %}</h2>
+                                            {% if company_profile %}
+                                            <p id="preview-company-address">{% if company_profile.address_line_1 %}{{ company_profile.address_line_1 }}{% if company_profile.city %} {{ company_profile.city }}{% endif %}{% else %}Company Address{% endif %}</p>
+                                            <p id="preview-company-phone">{% if company_profile.phone %}{{ company_profile.phone }}{% else %}Phone{% endif %}</p>
+                                            <p id="preview-company-email">{% if company_profile.email %}{{ company_profile.email }}{% else %}Email{% endif %}</p>
+                                            {% else %}
+                                            <p>Company Address</p>
+                                            <p>Phone | Email</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="requisition-info">
+                                        <div class="text-center">
+                                            <div class="requisition-title">REQUISITION</div>
+                                            <div><strong>Reference:</strong> <span id="preview-ref">{% if form.instance.reference_number %}{{ form.instance.reference_number }}{% endif %}</span></div>
+                                            <div id="preview-date-wrap"><strong>Date:</strong> <span id="preview-date">—</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="requisition-doc-section">
+                                        <h3>Organization</h3>
+                                        <p class="mb-1"><strong id="preview-org">Organization name</strong></p>
+                                        <p class="mb-1 text-muted small" id="preview-address" style="display: none;">Address</p>
+                                        <p class="mb-2 text-muted small" id="preview-contact" style="display: none;">Contact</p>
+                                    </div>
+
+                                    <div class="requisition-doc-section" id="preview-job-section">
+                                        <h3>Job details</h3>
+                                        <table class="requisition-doc-table">
+                                            <tr id="preview-row-job-type"><th>Job type</th><td id="preview-job-type">—</td></tr>
+                                            <tr id="preview-row-print-product"><th>Print product</th><td id="preview-print-product">—</td></tr>
+                                            <tr id="preview-row-quantity"><th>Quantity</th><td id="preview-quantity">—</td></tr>
+                                            <tr id="preview-row-colors"><th>Colors</th><td id="preview-colors">—</td></tr>
+                                            <tr id="preview-row-size"><th>Size</th><td id="preview-size">—</td></tr>
+                                            <tr id="preview-row-micron"><th>Micron</th><td id="preview-micron">—</td></tr>
+                                            <tr id="preview-row-status"><th>Status</th><td id="preview-status">—</td></tr>
+                                        </table>
+                                    </div>
+
+                                    <div class="requisition-doc-section" id="preview-other-section">
+                                        <h3>Other information</h3>
+                                        <p id="preview-other" class="mb-0">—</p>
+                                    </div>
+
+                                    <div class="requisition-doc-section signature-preview-section" id="preview-signature-section" style="{% if requisition and requisition.signature %}display: block;{% else %}display: none;{% endif %}">
+                                        <h3>Signature</h3>
+                                        <img id="preview-signature" src="{% if requisition and requisition.signature %}{{ requisition.signature.url }}{% endif %}" alt="Signature" style="max-height: 80px;" data-fallback="{% if requisition and requisition.signature %}{{ requisition.signature.url }}{% endif %}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var loadingOverlay = document.getElementById('loading-overlay');
+    var creator = document.querySelector('.requisition-creator');
+    if (loadingOverlay) {
+        loadingOverlay.classList.add('hidden');
+        setTimeout(function() { loadingOverlay.style.display = 'none'; }, 200);
+    }
+    if (creator) creator.classList.add('loaded');
+
+    var previewRef = document.getElementById('preview-ref');
+    if (previewRef && !previewRef.textContent.trim()) {
+        previewRef.textContent = 'REQ-' + new Date().getFullYear() + '-' + (Math.floor(Math.random() * 900) + 100);
+    }
+
+    var form = document.getElementById('requisition-form');
+    if (!form) return;
+    var fields = {
+        organization_name: 'preview-org',
+        address: 'preview-address',
+        contact_number: 'preview-contact',
+        date: 'preview-date',
+        job_type: 'preview-job-type',
+        print_product: 'preview-print-product',
+        quantity: 'preview-quantity',
+        colors: 'preview-colors',
+        size: 'preview-size',
+        micron: 'preview-micron',
+        status: 'preview-status',
+        other_info: 'preview-other'
+    };
+    var rowIds = { job_type: 'preview-row-job-type', print_product: 'preview-row-print-product', quantity: 'preview-row-quantity', colors: 'preview-row-colors', size: 'preview-row-size', micron: 'preview-row-micron', status: 'preview-row-status' };
+    function updatePreview() {
+        for (var name in fields) {
+            var input = form.querySelector('[name="' + name + '"]');
+            var el = document.getElementById(fields[name]);
+            if (!input || !el) continue;
+            var v = input.tagName === 'SELECT'
+                ? (input.options[input.selectedIndex] ? input.options[input.selectedIndex].text : '')
+                : input.value;
+            var displayVal = (v && v.trim() !== '') ? v : (name === 'status' ? '—' : (name === 'other_info' ? '—' : '—'));
+            el.textContent = displayVal;
+            if (rowIds[name]) {
+                var row = document.getElementById(rowIds[name]);
+                if (row) row.style.display = (v && v.trim() !== '') ? '' : 'none';
+            }
+        }
+        var otherSection = document.getElementById('preview-other-section');
+        var otherEl = document.getElementById('preview-other');
+        if (otherSection && otherEl) {
+            var otherVal = (otherEl.textContent || '').trim();
+            otherSection.style.display = (otherVal && otherVal !== '—') ? 'block' : 'none';
+        }
+        var dateWrap = document.getElementById('preview-date-wrap');
+        var dateEl = document.getElementById('preview-date');
+        if (dateWrap && dateEl) {
+            var dateVal = (dateEl.textContent || '').trim();
+            dateWrap.style.display = (dateVal && dateVal !== '—') ? '' : 'none';
+        }
+        var addrEl = document.getElementById('preview-address');
+        var contactEl = document.getElementById('preview-contact');
+        if (addrEl) addrEl.style.display = (addrEl.textContent || '').trim() && addrEl.textContent !== '—' ? '' : 'none';
+        if (contactEl) contactEl.style.display = (contactEl.textContent || '').trim() && contactEl.textContent !== '—' ? '' : 'none';
+        var jobSection = document.getElementById('preview-job-section');
+        if (jobSection) {
+            var visibleRows = jobSection.querySelectorAll('tr[id^="preview-row-"]');
+            var anyVisible = false;
+            for (var i = 0; i < visibleRows.length; i++) { if (visibleRows[i].style.display !== 'none') { anyVisible = true; break; } }
+            jobSection.style.display = anyVisible ? 'block' : 'none';
+        }
+    }
+    form.addEventListener('input', updatePreview);
+    form.addEventListener('change', updatePreview);
+    updatePreview();
+
+    var signatureInput = form.querySelector('[name="signature"]');
+    var signatureClearCheckbox = form.querySelector('input[name="signature-clear"]');
+    var previewSignatureSection = document.getElementById('preview-signature-section');
+    var previewSignatureImg = document.getElementById('preview-signature');
+
+    function updateSignaturePreview() {
+        if (!previewSignatureSection || !previewSignatureImg) return;
+        var removeChecked = signatureClearCheckbox && signatureClearCheckbox.checked;
+        if (removeChecked) {
+            previewSignatureSection.style.display = 'none';
+            previewSignatureImg.src = '';
+        } else {
+            var fallback = previewSignatureImg.getAttribute('data-fallback');
+            if (fallback) {
+                previewSignatureImg.src = fallback;
+                previewSignatureSection.style.display = 'block';
+            }
+        }
+    }
+
+    if (signatureClearCheckbox) {
+        signatureClearCheckbox.addEventListener('change', function() {
+            updateSignaturePreview();
+        });
+        updateSignaturePreview();
+    }
+
+    if (signatureInput && previewSignatureSection && previewSignatureImg) {
+        signatureInput.addEventListener('change', function() {
+            var file = this.files && this.files[0];
+            if (file && file.type.indexOf('image/') === 0) {
+                if (signatureClearCheckbox) signatureClearCheckbox.checked = false;
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    previewSignatureImg.src = e.target.result;
+                    previewSignatureSection.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                var fallback = previewSignatureImg.getAttribute('data-fallback');
+                if (fallback) {
+                    previewSignatureImg.src = fallback;
+                    previewSignatureSection.style.display = 'block';
+                } else {
+                    previewSignatureImg.src = '';
+                    previewSignatureSection.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    function enableScrollablePanels() {
+        var formSection = document.querySelector('.form-section');
+        var previewSection = document.querySelector('.preview-section');
+        function addWheelScroll(el) {
+            if (!el) return;
+            el.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                this.scrollTop += e.deltaY;
+            }, { passive: false });
+            el.setAttribute('tabindex', '-1');
+        }
+        addWheelScroll(formSection);
+        addWheelScroll(previewSection);
+    }
+    enableScrollablePanels();
+});
+</script>
+{% endblock %}

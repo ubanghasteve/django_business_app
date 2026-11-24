@@ -1,0 +1,257 @@
+{% extends 'base.html' %}{% load static %}{% block title %}Multi-Upload Documents - HR{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item"><a href="{% url 'hr_staff:document_list' %}">Documents</a></li><li class="breadcrumb-item active">Multi-Upload</li>{% endblock %}
+{% block page_title %}Multi-Document Upload{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0">
+  <h5 class="mb-0 fw-bold">Upload Multiple Documents</h5>
+  <p class="text-muted small mb-0">Upload multiple files at once with AI-powered extraction for CVs and resumes</p>
+</div>
+<div class="card-body">
+
+<!-- Quick Settings -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <label class="form-label">Employee (optional)</label>
+    <select id="multiEmployee" class="form-select">
+      <option value="">-- Select Employee --</option>
+      {% for emp in employees %}
+      <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-6">
+    <label class="form-label">Default Document Type</label>
+    <select id="multiDocType" class="form-select">
+      {% for value, label in document_types %}
+      <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- Drop Zone -->
+<div class="dropzone p-5 text-center border-2 border-dashed rounded-3 mb-4" id="multiDropzone" style="border-color: #6c757d;">
+  <div class="mb-3">
+    <i class="fas fa-cloud-upload-alt fa-4x text-muted"></i>
+  </div>
+  <h5>Drag & drop multiple files here</h5>
+  <p class="text-muted">or</p>
+  <input type="file" id="multiFileInput" multiple class="d-none" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif">
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('multiFileInput').click()">
+    <i class="fas fa-folder-open me-2"></i> Browse Files
+  </button>
+  <p class="text-muted small mt-3 mb-0">Maximum 10 files at once, 25MB each</p>
+</div>
+
+<!-- File Queue -->
+<div id="fileQueue" class="mb-4"></div>
+
+<!-- Upload Button -->
+<div class="d-flex gap-2">
+  <button type="button" class="btn btn-success" id="uploadAllBtn" onclick="uploadAllFiles()" disabled>
+    <i class="fas fa-upload me-2"></i> Upload All
+  </button>
+  <a href="{% url 'hr_staff:document_list' %}" class="btn btn-outline-secondary">Cancel</a>
+</div>
+
+</div></div></div>
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script>
+let fileQueue = [];
+
+// File input handler
+document.getElementById('multiFileInput').addEventListener('change', function(e) {
+  addFilesToQueue(this.files);
+});
+
+// Drag and drop
+const dropzone = document.getElementById('multiDropzone');
+dropzone.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '#198754';
+  this.style.background = '#f8f9fa';
+});
+dropzone.addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '#6c757d';
+  this.style.background = 'transparent';
+});
+dropzone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '#6c757d';
+  this.style.background = 'transparent';
+  if (e.dataTransfer.files.length > 0) {
+    addFilesToQueue(e.dataTransfer.files);
+  }
+});
+
+function addFilesToQueue(files) {
+  for (const file of files) {
+    if (fileQueue.length >= 10) {
+      alert('Maximum 10 files allowed');
+      break;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      alert(`File ${file.name} is too large (max 25MB)`);
+      continue;
+    }
+    
+    fileQueue.push({
+      file: file,
+      status: 'pending',
+      extraction: null
+    });
+  }
+  renderFileQueue();
+}
+
+function renderFileQueue() {
+  const queueEl = document.getElementById('fileQueue');
+  queueEl.innerHTML = '';
+  
+  if (fileQueue.length === 0) {
+    queueEl.innerHTML = '<p class="text-muted text-center">No files selected</p>';
+    document.getElementById('uploadAllBtn').disabled = true;
+    return;
+  }
+  
+  document.getElementById('uploadAllBtn').disabled = false;
+  
+  fileQueue.forEach((item, index) => {
+    const div = document.createElement('div');
+    div.className = 'card mb-2';
+    div.innerHTML = `
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="fas fa-file-${getFileIcon(item.file.name)} me-2"></i>
+            <strong>${item.file.name}</strong>
+            <span class="text-muted small ms-2">${formatSize(item.file.size)}</span>
+          </div>
+          <div>
+            ${item.status === 'pending' ? `
+              <button class="btn btn-sm btn-outline-primary me-1" onclick="extractFile(${index})">
+                <i class="fas fa-magic"></i> Extract
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                <i class="fas fa-times"></i>
+              </button>
+            ` : item.status === 'extracting' ? `
+              <span class="text-info"><i class="fas fa-spinner fa-spin"></i> Extracting...</span>
+            ` : item.status === 'extracted' ? `
+              <span class="text-success"><i class="fas fa-check-circle"></i> Ready</span>
+              <button class="btn btn-sm btn-outline-danger ms-2" onclick="removeFile(${index})">
+                <i class="fas fa-times"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        ${item.extraction ? `
+          <div class="mt-2 small text-muted">
+            <strong>Detected:</strong> ${item.extraction.document_type} | 
+            ${item.extraction.name ? 'Name: ' + item.extraction.name : ''}
+            ${item.extraction.email ? ' | Email: ' + item.extraction.email : ''}
+          </div>
+        ` : ''}
+      </div>
+    `;
+    queueEl.appendChild(div);
+  });
+}
+
+function getFileIcon(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return 'pdf text';
+  if (['doc', 'docx'].includes(ext)) return 'word text';
+  if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return 'image';
+  return 'alt';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function removeFile(index) {
+  fileQueue.splice(index, 1);
+  renderFileQueue();
+}
+
+function extractFile(index) {
+  const item = fileQueue[index];
+  item.status = 'extracting';
+  renderFileQueue();
+  
+  const formData = new FormData();
+  formData.append('file', item.file);
+  formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  
+  fetch('{% url "hr_staff:document_create" %}', {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      item.extraction = data.extraction;
+      item.status = 'extracted';
+    } else {
+      item.status = 'pending';
+      alert('Extraction failed: ' + data.message);
+    }
+  })
+  .catch(() => {
+    item.status = 'pending';
+  })
+  .finally(() => {
+    renderFileQueue();
+  });
+}
+
+function uploadAllFiles() {
+  const btn = document.getElementById('uploadAllBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+  
+  const employeeId = document.getElementById('multiEmployee').value;
+  const docType = document.getElementById('multiDocType').value;
+  
+  const formData = new FormData();
+  fileQueue.forEach(item => {
+    formData.append('files', item.file);
+  });
+  formData.append('employee', employeeId);
+  formData.append('document_type', docType);
+  formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  
+  fetch('{% url "hr_staff:document_multi_create" %}', {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert(data.message);
+      window.location.href = '{% url "hr_staff:document_list" %}';
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(() => {
+    alert('Upload failed');
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload me-2"></i> Upload All';
+  });
+}
+</script>
+{% endblock %}

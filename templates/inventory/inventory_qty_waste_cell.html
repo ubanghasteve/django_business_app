@@ -1,0 +1,13 @@
+{% load inventory_extras %}
+<div class="qty-waste-cell">
+    <button type="button"
+            class="btn btn-sm btn-light border qty-waste-dropdown-btn w-100 text-start"
+            data-pk="{{ obj.pk }}"
+            aria-expanded="false"
+            title="Click to see every waste incident with date">
+        <span class="qty-waste-display text-warning fw-semibold">
+            {{ obj.waste|format_quantity_display }}{% if obj.unit_label %} {{ obj.unit_label }}{% endif %}
+        </span>
+        <i class="fas fa-caret-down float-end ms-1 text-muted" aria-hidden="true"></i>
+    </button>
+</div>

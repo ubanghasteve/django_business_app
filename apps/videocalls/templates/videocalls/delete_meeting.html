@@ -1,0 +1,45 @@
+{% extends 'videocalls/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - {{ block.super }}{% endblock %}
+
+{% block video_content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Cancel Meeting</h4>
+                </div>
+                <div class="card-body text-center">
+                    <p class="lead">Are you sure you want to cancel this meeting?</p>
+                    
+                    <div class="alert alert-warning">
+                        <h5>{{ meeting.meeting_title }}</h5>
+                        <p class="mb-0">
+                            <strong>Date:</strong> {{ meeting.scheduled_start|date:"F d, Y" }} at {{ meeting.scheduled_start|time:"g:i A" }}
+                        </p>
+                    </div>
+                    
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <strong>Warning:</strong> This action cannot be undone. All scheduled participants will be notified that the meeting has been cancelled.
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="bi bi-x-circle"></i> Yes, Cancel This Meeting
+                            </button>
+                            <a href="{% url 'videocalls:meeting_detail' meeting.join_link_slug %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> No, Keep This Meeting
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

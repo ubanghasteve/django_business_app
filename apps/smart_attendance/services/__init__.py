@@ -1,0 +1,3 @@
+"""
+Smart Attendance services package.
+"""

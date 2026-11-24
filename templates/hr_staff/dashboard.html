@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}HR & Staff - Dashboard{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-dashboard-wrap">
+    <div class="row">
+        <div class="col-12">
+            <!-- Top bar: logo left, nav tabs + icons right -->
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold text-dark mb-1">Dashboard</h4>
+            <p class="text-muted mb-4">Welcome to the HR Portal</p>
+
+            <!-- Tab panes -->
+            <div class="tab-content" id="hrStaffTabContent">
+                <!-- Dashboard pane -->
+                <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel">
+                    {% include 'hr_staff/partials/metrics.html' %}
+                    <div class="row">
+                        <div class="col-lg-6 mb-4">
+                            <div class="card border-0 shadow-sm rounded-3">
+                                <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between pt-3 pb-0">
+                                    <h6 class="mb-0 fw-bold">Recent Employees</h6>
+                                    <a href="{% url 'hr_staff:employee_list' %}" class="hr-view-all-link">View all</a>
+                                </div>
+                                <div class="card-body pt-2">
+                                    {% include 'hr_staff/partials/recent_employees.html' %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mb-4">
+                            <div class="card border-0 shadow-sm rounded-3">
+                                <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between pt-3 pb-0">
+                                    <h6 class="mb-0 fw-bold">Leave Requests</h6>
+                                    <a href="{% url 'hr_staff:leave_list' %}" class="hr-view-all-link">View all</a>
+                                </div>
+                                <div class="card-body pt-2">
+                                    {% include 'hr_staff/partials/leave_requests.html' %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% include 'hr_staff/partials/department_overview.html' %}
+                </div>
+
+                <!-- Employees pane: link to list -->
+                <div class="tab-pane fade" id="tab-employees" role="tabpanel">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-body py-5 text-center text-muted">
+                            <i class="fas fa-users fa-3x mb-3 opacity-25"></i>
+                            <h6 class="fw-bold">Employees</h6>
+                            <p class="mb-3 small">View and manage your team.</p>
+                            <a href="{% url 'hr_staff:employee_list' %}" class="btn btn-primary rounded-2">Go to Employees</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Departments pane: link to list -->
+                <div class="tab-pane fade" id="tab-departments" role="tabpanel">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-body py-5 text-center text-muted">
+                            <i class="fas fa-building fa-3x mb-3 opacity-25"></i>
+                            <h6 class="fw-bold">Departments</h6>
+                            <p class="mb-3 small">View and manage departments.</p>
+                            <a href="{% url 'hr_staff:department_list' %}" class="btn btn-primary rounded-2">Go to Departments</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave Management pane: link to list -->
+                <div class="tab-pane fade" id="tab-leave" role="tabpanel">
+                    <div class="card border-0 shadow-sm rounded-3">
+                        <div class="card-body py-5 text-center text-muted">
+                            <i class="fas fa-calendar-alt fa-3x mb-3 opacity-25"></i>
+                            <h6 class="fw-bold">Leave Management</h6>
+                            <p class="mb-3 small">View and manage leave requests.</p>
+                            <a href="{% url 'hr_staff:leave_list' %}" class="btn btn-primary rounded-2">Go to Leave Requests</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-top-nav .hr-portal-logo { width: 40px; height: 40px; background: #1976d2; }
+.hr-metric-icon-box { width: 48px; height: 48px; }
+.hr-metric-icon-box .hr-metric-svg { width: 1.5rem; height: 1.5rem; display: block; flex-shrink: 0; }
+.hr-metric-icon-box.hr-icon-purple { background: #7b68ee; color: #fff; }
+.hr-metric-icon-box.hr-icon-orange { background: #fd7e14; color: #fff; }
+/* View all links: visible, consistent style */
+.hr-view-all-link { color: #1976d2 !important; font-weight: 600; font-size: 0.875rem; text-decoration: none !important; }
+.hr-view-all-link:hover { color: #1565c0 !important; text-decoration: underline !important; }
+/* Recent Employees status badges: force text to display (fix solid green/colored blocks with no visible label) */
+#hrRecentEmployeesContainer .badge,
+#hrRecentEmployeesContainer .hr-status-badge {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 0.35em 0.65em !important;
+  min-width: 4em;
+  text-align: center;
+}
+#hrRecentEmployeesContainer .badge.bg-success,
+#hrRecentEmployeesContainer .hr-status-badge.hr-status-active { color: #198754 !important; background-color: rgba(25, 135, 84, 0.15) !important; }
+#hrRecentEmployeesContainer .badge.bg-warning,
+#hrRecentEmployeesContainer .hr-status-badge.hr-status-on-leave { color: #856404 !important; background-color: rgba(255, 193, 7, 0.25) !important; }
+#hrRecentEmployeesContainer .badge.bg-secondary,
+#hrRecentEmployeesContainer .hr-status-badge.hr-status-other { color: #6c757d !important; background-color: rgba(108, 117, 125, 0.2) !important; }
+#hrRecentEmployeesContainer .badge.bg-dark { color: #212529 !important; background-color: rgba(33, 37, 41, 0.15) !important; }
+
+/* Leave Requests status badges on dashboard: ensure label text is visible on colored background */
+#hrLeaveRequestsContainer .badge {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 0.35em 0.9em !important;
+  min-width: 4.25em;
+  text-align: center;
+}
+#hrLeaveRequestsContainer .badge.bg-success,
+#hrLeaveRequestsContainer .badge.hr-leave-status-approved {
+  color: #198754 !important;
+  background-color: rgba(25, 135, 84, 0.15) !important;
+}
+#hrLeaveRequestsContainer .badge.bg-warning,
+#hrLeaveRequestsContainer .badge.hr-leave-status-pending {
+  color: #856404 !important;
+  background-color: rgba(255, 193, 7, 0.25) !important;
+}
+#hrLeaveRequestsContainer .badge.bg-danger,
+#hrLeaveRequestsContainer .badge.hr-leave-status-rejected {
+  color: #dc3545 !important;
+  background-color: rgba(220, 53, 69, 0.15) !important;
+}
+#hrRecentEmployeesContainer .hr-recent-view-icon { flex-shrink: 0; color: #6c757d; }
+.hr-avatar-circle { width: 40px; height: 40px; }
+.hr-dept-icon-box {
+  width: 36px;
+  height: 36px;
+  position: relative;
+  overflow: hidden;
+}
+.hr-dept-icon-box .fas,
+.hr-dept-icon-box .fa {
+  position: relative;
+  z-index: 1;
+  font-size: 1rem !important;
+  color: #ffffff !important;
+}
+.hr-dept-icon-box.bg-secondary.bg-opacity-10::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: #6c757d;
+  opacity: 0.9;
+  z-index: 0;
+}
+.hr-card { border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); }
+.hr-dept-overview-card:hover .hr-card { box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+/* Nav cards: clickable, no page refresh */
+.hr-nav-card { cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+.hr-nav-card:hover { border-color: #1976d2 !important; box-shadow: 0 4px 12px rgba(25,118,210,.15) !important; }
+.hr-nav-card.active { border-color: #1976d2 !important; border-width: 2px; box-shadow: 0 4px 12px rgba(25,118,210,.2) !important; }
+.hr-nav-card.active .hr-nav-card-icon { background: #1976d2 !important; color: #fff !important; }
+.hr-nav-card-icon { width: 40px; height: 40px; }
+/* Inline SVG icons in nav cards — white on both blue (active) and grey (inactive) for visibility */
+.hr-nav-card-svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; display: block; color: #fff; }
+.hr-nav-card-icon .hr-nav-card-svg { color: #fff; }
+
+/* Force Font Awesome icons to display in HR section (metrics, top nav, etc.) */
+.hr-metric-icon-box .fas,
+.hr-metric-icon-box .fa,
+.hr-dept-icon-box .fas,
+.hr-dept-icon-box .fa,
+.hr-top-nav .fas,
+.hr-top-nav .fa,
+#hrStaffTabContent .fas,
+#hrStaffTabContent .fa {
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  display: inline-block !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+.hr-metric-icon-box .fas,
+.hr-metric-icon-box .fa { font-size: 1.25rem !important; }
+.hr-dept-icon-box .fas,
+.hr-dept-icon-box .fa { font-size: 0.95rem !important; }
+
+.hr-dashboard-wrap { max-width: 100%; }
+/* Mobile responsive */
+@media (max-width: 575.98px) {
+  .hr-dashboard-wrap { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  .hr-nav-card .card-body { padding: 0.6rem 0.75rem !important; }
+  .hr-nav-card-icon { width: 36px; height: 36px; }
+  .hr-nav-card-svg { width: 1rem; height: 1rem; }
+  .hr-nav-card span { font-size: 0.875rem; }
+  .hr-metric-icon-box { width: 42px; height: 42px; }
+  .hr-metric-icon-box .fas, .hr-metric-icon-box .fa { font-size: 1rem !important; }
+  #hrStaffTabContent .card-body { padding: 1rem !important; }
+}
+@media (max-width: 767.98px) {
+  .hr-dashboard-wrap .row { margin-left: -0.375rem; margin-right: -0.375rem; }
+  .hr-dashboard-wrap .row > [class*="col-"] { padding-left: 0.375rem; padding-right: 0.375rem; }
+}
+</style>
+
+<script>
+(function() {
+    var tabIds = ['tab-dashboard', 'tab-employees', 'tab-departments', 'tab-leave'];
+
+    function setActiveCard(targetId) {
+        var selector = (targetId.charAt(0) === '#' ? targetId : '#' + targetId);
+        document.querySelectorAll('.hr-nav-card').forEach(function(card) {
+            var isActive = card.getAttribute('data-bs-target') === selector;
+            card.classList.toggle('active', isActive);
+            card.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            var icon = card.querySelector('.hr-nav-card-icon');
+            if (icon) {
+                if (isActive) {
+                    icon.classList.remove('bg-secondary', 'bg-opacity-25', 'text-secondary');
+                    icon.classList.add('bg-primary', 'text-white');
+                } else {
+                    icon.classList.remove('bg-primary', 'text-white');
+                    icon.classList.add('bg-secondary', 'bg-opacity-25', 'text-secondary');
+                }
+            }
+        });
+    }
+
+    function showTab(targetId) {
+        if (tabIds.indexOf(targetId) === -1) return;
+        var pane = document.getElementById(targetId);
+        if (!pane) return;
+        document.querySelectorAll('#hrStaffTabContent .tab-pane').forEach(function(p) {
+            p.classList.remove('show', 'active');
+        });
+        pane.classList.add('show', 'active');
+        setActiveCard(targetId);
+    }
+
+    function initHrNavCards() {
+        document.querySelectorAll('.hr-nav-card').forEach(function(card) {
+            card.addEventListener('click', function(e) {
+                var target = this.getAttribute('data-bs-target');
+                var href = (this.getAttribute('href') || '').trim();
+                // Only handle in-page tab switch when card has a tab target (e.g. #tab-dashboard)
+                if (target && href.indexOf('#') === 0 && document.querySelector(target)) {
+                    e.preventDefault();
+                    var targetId = target.replace('#', '');
+                    showTab(targetId);
+                    history.replaceState(null, '', window.location.pathname + '#' + targetId);
+                }
+                // Otherwise let the link navigate (e.g. Employees card -> /hr-staff/employees/)
+            });
+        });
+    }
+
+    // Real-time dashboard: poll dashboard-widgets every 8s so stats, recent employees, leave, departments stay in sync without refresh
+    var widgetsUrl = '/api/hr-staff/dashboard-widgets/';
+    // Use a modest polling interval so the dashboard stays fresh without slowing page load.
+    var POLL_MS = 20000;
+
+    function updateDashboardWidgets(data) {
+        if (!data) return;
+        var cards = document.querySelectorAll('.dashboard-card-count[data-card-key]');
+        if (data.stats && cards.length) {
+            cards.forEach(function(el) {
+                var key = el.getAttribute('data-card-key');
+                if (key && data.stats[key] !== undefined) el.textContent = data.stats[key];
+            });
+        }
+        if (data.recent_employees !== undefined) {
+            var container = document.getElementById('hrRecentEmployeesContainer');
+            if (container) {
+                if (data.recent_employees.length === 0) {
+                    container.innerHTML = '<p class="text-muted small mb-0">No recent employees.</p>';
+                } else {
+                    var html = '<ul class="list-group list-group-flush border-0">';
+                    var statusLabel = function(s) { return s === 'active' ? 'Active' : (s === 'on_leave' ? 'On Leave' : (s === 'suspended' ? 'Suspended' : (s === 'resigned' ? 'Resigned' : (s || '—')))); };
+                    var statusClass = function(s) { return s === 'active' ? 'bg-success bg-opacity-10 text-success' : (s === 'on_leave' ? 'bg-warning bg-opacity-10 text-warning' : (s === 'resigned' ? 'bg-dark bg-opacity-10 text-dark' : 'bg-secondary bg-opacity-10 text-secondary')); };
+                    var arrowLink = function(empId, fullName) {
+                        return '<a href="/hr-staff/employees/' + empId + '/" class="d-inline-flex align-items-center justify-content-center text-muted text-decoration-none" aria-label="View ' + (fullName || 'employee') + '"><svg class="hr-recent-view-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></a>';
+                    };
+                    data.recent_employees.forEach(function(emp) {
+                        var photo = emp.profile_photo ? '<img src="' + emp.profile_photo + '" alt="" class="w-100 h-100 object-fit-cover">' : '<div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted small fw-bold">' + (emp.first_name ? emp.first_name.charAt(0) : '') + (emp.last_name ? emp.last_name.charAt(0) : '') + '</div>';
+                        var fullName = (emp.full_name || (emp.first_name + ' ' + emp.last_name) || '').replace(/'/g, '&#39;');
+                        html += '<li class="list-group-item border-0 border-bottom px-0 py-2 d-flex align-items-center"><a href="/hr-staff/employees/' + emp.id + '/" class="d-flex align-items-center text-decoration-none text-body flex-grow-1 min-w-0"><div class="hr-avatar-circle rounded-circle overflow-hidden bg-light me-3 flex-shrink-0" style="width:40px;height:40px">' + photo + '</div><div class="flex-grow-1 min-w-0"><span class="fw-bold text-dark d-block">' + (emp.full_name || (emp.first_name + ' ' + emp.last_name)) + '</span><small class="text-muted">' + (emp.position || '—') + '</small></div></a><span class="hr-recent-employee-actions d-flex align-items-center gap-2 flex-shrink-0"><span class="badge ' + statusClass(emp.status) + '">' + statusLabel(emp.status) + '</span>' + arrowLink(emp.id, fullName) + '</span></li>';
+                    });
+                    html += '</ul>';
+                    container.innerHTML = html;
+                }
+            }
+        }
+        if (data.leave_requests !== undefined) {
+            var leaveContainer = document.getElementById('hrLeaveRequestsContainer');
+            if (leaveContainer) {
+                if (data.leave_requests.length === 0) {
+                    leaveContainer.innerHTML = '<p class="text-muted small mb-0">No leave requests.</p>';
+                } else {
+                    var html = '<ul class="list-group list-group-flush border-0">';
+                    data.leave_requests.forEach(function(leave) {
+                        var statusClass = leave.status === 'approved' ? 'bg-success bg-opacity-10 text-success' : (leave.status === 'pending' ? 'bg-warning bg-opacity-10 text-warning' : 'bg-danger bg-opacity-10 text-danger');
+                        var start = leave.start_date ? new Date(leave.start_date).toLocaleDateString() : '';
+                        var end = leave.end_date ? new Date(leave.end_date).toLocaleDateString() : '';
+                        html += '<li class="list-group-item border-0 border-bottom px-0 py-2"><div class="d-flex align-items-start justify-content-between flex-wrap gap-1"><div class="min-w-0"><a href="/hr-staff/leave/' + leave.id + '/" class="text-decoration-none text-dark"><span class="fw-bold d-block">' + (leave.employee_name || '') + '</span></a><small class="text-muted d-block">' + (leave.leave_type_display || leave.leave_type) + '</small><small class="text-muted">' + start + ' – ' + end + '</small></div><span class="badge ' + statusClass + '">' + (leave.status_display || leave.status) + '</span></div></li>';
+                    });
+                    html += '</ul>';
+                    leaveContainer.innerHTML = html;
+                }
+            }
+        }
+        if (data.departments_overview !== undefined && data.user_currency_symbol !== undefined) {
+            var deptContainer = document.getElementById('hrDepartmentsOverviewContainer');
+            if (deptContainer) {
+                if (data.departments_overview.length === 0) {
+                    deptContainer.innerHTML = '<div class="col-12"><p class="text-muted small mb-0">No departments yet.</p></div>';
+                } else {
+                    var sym = data.user_currency_symbol || '$';
+                    var html = '';
+                    data.departments_overview.forEach(function(d) {
+                        html += '<div class="col-xl-4 col-md-6 col-12 mb-4"><div class="card border shadow-sm h-100 rounded-3 hr-card"><div class="card-body"><div class="d-flex align-items-center mb-2"><div class="hr-dept-icon-box rounded-3 bg-secondary bg-opacity-10 text-secondary d-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width:36px;height:36px"><i class="fas fa-building"></i></div><h6 class="mb-0 fw-bold">' + (d.name || '') + '</h6></div><p class="text-muted small mb-1">' + (d.employee_count || 0) + ' employee(s)</p><p class="text-muted small mb-1">Manager: ' + (d.manager_name || '—') + '</p><p class="text-muted small mb-0">Budget: ' + sym + '' + (d.budget || '0') + '</p></div></div></div>';
+                    });
+                    deptContainer.innerHTML = html;
+                }
+            }
+        }
+    }
+
+    function pollDashboardWidgets() {
+        fetch(widgetsUrl, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(updateDashboardWidgets)
+            .catch(function() {});
+    }
+
+    if (document.getElementById('tab-dashboard')) {
+        // Load data immediately for instant shell-first UX; then keep in sync in the background.
+        setTimeout(pollDashboardWidgets, 0);
+        setInterval(pollDashboardWidgets, POLL_MS);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') pollDashboardWidgets();
+        });
+    }
+    window.refreshHRDashboard = pollDashboardWidgets;
+
+    initHrNavCards();
+
+    var hash = (window.location.hash || '').replace('#', '');
+    if (tabIds.indexOf(hash) !== -1) {
+        showTab(hash);
+    }
+
+    window.addEventListener('popstate', function() {
+        var h = (window.location.hash || '').replace('#', '') || 'tab-dashboard';
+        if (tabIds.indexOf(h) !== -1) showTab(h);
+    });
+})();
+</script>
+{% endblock %}

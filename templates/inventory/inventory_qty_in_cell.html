@@ -1,0 +1,13 @@
+{% load inventory_extras %}
+<div class="qty-in-cell">
+    <button type="button"
+            class="btn btn-sm btn-light border qty-in-dropdown-btn w-100 text-start"
+            data-pk="{{ obj.pk }}"
+            aria-expanded="false"
+            title="Click to see every stock receipt with date &amp; time">
+        <span class="qty-in-display text-success fw-semibold">
+            {% if obj.quantity_in_input %}{{ obj.quantity_in_input|format_quantity_display }}{% else %}{{ obj.quantity_in|format_quantity_display }}{% if obj.unit_label %} {{ obj.unit_label }}{% endif %}{% endif %}
+        </span>
+        <i class="fas fa-caret-down float-end ms-1 text-muted" aria-hidden="true"></i>
+    </button>
+</div>

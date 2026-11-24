@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Invoice Ledger - {{ invoice.invoice_number }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0">Invoice Ledger / Report: {{ invoice.invoice_number }}</h5>
+                <span id="live-indicator" class="badge bg-success" style="display:none;">
+                    <span class="spinner-border spinner-border-sm me-1" style="width:0.6rem;height:0.6rem;"></span>Live
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="report-refresh-btn" title="Refresh to show latest data from invoice">
+                    <i class="fas fa-sync-alt me-1"></i><span id="report-refresh-label">Refresh</span>
+                </button>
+                <a href="{% url 'invoices:list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to list
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">
+                Movement history for this invoice record.
+                Each row shows <strong>one change</strong>: quantity updates, status changes, payment changes,
+                and other modifications. Totals always reflect the live invoice record.
+            </p>
+
+            <style>
+            .ledger-filters {
+                border: 1px solid #cbd3da;
+                border-radius: 10px;
+                padding: 12px 14px;
+                margin-bottom: 1rem;
+                background-color: #ffffff;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            }
+            .ledger-filters .form-control,
+            .ledger-filters .form-select {
+                border-radius: 6px;
+                border: 1px solid #adb5bd;
+                background-color: #ffffff;
+            }
+            .ledger-filters .form-control::placeholder {
+                color: #6c757d;
+                opacity: 1;
+            }
+            .report-current-row-box {
+                background-color: #f8f9fa;
+                border-color: #dee2e6 !important;
+                border-radius: 8px;
+            }
+            .report-current-row-box .text-body-secondary { color: #495057 !important; }
+            .invoice-ledger-table th {
+                background-color: #f8f9fa;
+                font-size: 0.8rem;
+                white-space: nowrap;
+            }
+            .invoice-ledger-table td {
+                font-size: 0.8rem;
+            }
+            </style>
+
+            <form method="get" class="mb-3 ledger-filters" id="invoiceReportFilterForm">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="Search client, user, status…">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">All status</option>
+                            {% for v,l in status_choices %}
+                            <option value="{{ v }}" {% if status_filter == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" placeholder="From date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" placeholder="To date">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                        <a href="?" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="report-current-row-box border mb-3 py-3 px-3">
+                <h6 class="mb-2 text-dark fw-semibold">Current Invoice State</h6>
+                <div class="row g-3 small text-dark">
+                    <div class="col-md-2">
+                        <strong class="text-dark">Client Name</strong><br>
+                        <span class="fw-semibold" id="report-current-client-name">{{ invoice.client_name|default:"—" }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Grand Total</strong><br>
+                        <span class="text-success fw-semibold" id="report-current-grand-total">{{ user_currency_symbol|default:"₦" }}{{ invoice.grand_total|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Amount Paid</strong><br>
+                        <span class="text-info fw-semibold" id="report-current-amount-paid">{{ user_currency_symbol|default:"₦" }}{{ invoice.amount_paid|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Balance Due</strong><br>
+                        <span class="text-danger fw-semibold" id="report-current-balance-due">{{ user_currency_symbol|default:"₦" }}{{ invoice.balance_due|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Status</strong><br>
+                        <span class="badge bg-{% if invoice.status == 'paid' %}success{% elif invoice.status == 'partial' %}warning text-dark{% elif invoice.status == 'delivered' %}info{% else %}secondary{% endif %}" id="report-current-status">
+                            {{ current_status_display|default:invoice.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Notes</strong><br>
+                        <span class="text-dark" id="report-current-notes">{{ invoice.notes|truncatechars:30|default:"—" }}</span>
+                    </div>
+                </div>
+                <div class="row g-3 small text-dark mt-2">
+                    <div class="col-md-2">
+                        <strong class="text-dark">Subtotal</strong><br>
+                        <span id="report-current-subtotal">{{ user_currency_symbol|default:"₦" }}{{ invoice.subtotal|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Tax</strong><br>
+                        <span id="report-current-tax">{{ user_currency_symbol|default:"₦" }}{{ invoice.total_tax|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Discount</strong><br>
+                        <span id="report-current-discount">{{ user_currency_symbol|default:"₦" }}{{ invoice.total_discount|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Shipping Fee</strong><br>
+                        <span id="report-current-shipping">{{ user_currency_symbol|default:"₦" }}{{ invoice.shipping_fee|default:"0.00"|intcomma }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Other Charges</strong><br>
+                        <span id="report-current-other">{{ user_currency_symbol|default:"₦" }}{{ invoice.other_charges|default:"0.00"|intcomma }}</span>
+                    </div>
+                </div>
+                <p class="mb-0 mt-2 small text-body-secondary">Each row below is a snapshot of this invoice at the time of a change. Status and totals above are the current values from the main table.</p>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover invoice-ledger-table">
+                    <thead>
+                        <tr>
+                            <th>S/N</th>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Subtotal</th>
+                            <th>Tax</th>
+                            <th>Discount</th>
+                            <th>Shipping</th>
+                            <th>Other</th>
+                            <th>Grand Total</th>
+                            <th>Amount Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                            <th>User</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoice-ledger-tbody">
+                        {% include 'invoices/invoice_product_report_rows_partial.html' %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj %}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">Previous</a>
+                {% endif %}
+                <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">Next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">Last</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="row mt-4">
+                <div class="col-md-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Grand Total</small>
+                            <div class="fw-bold" id="card-grand-total">{{ user_currency_symbol|default:"₦" }}{{ invoice.grand_total|default:"0.00"|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Amount Paid</small>
+                            <div class="fw-bold text-success" id="card-amount-paid">{{ user_currency_symbol|default:"₦" }}{{ invoice.amount_paid|default:"0.00"|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Balance Due</small>
+                            <div class="fw-bold text-danger" id="card-balance-due">{{ user_currency_symbol|default:"₦" }}{{ invoice.balance_due|default:"0.00"|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var tbody = document.getElementById('invoice-ledger-tbody');
+    var cardGrandTotal = document.getElementById('card-grand-total');
+    var cardAmountPaid = document.getElementById('card-amount-paid');
+    var cardBalanceDue = document.getElementById('card-balance-due');
+    var headerClientName = document.getElementById('report-current-client-name');
+    var headerGrandTotal = document.getElementById('report-current-grand-total');
+    var headerAmountPaid = document.getElementById('report-current-amount-paid');
+    var headerBalanceDue = document.getElementById('report-current-balance-due');
+    var headerStatus = document.getElementById('report-current-status');
+    var headerNotes = document.getElementById('report-current-notes');
+    var headerSubtotal = document.getElementById('report-current-subtotal');
+    var headerTax = document.getElementById('report-current-tax');
+    var headerDiscount = document.getElementById('report-current-discount');
+    var headerShipping = document.getElementById('report-current-shipping');
+    var headerOther = document.getElementById('report-current-other');
+    var currencySymbol = '{{ user_currency_symbol|default:"₦" }}';
+    var liveIndicator = document.getElementById('live-indicator');
+
+    if (!tbody) return;
+
+    function showLiveIndicator() {
+        if (liveIndicator) {
+            liveIndicator.style.display = 'inline-flex';
+        }
+    }
+
+    function getRefreshUrl() {
+        var params = new URLSearchParams(window.location.search);
+        params.set('format', 'json');
+        return window.location.pathname + '?' + params.toString();
+    }
+
+    var statusColors = {
+        'unpaid': 'secondary',
+        'partial': 'warning text-dark',
+        'paid': 'success',
+        'delivered': 'info'
+    };
+
+    var statusLabels = {
+        'unpaid': 'Not Paid',
+        'partial': 'Partially Paid',
+        'paid': 'Paid',
+        'delivered': 'Delivered'
+    };
+
+    function formatNumber(val) {
+        var n = parseFloat(String(val).replace(/,/g, ''));
+        if (isNaN(n)) return '0.00';
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getStatusLabel(status) {
+        return statusLabels[status] || status || 'Unknown';
+    }
+
+    function getStatusColor(status) {
+        return statusColors[status] || 'secondary';
+    }
+
+    var refreshInProgress = false;
+    function refreshLedger() {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        var url = getRefreshUrl();
+        fetch(url, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            cache: 'no-store',
+        }).then(function(r) {
+            if (!r.ok) {
+                console.error('[Ledger] HTTP error', r.status, 'for', url);
+                throw new Error('HTTP ' + r.status);
+            }
+            return r.json();
+        }).then(function(data) {
+            showLiveIndicator();
+            if (data.rows_html !== undefined && data.rows_html !== null) {
+                tbody.innerHTML = data.rows_html;
+            }
+            if (cardGrandTotal && data.current_grand_total !== undefined) {
+                cardGrandTotal.textContent = currencySymbol + formatNumber(data.current_grand_total);
+            }
+            if (cardAmountPaid && data.current_amount_paid !== undefined) {
+                cardAmountPaid.textContent = currencySymbol + formatNumber(data.current_amount_paid);
+            }
+            if (cardBalanceDue && data.current_balance_due !== undefined) {
+                cardBalanceDue.textContent = currencySymbol + formatNumber(data.current_balance_due);
+            }
+            if (headerClientName && data.current_client_name !== undefined) {
+                headerClientName.textContent = data.current_client_name || '—';
+            }
+            if (headerGrandTotal && data.current_grand_total !== undefined) {
+                headerGrandTotal.textContent = currencySymbol + formatNumber(data.current_grand_total);
+            }
+            if (headerAmountPaid && data.current_amount_paid !== undefined) {
+                headerAmountPaid.textContent = currencySymbol + formatNumber(data.current_amount_paid);
+            }
+            if (headerBalanceDue && data.current_balance_due !== undefined) {
+                headerBalanceDue.textContent = currencySymbol + formatNumber(data.current_balance_due);
+            }
+            if (headerStatus && data.current_status !== undefined) {
+                headerStatus.textContent = getStatusLabel(data.current_status);
+                headerStatus.className = 'badge bg-' + getStatusColor(data.current_status);
+            }
+            if (headerNotes && data.current_notes !== undefined) {
+                headerNotes.textContent = (data.current_notes || '').substring(0, 30) || '—';
+            }
+            if (headerSubtotal && data.current_subtotal !== undefined) {
+                headerSubtotal.textContent = currencySymbol + formatNumber(data.current_subtotal);
+            }
+            if (headerTax && data.current_total_tax !== undefined) {
+                headerTax.textContent = currencySymbol + formatNumber(data.current_total_tax);
+            }
+            if (headerDiscount && data.current_total_discount !== undefined) {
+                headerDiscount.textContent = currencySymbol + formatNumber(data.current_total_discount);
+            }
+            if (headerShipping && data.current_shipping_fee !== undefined) {
+                headerShipping.textContent = currencySymbol + formatNumber(data.current_shipping_fee);
+            }
+            if (headerOther && data.current_other_charges !== undefined) {
+                headerOther.textContent = currencySymbol + formatNumber(data.current_other_charges);
+            }
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone();
+        }).catch(function(err) {
+            console.error('[Ledger] Auto-update error:', err.message);
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone(true);
+        }).finally(function() {
+            refreshInProgress = false;
+        });
+    }
+
+    var POLL_FAST_MS = 2000;
+    var POLL_SLOW_MS = 10000;
+    var firstRefreshMs = 500;
+    var pollTimer = null;
+    
+    function scheduleNext(intervalMs) {
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(function run() {
+            refreshLedger();
+            pollTimer = setTimeout(run, document.hidden ? POLL_SLOW_MS : POLL_FAST_MS);
+        }, intervalMs);
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = setTimeout(function run() {
+                refreshLedger();
+                pollTimer = setTimeout(run, POLL_SLOW_MS);
+            }, POLL_SLOW_MS);
+        } else {
+            refreshLedger();
+            scheduleNext(POLL_FAST_MS);
+        }
+    });
+
+    scheduleNext(firstRefreshMs);
+
+    var refreshBtn = document.getElementById('report-refresh-btn');
+    var refreshLabel = document.getElementById('report-refresh-label');
+    window._reportRefreshDone = function(isError) {
+        if (refreshLabel) refreshLabel.textContent = isError ? 'Try again' : 'Updated';
+        setTimeout(function() {
+            if (refreshLabel) refreshLabel.textContent = 'Refresh';
+        }, 1500);
+    };
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (refreshInProgress) return;
+            if (refreshLabel) refreshLabel.textContent = 'Refreshing…';
+            refreshLedger();
+        });
+    }
+})();
+</script>
+{% endblock %}

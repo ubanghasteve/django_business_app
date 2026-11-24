@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Expense{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Ensure Payment Method and Status (and all) dropdowns are clickable - no overlay or theme blocking */
+  .expense-form-card .card-body select.form-control,
+  .expense-form-card .card-body select.form-select {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
+  .expense-form-card .card-body .col-md-6 {
+    position: relative;
+  }
+  .expense-form-card .card-body .form-label {
+    pointer-events: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card expense-form-card">
+        <div class="card-header">
+            <h6 class="mb-0">{% if is_edit %}Edit Expense{% else %}Create Expense{% endif %}</h6>
+        </div>
+        <div class="card-body">
+            <form method="post" data-sync-model="expense" data-sync-redirect="{% url 'expense:list' %}" {% if object %}data-record-uuid="{{ object.uuid }}"{% endif %}>
+                {% csrf_token %}
+                <div class="row g-3">
+                    {% for field in form %}
+                    <div class="col-md-6">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a href="{% url 'expense:list' %}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

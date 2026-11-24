@@ -1,0 +1,14 @@
+{% load inventory_extras %}
+<div class="qty-out-cell">
+    <button type="button"
+            class="btn btn-sm btn-light border qty-out-dropdown-btn w-100 text-start"
+            data-pk="{{ obj.pk }}"
+            aria-expanded="false"
+            aria-haspopup="true"
+            title="Click to see every withdrawal with date &amp; time">
+        <span class="qty-out-display text-danger fw-semibold">
+            {% if obj.quantity_out_input %}{{ obj.quantity_out_input|format_quantity_display }}{% else %}{{ obj.quantity_out|format_quantity_display }}{% if obj.unit_label %} {{ obj.unit_label }}{% endif %}{% endif %}
+        </span>
+        <i class="fas fa-caret-down float-end ms-1 text-muted" aria-hidden="true"></i>
+    </button>
+</div>

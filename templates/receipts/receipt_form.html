@@ -1,0 +1,666 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load currency_filters %}
+{% block title %}{% if receipt %}Edit Receipt{% else %}Create Receipt{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .receipt-form-section {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        background: #fff;
+    }
+    .receipt-form-section .card-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 12px 20px;
+    }
+    .receipt-form-section .card-body {
+        padding: 20px;
+    }
+    .receipt-form-section h6 {
+        color: #333;
+        font-weight: 600;
+        margin: 0;
+    }
+    .form-control, .form-select {
+        border: 1px solid #ccc !important;
+        padding: 10px 12px !important;
+        font-size: 14px;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #1976d2 !important;
+        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25) !important;
+    }
+    .input-group-text {
+        background: #f8f9fa;
+        border: 1px solid #ccc;
+        font-weight: 600;
+    }
+    label.form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    #payment-summary {
+        border: 2px solid #0d6efd;
+        border-radius: 8px;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    #payment-summary .fs-5 {
+        font-size: 1.25rem !important;
+    }
+    .btn-primary {
+        padding: 10px 30px;
+        font-weight: 600;
+    }
+    .btn-secondary {
+        padding: 10px 30px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-12">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0"><i class="fas fa-receipt me-2"></i>{% if receipt %}Edit Receipt{% else %}Create New Receipt{% endif %}</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Payment Summary Card -->
+                    <div id="payment-summary" class="alert alert-info mb-4" style="display: none; font-size: 16px;">
+                        <div class="row align-items-center mb-3">
+                            <div class="col-md-12">
+                                <h5 class="alert-heading fw-bold"><i class="fas fa-calculator me-2"></i>Payment Summary</h5>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-md-4 border-end">
+                                <small class="text-muted d-block mb-1" style="font-size: 14px;">Invoice Total</small>
+                                <span id="summary-invoice-total" class="fw-bold fs-4" style="font-size: 1.5rem !important;">-</span>
+                            </div>
+                            <div class="col-md-4 border-end">
+                                <small class="text-muted d-block mb-1" style="font-size: 14px;">This Receipt</small>
+                                <span id="summary-amount-received" class="fw-bold fs-4 text-primary" style="font-size: 1.5rem !important;">-</span>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block mb-1" style="font-size: 14px;">Balance After This Receipt</small>
+                                <span id="summary-balance-after" class="fw-bold fs-4" style="font-size: 1.5rem !important;">-</span>
+                            </div>
+                        </div>
+                        <div id="payment-status-message" class="mt-3 text-center" style="font-size: 16px;"></div>
+                    </div>
+                    
+                    <form method="post" id="receipt-form" data-sync-model="receipts" data-sync-redirect="{% url 'receipts:list' %}" {% if receipt %}data-record-uuid="{{ receipt.uuid }}"{% endif %}>
+                        {% csrf_token %}
+                        
+                        <!-- Invoice Selection -->
+                        <div class="receipt-form-section">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Invoice Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <label for="id_invoice" class="form-label" style="font-size: 16px;">Select Invoice {% if form.invoice.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                                            {{ form.invoice }}
+                                            {% if form.invoice.errors %}
+                                            <div class="text-danger small">{{ form.invoice.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Client Information -->
+                        <div class="receipt-form-section">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>Client Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_client_name" class="form-label" style="font-size: 16px;">Client Name {% if form.client_name.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                                                <input type="text" name="client_name" id="id_client_name" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Client Name">
+                                                {% if form.client_name.errors %}<div class="text-danger small">{{ form.client_name.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_client_phone" class="form-label" style="font-size: 16px;">Client Phone</label>
+                                                <input type="text" name="client_phone" id="id_client_phone" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Client Phone">
+                                                {% if form.client_phone.errors %}<div class="text-danger small">{{ form.client_phone.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_client_address" class="form-label" style="font-size: 16px;">Client Address</label>
+                                                <input type="text" name="client_address" id="id_client_address" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Client Address">
+                                                {% if form.client_address.errors %}<div class="text-danger small">{{ form.client_address.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Payment Details -->
+                        <div class="receipt-form-section">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Payment Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_amount_received" class="form-label" style="font-size: 16px;">Amount Received (Enter what customer actually paid) {% if form.amount_received.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text" style="font-size: 16px;">{{ user_currency_symbol|default:'₦' }}</span>
+                                                    <input type="text" name="amount_received" id="id_amount_received" class="form-control" style="height: 45px; font-size: 16px; font-weight: bold;" placeholder="Enter actual amount paid by customer" autocomplete="off">
+                                                </div>
+                                                <small class="text-success fw-bold">Enter the exact amount the customer gave you - not the balance due</small>
+                                                {% if form.amount_received.errors %}<div class="text-danger small">{{ form.amount_received.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_amount_in_words" class="form-label" style="font-size: 16px;">Amount in Words</label>
+                                                <input type="text" name="amount_in_words" id="id_amount_in_words" class="form-control bg-warning bg-opacity-10 fw-bold" style="height: 45px; font-size: 14px;" readonly placeholder="Amount in Words">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_payment_method" class="form-label" style="font-size: 16px;">Payment Method {% if form.payment_method.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                                                <select name="payment_method" id="id_payment_method" class="form-select" style="height: 45px; font-size: 15px;">
+                                                    <option value="">-- Select Method --</option>
+                                                    <option value="cash">Cash</option>
+                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                    <option value="cheque">Cheque</option>
+                                                    <option value="card">Card</option>
+                                                    <option value="mobile_money">Mobile Money</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                                {% if form.payment_method.errors %}<div class="text-danger small">{{ form.payment_method.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_transaction_id" class="form-label" style="font-size: 16px;">Transaction ID</label>
+                                                <input type="text" name="transaction_id" id="id_transaction_id" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Transaction ID">
+                                                {% if form.transaction_id.errors %}<div class="text-danger small">{{ form.transaction_id.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_received_by" class="form-label" style="font-size: 16px;">Received By {% if form.received_by.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                                                <input type="text" name="received_by" id="id_received_by" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Received By">
+                                                {% if form.received_by.errors %}<div class="text-danger small">{{ form.received_by.errors }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="id_custom_color" class="form-label" style="font-size: 16px;">Receipt Color</label>
+                                                <input type="color" name="custom_color" id="id_custom_color" class="form-control form-control-color" style="height: 45px; width: 100%;" value="#000000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes -->
+                        <div class="receipt-form-section">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-comment me-2"></i>Note for Customer</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <textarea name="notes" id="id_notes" class="form-control" rows="3" style="font-size: 15px;" placeholder="Add a note or message for your customer (optional)">{% if form.notes.value %}{{ form.notes.value }}{% endif %}</textarea>
+                                            <small class="text-muted">This note will appear on the printed receipt</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Display Options -->
+                        <div class="receipt-form-section">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Receipt Display Options</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch" style="padding: 10px;">
+                                                <input class="form-check-input" type="checkbox" name="show_bank_details" id="id_show_bank_details" checked style="width: 40px; height: 20px;">
+                                                <label class="form-check-label fw-bold" for="id_show_bank_details" style="font-size: 16px; margin-left: 10px;">Show bank details on receipt</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch" style="padding: 10px;">
+                                                <input class="form-check-input" type="checkbox" name="show_signature" id="id_show_signature" checked style="width: 40px; height: 20px;">
+                                                <label class="form-check-label fw-bold" for="id_show_signature" style="font-size: 16px; margin-left: 10px;">Show authorized signature on receipt</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Buttons -->
+                        <div class="row mt-4">
+                            <div class="col-md-12 text-end">
+                                <a href="{% url 'receipts:list' %}" class="btn btn-secondary btn-lg me-3 px-4"><i class="fas fa-times me-2"></i>Cancel</a>
+                                <button type="submit" class="btn btn-primary btn-lg px-4"><i class="fas fa-save me-2"></i>Save Receipt</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{# Django values live in JSON so the IDE JS checker does not flag this file #}
+<script id="receipt-form-config" type="application/json">{
+  "currency_symbol": "{{ user_currency_symbol|default:'₦'|escapejs }}",
+  "currency_code": "{{ user_currency_code|default:'NGN'|escapejs }}",
+  "existing_receipt_amount": "{{ receipt.amount_received|default:'0'|escapejs }}",
+  "is_editing": {% if receipt and receipt.pk %}true{% else %}false{% endif %}
+}</script>
+<script>
+(function() {
+    'use strict';
+
+    var _cfgEl = document.getElementById('receipt-form-config');
+    var _cfg = {};
+    try {
+        _cfg = JSON.parse(_cfgEl ? _cfgEl.textContent : '{}');
+    } catch (e) {
+        _cfg = {};
+    }
+
+    // Global variables
+    let currentInvoiceData = null;
+    let userEditedAmount = false;
+    let amountWordTimeout = null;
+
+    // Currency / edit state from config (not inline Django tags)
+    const CURRENCY_SYMBOL = _cfg.currency_symbol || '₦';
+    const CURRENCY_CODE = _cfg.currency_code || 'NGN';
+    // When editing, invoice.amount_paid already includes this receipt — exclude it from "prior paid"
+    const EXISTING_RECEIPT_AMOUNT = parseFloat(String(_cfg.existing_receipt_amount || '0').replace(/,/g, '')) || 0;
+    const IS_EDITING_RECEIPT = !!_cfg.is_editing;
+    
+    // DOM Elements
+    const invoiceSelect = document.getElementById('id_invoice');
+    const amountReceivedInput = document.getElementById('id_amount_received');
+    const amountInWordsInput = document.getElementById('id_amount_in_words');
+    const paymentSummary = document.getElementById('payment-summary');
+    const summaryTotal = document.getElementById('summary-invoice-total');
+    const summaryReceived = document.getElementById('summary-amount-received');
+    const summaryBalance = document.getElementById('summary-balance-after');
+    const summaryMessage = document.getElementById('payment-status-message');
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Invoice dropdown is rendered by Django form, just add data attribute
+        if (invoiceSelect) {
+            invoiceSelect.setAttribute('data-invoice-select', '1');
+        }
+        initializeEventListeners();
+        // Prefill payment summary when editing or when invoice is already selected
+        if (invoiceSelect && invoiceSelect.value) {
+            handleInvoiceChange();
+            // After invoice loads, restore existing amount on edit and refresh summary
+            if (IS_EDITING_RECEIPT && amountReceivedInput) {
+                const restoreAmount = function() {
+                    if (!currentInvoiceData) {
+                        setTimeout(restoreAmount, 50);
+                        return;
+                    }
+                    if (EXISTING_RECEIPT_AMOUNT > 0 && !amountReceivedInput.value) {
+                        amountReceivedInput.value = formatNumber(EXISTING_RECEIPT_AMOUNT);
+                    }
+                    const raw = (amountReceivedInput.value || '').replace(/,/g, '');
+                    updatePaymentSummary(parseFloat(raw) || EXISTING_RECEIPT_AMOUNT || 0);
+                };
+                restoreAmount();
+            }
+        }
+    });
+    
+    // Initialize all event listeners
+    function initializeEventListeners() {
+        // Invoice selection change
+        if (invoiceSelect) {
+            invoiceSelect.addEventListener('change', handleInvoiceChange);
+        }
+        
+        // Amount received input
+        if (amountReceivedInput) {
+            amountReceivedInput.addEventListener('input', handleAmountInput);
+            amountReceivedInput.addEventListener('blur', handleAmountBlur);
+        }
+        
+        // Form submission
+        const form = document.getElementById('receipt-form');
+        if (form) {
+            form.addEventListener('submit', handleFormSubmit);
+        }
+    }
+    
+    // Handle invoice selection change
+    function handleInvoiceChange() {
+        const invoiceId = invoiceSelect.value;
+        userEditedAmount = false;
+        
+        // Clear fields when no invoice selected
+        if (!invoiceId) {
+            clearFormFields();
+            hidePaymentSummary();
+            return;
+        }
+        
+        // Fetch invoice details
+        fetch(`/api/invoices/${invoiceId}/info/`, {
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Invoice data received:', data);
+            currentInvoiceData = data;
+            populateInvoiceDetails(data);
+        })
+        .catch(function(error) {
+            console.log('Error loading invoice:', error);
+            showAlert('Could not load invoice details. Please try again.', 'warning');
+        });
+    }
+    
+    // Populate invoice details to form
+    function populateInvoiceDetails(data) {
+        if (!data) return;
+        
+        // Show payment summary
+        showPaymentSummary();
+        
+        // Client details — don't overwrite on edit if already filled
+        if (!IS_EDITING_RECEIPT) {
+            setFieldValue('id_client_name', data.client_name || '');
+            setFieldValue('id_client_phone', data.client_phone || '');
+            setFieldValue('id_client_address', data.client_address || '');
+        }
+        
+        // Calculate suggested amount based on invoice status
+        const grandTotal = parseFloat(data.grand_total) || 0;
+        const amountPaid = parseFloat(data.amount_paid) || 0;
+        const balanceDue = parseFloat(data.balance_due) || 0;
+        const status = data.status || 'unpaid';
+        
+        // Show the balance due as reference, but don't pre-fill it - let user enter actual amount
+        let alertClass = 'alert-info';
+        let message = '';
+        
+        if (status === 'paid' || amountPaid >= grandTotal) {
+            alertClass = 'alert-success';
+            message = '<span class="badge bg-success">Invoice Already Paid</span> <span class="text-muted">This invoice has been fully paid.</span>';
+        } else if (status === 'partial' || (amountPaid > 0 && amountPaid < grandTotal)) {
+            alertClass = 'alert-warning';
+            message = `<span class="badge bg-warning">Partial Payment</span> <span class="text-dark">Remaining balance: <strong>${formatNumber(balanceDue)}</strong> - You can enter any amount</span>`;
+        } else {
+            alertClass = 'alert-info';
+            message = `<span class="badge bg-primary">Unpaid</span> <span class="text-dark">Invoice total: <strong>${formatNumber(grandTotal)}</strong> - You can enter any amount</span>`;
+        }
+        
+        // Update payment summary with current amount (edit) or 0 (new)
+        const existingRaw = amountReceivedInput ? String(amountReceivedInput.value || '').replace(/,/g, '') : '';
+        const existingAmount = parseFloat(existingRaw) || (IS_EDITING_RECEIPT ? EXISTING_RECEIPT_AMOUNT : 0);
+        updatePaymentSummary(existingAmount);
+        
+        // Update summary message only when no amount entered yet on create
+        if (!existingAmount) {
+            summaryMessage.innerHTML = message;
+            paymentSummary.className = `alert ${alertClass} mb-4`;
+            summaryTotal.textContent = formatNumber(grandTotal);
+            summaryReceived.textContent = '-';
+            summaryBalance.textContent = formatNumber(balanceDue) + ' (current)';
+        }
+        
+        // Set other fields on create only
+        if (!IS_EDITING_RECEIPT) {
+            setFieldValue('id_transaction_id', data.invoice_number || '');
+            setFieldValue('id_custom_color', data.custom_color || '#000000');
+            if (data.received_by) {
+                setFieldValue('id_received_by', data.received_by.toString());
+            }
+        }
+    }
+    
+    // Handle amount input - real-time updates
+    function handleAmountInput(e) {
+        // Mark that user edited the amount
+        userEditedAmount = true;
+        
+        // Get raw value without commas
+        const rawValue = e.target.value.replace(/,/g, '');
+        const numericValue = parseFloat(rawValue);
+        
+        // Validate
+        if (isNaN(numericValue) || rawValue === '') {
+            amountInWordsInput.value = '';
+            updatePaymentSummary(0);
+            return;
+        }
+        
+        // Debounce amount in words update for performance
+        if (amountWordTimeout) {
+            clearTimeout(amountWordTimeout);
+        }
+        
+        amountWordTimeout = setTimeout(function() {
+            updateAmountInWords(numericValue);
+        }, 100);
+        
+        // Update payment summary immediately
+        updatePaymentSummary(numericValue);
+    }
+    
+    // Handle amount blur - format with commas
+    function handleAmountBlur(e) {
+        const rawValue = e.target.value.replace(/,/g, '');
+        const numericValue = parseFloat(rawValue);
+        
+        if (!isNaN(numericValue) && rawValue !== '') {
+            e.target.value = formatNumber(numericValue);
+        }
+    }
+    
+    // Handle form submission
+    function handleFormSubmit(e) {
+        // Remove commas from amount before submitting
+        if (amountReceivedInput && amountReceivedInput.value) {
+            amountReceivedInput.value = amountReceivedInput.value.replace(/,/g, '');
+        }
+    }
+    
+    // Update payment summary
+    function updatePaymentSummary(amountReceived) {
+        if (!paymentSummary) return;
+        
+        // Ensure we have a valid number
+        const amount = typeof amountReceived === 'number' ? amountReceived : (parseFloat(String(amountReceived).replace(/,/g, '')) || 0);
+        
+        // Show the summary
+        paymentSummary.style.display = 'block';
+        
+        // If no invoice selected, show basic info
+        if (!currentInvoiceData || !currentInvoiceData.grand_total) {
+            summaryTotal.textContent = '-';
+            summaryReceived.textContent = formatNumber(amount);
+            summaryBalance.textContent = '-';
+            return;
+        }
+        
+        // Balance after = invoice total - prior payments - this receipt
+        const grandTotal = parseFloat(currentInvoiceData.grand_total) || 0;
+        let priorPaid = parseFloat(currentInvoiceData.amount_paid) || 0;
+        if (IS_EDITING_RECEIPT) {
+            priorPaid = Math.max(0, priorPaid - EXISTING_RECEIPT_AMOUNT);
+        }
+        const balanceAfterThisReceipt = grandTotal - priorPaid - amount;
+        
+        // Display values
+        summaryTotal.textContent = formatNumber(grandTotal);
+        summaryReceived.textContent = amount > 0 ? formatNumber(amount) : '-';
+        summaryBalance.textContent = balanceAfterThisReceipt > 0
+            ? formatNumber(balanceAfterThisReceipt)
+            : (balanceAfterThisReceipt < 0 ? 'OVERPAID' : 'PAID');
+        
+        // Determine payment type and update message
+        let alertClass = 'alert-info';
+        let message = '';
+        
+        if (balanceAfterThisReceipt > 0) {
+            alertClass = 'alert-warning';
+            message = `<span class="badge bg-warning">Partial Payment</span> <span class="text-dark">Balance after this receipt: <strong>${formatNumber(balanceAfterThisReceipt)}</strong></span>`;
+        } else if (balanceAfterThisReceipt < 0) {
+            alertClass = 'alert-danger';
+            const refundDue = Math.abs(balanceAfterThisReceipt);
+            message = `<span class="badge bg-danger">Over Payment</span> <span class="text-dark">Refund due to customer: <strong>${formatNumber(refundDue)}</strong></span>`;
+        } else {
+            alertClass = 'alert-success';
+            message = `<span class="badge bg-success">Full Payment</span> <span class="text-dark"><strong>Invoice will be fully paid!</strong></span>`;
+        }
+        
+        summaryMessage.innerHTML = message;
+        paymentSummary.className = `alert ${alertClass} mb-4`;
+    }
+    
+    // Convert number to words - Client-side
+    function updateAmountInWords(amount) {
+        if (!amountInWordsInput) return;
+        
+        if (!amount || isNaN(amount) || amount <= 0) {
+            amountInWordsInput.value = '';
+            return;
+        }
+        
+        const words = numberToWordsClient(amount);
+        const currencyLabel = (CURRENCY_CODE === 'NGN') ? 'Naira' : CURRENCY_CODE;
+        amountInWordsInput.value = words + ' ' + currencyLabel;
+    }
+    
+    // Client-side number to words converter
+    function numberToWordsClient(num) {
+        if (num === 0) return 'Zero';
+        
+        const isDecimal = num % 1 !== 0;
+        let integerPart = Math.floor(num);
+        let decimalPart = 0;
+        
+        if (isDecimal) {
+            decimalPart = Math.round((num - integerPart) * 100);
+        }
+        
+        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
+                      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        
+        function convertChunk(n) {
+            if (n < 20) return ones[n];
+            if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+            if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertChunk(n % 100) : '');
+            if (n < 1000000) return convertChunk(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convertChunk(n % 1000) : '');
+            if (n < 1000000000) return convertChunk(Math.floor(n / 1000000)) + ' Million' + (n % 1000000 ? ' ' + convertChunk(n % 1000000) : '');
+            return convertChunk(Math.floor(n / 1000000000)) + ' Billion' + (n % 1000000000 ? ' ' + convertChunk(n % 1000000000) : '');
+        }
+        
+        let result = convertChunk(integerPart);
+        
+        if (isDecimal && decimalPart > 0) {
+            result += ' and ';
+            if (decimalPart < 20) {
+                result += ones[decimalPart];
+            } else {
+                result += tens[Math.floor(decimalPart / 10)];
+                if (decimalPart % 10) {
+                    result += ' ' + ones[decimalPart % 10];
+                }
+            }
+            result += ' Kobo';
+        }
+        
+        return result || 'Zero';
+    }
+    
+    // Format number with commas
+    function formatNumber(num) {
+        if (num === null || num === undefined || isNaN(num)) return '0.00';
+        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    // Set field value safely
+    function setFieldValue(fieldId, value) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = value || '';
+        }
+    }
+    
+    // Clear form fields
+    function clearFormFields() {
+        const fields = ['id_client_name', 'id_client_phone', 'id_client_address', 'id_amount_received', 
+                        'id_amount_in_words', 'id_transaction_id', 'id_received_by'];
+        
+        fields.forEach(function(fieldId) {
+            setFieldValue(fieldId, '');
+        });
+        
+        // Reset payment method dropdown
+        const paymentMethod = document.getElementById('id_payment_method');
+        if (paymentMethod) paymentMethod.selectedIndex = 0;
+        
+        currentInvoiceData = null;
+    }
+    
+    // Show payment summary
+    function showPaymentSummary() {
+        if (paymentSummary) {
+            paymentSummary.style.display = 'block';
+        }
+    }
+    
+    // Hide payment summary
+    function hidePaymentSummary() {
+        if (paymentSummary) {
+            paymentSummary.style.display = 'none';
+        }
+    }
+    
+    // Show alert message
+    function showAlert(message, type) {
+        // Could implement toast notifications here
+        console.log(`Alert [${type}]: ${message}`);
+    }
+    
+})();
+</script>
+{% endblock %}

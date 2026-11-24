@@ -1,0 +1,600 @@
+{% extends 'base.html' %}
+{% block title %}Waybill Ledger - {{ waybill.waybill_number }}{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">Waybill Ledger / Report: {{ waybill.waybill_number }}</h5>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="report-refresh-btn" title="Refresh to show latest data from waybill">
+                    <i class="fas fa-sync-alt me-1"></i><span id="report-refresh-label">Refresh</span>
+                </button>
+                <a href="{% url 'waybills:list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to list
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">
+                Movement history for this waybill record.
+                Each row shows <strong>one change</strong>: quantity updates, status changes, approval changes,
+                and other modifications. Totals always reflect the live waybill record.
+            </p>
+
+            <style>
+            .ledger-filters {
+                border: 1px solid #cbd3da;
+                border-radius: 10px;
+                padding: 12px 14px;
+                margin-bottom: 1rem;
+                background-color: #ffffff;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            }
+            .ledger-filters .form-control,
+            .ledger-filters .form-select {
+                border-radius: 6px;
+                border: 1px solid #adb5bd;
+                background-color: #ffffff;
+            }
+            .ledger-filters .form-control::placeholder {
+                color: #6c757d;
+                opacity: 1;
+            }
+            .report-current-row-box {
+                background-color: #f8f9fa;
+                border-color: #dee2e6 !important;
+                border-radius: 8px;
+            }
+            .report-current-row-box .text-body-secondary { color: #495057 !important; }
+            .waybill-ledger-table th {
+                background-color: #f8f9fa;
+                font-size: 0.8rem;
+                white-space: nowrap;
+            }
+            .waybill-ledger-table td {
+                font-size: 0.8rem;
+            }
+            .delivery-progress-thin {
+                min-width: 40px;
+            }
+            .text-xxs {
+                font-size: 0.65rem;
+            }
+            .delivery-details-popup {
+                width: 400px;
+                max-width: 90vw;
+                max-height: 80vh;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            .delivery-details-popup table {
+                width: 100%;
+                min-width: 250px;
+            }
+            .close-popup-btn:hover {
+                color: #000;
+            }
+            @media (max-width: 480px) {
+                .delivery-details-popup {
+                    width: calc(100vw - 30px) !important;
+                    max-width: 400px;
+                    max-height: 70vh;
+                }
+            }
+            @media (min-width: 768px) {
+                .delivery-details-popup {
+                    max-height: 450px;
+                }
+            }
+            </style>
+
+            <form method="get" class="mb-3 ledger-filters" id="waybillReportFilterForm">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="Search remark, user, status…">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">All status</option>
+                            {% for v,l in status_choices %}
+                            <option value="{{ v }}" {% if status_filter == v %}selected{% endif %}>{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" placeholder="From date">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" placeholder="To date">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                        <a href="?" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="report-current-row-box border mb-3 py-3 px-3">
+                <h6 class="mb-2 text-dark fw-semibold">Current Waybill State</h6>
+                <div class="row g-3 small text-dark">
+                    <div class="col-md-2">
+                        <strong class="text-dark">Total Quantity</strong><br>
+                        <span class="text-success fw-semibold" id="report-current-total-qty">{{ current_total_qty_input|default:"—" }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Delivered Quantity</strong><br>
+                        <span class="text-info fw-semibold" id="report-current-delivered-qty">{{ current_delivered_qty_input|default:"—" }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Remaining</strong><br>
+                        <span class="fw-bold text-dark" id="report-current-remaining">{{ current_remaining_display|default:"—" }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Status</strong><br>
+                        <span class="badge bg-{% if current_status == 'delivered' %}success{% elif current_status == 'cancelled' %}danger{% elif current_status == 'dispatched' %}primary{% elif current_status == 'pending' %}warning text-dark{% else %}secondary{% endif %}" id="report-current-status">
+                            {% for v,l in status_choices %}{% if v == current_status %}{{ l }}{% endif %}{% endfor %}
+                        </span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Approved</strong><br>
+                        <span class="badge bg-{% if current_is_approved %}success{% else %}secondary{% endif %}" id="report-current-approved">
+                            {% if current_is_approved %}Yes{% else %}No{% endif %}
+                        </span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong class="text-dark">Notes</strong><br>
+                        <span class="text-dark" id="report-current-notes">{{ current_notes|truncatechars:30|default:"—" }}</span>
+                    </div>
+                </div>
+                {% if current_delivery_rows %}
+                <div class="mt-2">
+                    <small class="text-muted">Delivery Items:</small>
+                    <table class="table table-sm table-bordered mb-0 mt-1" style="font-size: 0.75rem;">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Total</th>
+                                <th>Delivered</th>
+                                <th>Remaining</th>
+                                <th>Excess</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in current_delivery_rows %}
+                            <tr>
+                                <td>{{ row.product|default:"—" }}</td>
+                                <td>{{ row.total_input|default:"—" }}</td>
+                                <td>{{ row.delivered_input|default:"—" }}</td>
+                                <td>{% if row.remaining > 0 %}{{ row.remaining|floatformat:0 }}{% else %}—{% endif %}</td>
+                                <td>{% if row.excess > 0 %}<span class="text-danger">{{ row.excess|floatformat:0 }}</span>{% else %}—{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+                <p class="mb-0 mt-2 small text-body-secondary">Each row below is a snapshot of this waybill at the time of a change. Status and approval above are the current values from the main table.</p>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover waybill-ledger-table">
+                    <thead>
+                        <tr>
+                            <th>S/N</th>
+                            <th>Date</th>
+                            <th>Waybill #</th>
+                            <th>User</th>
+                            <th>Total Qty</th>
+                            <th>Delivered</th>
+                            <th>Remaining</th>
+                            <th>Over</th>
+                            <th>Status</th>
+                            <th>Items</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="waybill-ledger-tbody">
+                        {% include 'waybills/waybill_report_rows_partial.html' %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj %}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">Previous</a>
+                {% endif %}
+                <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">Next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if pagination_base_query %}&{{ pagination_base_query }}{% endif %}" class="btn btn-sm btn-outline-secondary">Last</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="row mt-4">
+                <div class="col-md-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Total Quantity</small>
+                            <div class="fw-bold" id="card-total-qty">{{ current_total_qty_input|default:"—" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Delivered Quantity</small>
+                            <div class="fw-bold" id="card-delivered-qty">{{ current_delivered_qty_input|default:"—" }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">Remaining Quantity</small>
+                            <div class="fw-bold" id="card-remaining-qty">{{ current_remaining_qty_value|default:"0" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var tbody = document.getElementById('waybill-ledger-tbody');
+    var cardTotalQty = document.getElementById('card-total-qty');
+    var cardDeliveredQty = document.getElementById('card-delivered-qty');
+    var cardRemainingQty = document.getElementById('card-remaining-qty');
+    var headerTotalQty = document.getElementById('report-current-total-qty');
+    var headerDeliveredQty = document.getElementById('report-current-delivered-qty');
+    var headerRemaining = document.getElementById('report-current-remaining');
+    var headerStatus = document.getElementById('report-current-status');
+    var headerApproved = document.getElementById('report-current-approved');
+
+    if (!tbody) return;
+
+    function getRefreshUrl() {
+        var params = new URLSearchParams(window.location.search);
+        params.set('format', 'json');
+        return window.location.pathname + '?' + params.toString();
+    }
+
+    var statusColors = {
+        'delivered': 'success',
+        'cancelled': 'danger',
+        'dispatched': 'primary',
+        'pending': 'warning text-dark',
+        'processing': 'info',
+        'not_delivered': 'danger',
+        'returned': 'warning text-dark',
+        'on_hold': 'secondary',
+        'awaiting_pickup': 'info'
+    };
+
+    function getStatusLabel(status) {
+        var labels = {
+            'delivered': 'Delivered',
+            'cancelled': 'Cancelled',
+            'dispatched': 'Dispatched / In Transit',
+            'pending': 'Pending',
+            'processing': 'Processing',
+            'not_delivered': 'Not Delivered',
+            'returned': 'Returned',
+            'on_hold': 'On Hold',
+            'awaiting_pickup': 'Awaiting Pickup'
+        };
+        return labels[status] || status;
+    }
+
+    function positionDeliveryPopup(toggleBtn, popup, forceBelowOnMobile) {
+        if (!toggleBtn || !popup) return false;
+
+        var rect = toggleBtn.getBoundingClientRect();
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+        var isMobile = viewportWidth < 600;
+        var margin = 10;
+        var gap = 5;
+        var defaultWidth = isMobile ? Math.min(400, viewportWidth - (margin * 2)) : 350;
+
+        popup.style.position = 'fixed';
+        popup.style.left = '0px';
+        popup.style.top = '0px';
+        popup.style.maxHeight = isMobile ? '70vh' : '450px';
+        popup.style.width = isMobile ? 'calc(100vw - 30px)' : '400px';
+        popup.style.maxWidth = isMobile ? '400px' : '90vw';
+
+        // Measure after basic sizing, while popup is visible.
+        var popupRect = popup.getBoundingClientRect();
+        var popupWidth = Math.max(defaultWidth, Math.min(popupRect.width || defaultWidth, viewportWidth - (margin * 2)));
+        var popupHeight = popupRect.height || 280;
+
+        // Horizontal: centered on mobile, anchored to button on desktop.
+        var left = isMobile
+            ? Math.max(margin, (viewportWidth - popupWidth) / 2)
+            : Math.max(margin, Math.min(rect.left, viewportWidth - popupWidth - margin));
+
+        // Vertical: mobile should open downward unless there is almost no space.
+        var spaceBelow = viewportHeight - rect.bottom - margin;
+        var spaceAbove = rect.top - margin;
+        var top = rect.bottom + gap;
+        var opensUpward = false;
+
+        if (isMobile && forceBelowOnMobile) {
+            // Keep dropdown below on phones; shrink height to fit viewport.
+            var mobileMax = Math.max(160, Math.floor(spaceBelow - gap));
+            popup.style.maxHeight = mobileMax + 'px';
+            if (spaceBelow < 120 && spaceAbove > spaceBelow) {
+                top = Math.max(margin, rect.top - popupHeight - gap);
+                opensUpward = true;
+            }
+        } else {
+            // Desktop or fallback: choose the side with more space.
+            if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+                top = Math.max(margin, rect.top - popupHeight - gap);
+                opensUpward = true;
+            }
+        }
+
+        popup.style.left = Math.round(left) + 'px';
+        popup.style.top = Math.round(top) + 'px';
+        return opensUpward;
+    }
+
+    var refreshInProgress = false;
+    function refreshLedger() {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        fetch(getRefreshUrl(), {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            cache: 'no-store',
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function(data) {
+            if (data.rows_html) {
+                // Save state of any open delivery detail popups
+                var openPopupIds = [];
+                document.querySelectorAll('.delivery-details-popup').forEach(function(popup) {
+                    if (popup.style.display !== 'none') {
+                        openPopupIds.push(popup.id);
+                    }
+                });
+                
+                // Replace tbody content
+                tbody.innerHTML = data.rows_html;
+                
+                // Restore open popups (only if their button still exists in new content)
+                openPopupIds.forEach(function(popupId) {
+                    var popup = document.getElementById(popupId);
+                    var btn = document.querySelector('.delivery-toggle-btn[data-row-id="' + popupId + '"]');
+                    if (popup && btn) {
+                        popup.style.display = 'block';
+                        // Update popup position
+                        positionDeliveryPopup(btn, popup, true);
+                        // Update button arrow
+                        var icon = btn.querySelector('i');
+                        if (icon) {
+                            icon.classList.remove('fa-chevron-down', 'fa-chevron-up');
+                            icon.classList.add('fa-chevron-up');
+                        }
+                    }
+                });
+            }
+            if (cardTotalQty && data.current_total_qty_input !== undefined) {
+                cardTotalQty.textContent = data.current_total_qty_input || '—';
+            }
+            if (cardDeliveredQty && data.current_delivered_qty_input !== undefined) {
+                cardDeliveredQty.textContent = data.current_delivered_qty_input || '—';
+            }
+            if (cardRemainingQty && data.current_remaining_qty_value !== undefined) {
+                cardRemainingQty.textContent = data.current_remaining_qty_value;
+            }
+            if (headerTotalQty && data.current_total_qty_input !== undefined) {
+                headerTotalQty.textContent = data.current_total_qty_input || '—';
+            }
+            if (headerDeliveredQty && data.current_delivered_qty_input !== undefined) {
+                headerDeliveredQty.textContent = data.current_delivered_qty_input || '—';
+            }
+            if (headerRemaining && (data.current_remaining_display !== undefined || data.current_remaining_qty_value !== undefined)) {
+                headerRemaining.textContent = data.current_remaining_display || (data.current_remaining_qty_value || '—');
+            }
+            if (headerStatus && data.current_status !== undefined) {
+                headerStatus.textContent = getStatusLabel(data.current_status);
+                headerStatus.className = 'badge bg-' + (statusColors[data.current_status] || 'secondary');
+            }
+            if (headerApproved && data.current_is_approved !== undefined) {
+                headerApproved.textContent = data.current_is_approved ? 'Yes' : 'No';
+                headerApproved.className = 'badge bg-' + (data.current_is_approved ? 'success' : 'secondary');
+            }
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone();
+        }).catch(function() {
+            if (typeof window._reportRefreshDone === 'function') window._reportRefreshDone(true);
+        }).finally(function() {
+            refreshInProgress = false;
+        });
+    }
+
+    var POLL_FAST_MS = 2000;
+    var POLL_SLOW_MS = 10000;
+    var firstRefreshMs = 500;
+    var pollTimer = null;
+    var isPopupOpen = false;
+    
+    function scheduleNext(intervalMs) {
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(function run() {
+            // Skip refresh if a popup is open
+            if (!isPopupOpen) {
+                refreshLedger();
+            }
+            pollTimer = setTimeout(run, document.hidden ? POLL_SLOW_MS : POLL_FAST_MS);
+        }, intervalMs);
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (pollTimer) clearTimeout(pollTimer);
+            pollTimer = setTimeout(function run() {
+                refreshLedger();
+                pollTimer = setTimeout(run, POLL_SLOW_MS);
+            }, POLL_SLOW_MS);
+        } else {
+            refreshLedger();
+            scheduleNext(POLL_FAST_MS);
+        }
+    });
+
+    scheduleNext(firstRefreshMs);
+
+    var refreshBtn = document.getElementById('report-refresh-btn');
+    var refreshLabel = document.getElementById('report-refresh-label');
+    window._reportRefreshDone = function(isError) {
+        if (refreshLabel) refreshLabel.textContent = isError ? 'Try again' : 'Updated';
+        setTimeout(function() {
+            if (refreshLabel) refreshLabel.textContent = 'Refresh';
+        }, 1500);
+    };
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            if (refreshInProgress) return;
+            if (refreshLabel) refreshLabel.textContent = 'Refreshing…';
+            refreshLedger();
+        });
+    }
+
+    // Handle delivery details toggle buttons - popup style dropdown
+    var touchHandled = false;
+    var deliveryToggleHandler = function(e) {
+        if (touchHandled) {
+            touchHandled = false;
+            return;
+        }
+        // Handle close button click
+        if (e.target.classList.contains('close-popup-btn')) {
+            var popup = e.target.closest('.delivery-details-popup');
+            if (popup) {
+                popup.style.display = 'none';
+                isPopupOpen = false;
+                // Reset all toggle buttons to down arrow
+                document.querySelectorAll('.delivery-toggle-btn').forEach(function(btn) {
+                    var icon = btn.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('fa-chevron-up');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                });
+            }
+            return;
+        }
+        
+        // Don't close popup if clicking inside the popup itself
+        var popupClicked = e.target.closest('.delivery-details-popup');
+        if (popupClicked) return;
+        
+        var toggleBtn = e.target.closest('.delivery-toggle-btn');
+        if (!toggleBtn) {
+            // Clicked outside - close all popups
+            document.querySelectorAll('.delivery-details-popup').forEach(function(p) {
+                p.style.display = 'none';
+            });
+            document.querySelectorAll('.delivery-toggle-btn').forEach(function(btn) {
+                var icon = btn.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            });
+            isPopupOpen = false;
+            return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Get the target popup ID
+        var targetId = toggleBtn.getAttribute('data-row-id');
+        var popup = document.getElementById(targetId || '');
+        
+        if (!popup) return;
+        
+        // Check if this popup is currently visible
+        var isVisible = popup.style.display !== 'none';
+        
+        // Close ALL popups first
+        document.querySelectorAll('.delivery-details-popup').forEach(function(p) {
+            p.style.display = 'none';
+        });
+        
+        // Reset all toggle buttons to down arrow
+        document.querySelectorAll('.delivery-toggle-btn').forEach(function(btn) {
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            }
+        });
+        
+        // Mark no popup is open
+        isPopupOpen = false;
+        
+        // If it wasn't visible, show it
+        if (!isVisible) {
+            popup.style.display = 'block';
+            isPopupOpen = true;
+
+            // Position popup relative to viewport (fixed positioning).
+            var openedUpward = positionDeliveryPopup(toggleBtn, popup, true);
+
+            // Change arrow based on position
+            var icon = toggleBtn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-chevron-down', 'fa-chevron-up');
+                icon.classList.add(openedUpward ? 'fa-chevron-up' : 'fa-chevron-down');
+            }
+        }
+    };
+    
+    // Use regular event listener (not capture) to allow scrolling inside popup
+    document.addEventListener('click', deliveryToggleHandler);
+    
+    // Add direct touch event handlers for mobile devices (touchstart for instant response)
+    document.addEventListener('touchstart', function(e) {
+        var toggleBtn = e.target.closest('.delivery-toggle-btn');
+        if (toggleBtn) {
+            touchHandled = true;
+            deliveryToggleHandler(e);
+        }
+    }, { passive: true });
+    
+    // Close popups only after user stops scrolling (debounced)
+    var scrollTimeout;
+    window.addEventListener('scroll', function() {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(function() {
+            document.querySelectorAll('.delivery-details-popup').forEach(function(popup) {
+                popup.style.display = 'none';
+            });
+            document.querySelectorAll('.delivery-toggle-btn').forEach(function(btn) {
+                var icon = btn.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            });
+            isPopupOpen = false;
+        }, 300);
+    });
+})();
+</script>
+{% endblock %}

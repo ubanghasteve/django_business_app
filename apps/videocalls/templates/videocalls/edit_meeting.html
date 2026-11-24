@@ -1,0 +1,96 @@
+{% extends 'videocalls/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - {{ block.super }}{% endblock %}
+
+{% block video_content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0"><i class="bi bi-pencil"></i> Edit Meeting</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="meeting_title" class="form-label fw-bold">Meeting Title</label>
+                            <input type="text" class="form-control" id="meeting_title" name="meeting_title" 
+                                   value="{{ meeting.meeting_title }}" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-bold">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ meeting.description }}</textarea>
+                        </div>
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="duration" class="form-label fw-bold">Duration</label>
+                                <select class="form-select" id="duration" name="duration">
+                                    <option value="15" {% if meeting.scheduled_duration == 15 %}selected{% endif %}>15 minutes</option>
+                                    <option value="30" {% if meeting.scheduled_duration == 30 %}selected{% endif %}>30 minutes</option>
+                                    <option value="45" {% if meeting.scheduled_duration == 45 %}selected{% endif %}>45 minutes</option>
+                                    <option value="60" {% if meeting.scheduled_duration == 60 %}selected{% endif %}>1 hour</option>
+                                    <option value="90" {% if meeting.scheduled_duration == 90 %}selected{% endif %}>1.5 hours</option>
+                                    <option value="120" {% if meeting.scheduled_duration == 120 %}selected{% endif %}>2 hours</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="max_participants" class="form-label fw-bold">Max Participants</label>
+                                <select class="form-select" id="max_participants" name="max_participants">
+                                    <option value="2" {% if meeting.max_participants == 2 %}selected{% endif %}>2 (One-to-One)</option>
+                                    <option value="5" {% if meeting.max_participants == 5 %}selected{% endif %}>5 participants</option>
+                                    <option value="10" {% if meeting.max_participants == 10 %}selected{% endif %}>10 participants</option>
+                                    <option value="20" {% if meeting.max_participants == 20 %}selected{% endif %}>20 participants</option>
+                                    <option value="30" {% if meeting.max_participants == 30 %}selected{% endif %}>30 participants</option>
+                                    <option value="50" {% if meeting.max_participants == 50 %}selected{% endif %}>50 participants (SFU)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="use_password" name="use_password" 
+                                       {% if meeting.has_password %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="use_password">
+                                    <i class="bi bi-lock"></i> Password Protect Meeting
+                                </label>
+                            </div>
+                            <div class="mt-2" id="password_field" style="display: {% if meeting.has_password %}block{% else %}none{% endif %};">
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       placeholder="Enter new password (leave blank to keep current)">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{% url 'videocalls:meeting_detail' meeting.join_link_slug %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Meeting
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usePasswordCheckbox = document.getElementById('use_password');
+    const passwordField = document.getElementById('password_field');
+    
+    usePasswordCheckbox.addEventListener('change', function() {
+        passwordField.style.display = this.checked ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}

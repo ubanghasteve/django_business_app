@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Import Store Data{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn { color: white !important; font-weight: 500; }
+    .btn-primary { background-color: #007bff !important; }
+    .btn-success { background-color: #28a745 !important; }
+    .btn-secondary { background-color: #6c757d !important; }
+    .upload-area { border: 3px dashed #dee2e6; border-radius: 15px; padding: 40px; text-align: center; transition: all 0.3s ease; background: #f8f9fa; cursor: pointer; }
+    .upload-area:hover { border-color: #007bff; background: #e3f2fd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col"><h5 class="mb-0">Import Store Data</h5><p class="text-muted text-sm mb-0">Upload Excel or CSV files to import store items</p></div>
+        <div class="col-auto"><a href="{% url 'store:list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h6 class="mb-3"><i class="fas fa-upload me-2"></i>Upload File</h6>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3 d-block"></i>
+                        <p class="mb-1"><strong>Click or drag file here to upload</strong></p>
+                        <p class="text-muted small mb-0">Supported: .xlsx, .xls, .csv (max 10MB)</p>
+                    </div>
+                    <div class="mt-4">
+                        <h6>Expected Columns:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr><th>Field</th><th>Required</th><th>Example</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Product Name</td><td><span class="badge bg-danger">Yes</span></td><td>Widget A</td></tr>
+                                    <tr><td>Category</td><td><span class="badge bg-secondary">No</span></td><td>Electronics</td></tr>
+                                    <tr><td>Company Name</td><td><span class="badge bg-secondary">No</span></td><td>ABC Corp</td></tr>
+                                    <tr><td>Quantity In</td><td><span class="badge bg-secondary">No</span></td><td>100</td></tr>
+                                    <tr><td>Unit Price</td><td><span class="badge bg-secondary">No</span></td><td>2500.00</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="mb-3"><i class="fas fa-download me-2"></i>Download Template</h6>
+                    <p class="text-muted small">Download a sample CSV template to see the expected format:</p>
+                    <button class="btn btn-outline-primary w-100" onclick="downloadTemplate()">
+                        <i class="fas fa-download"></i> Download CSV Template
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function downloadTemplate() {
+    const rows = [
+        ['Product Name', 'Category', 'Company Name', 'Vendor', 'Stock Location', 'Quantity In', 'Unit Price', 'Remark'],
+        ['Sample Product', 'Electronics', 'ABC Corp', 'Supplier X', 'Warehouse A', '100', '2500.00', 'Initial stock'],
+    ];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'store_import_template.csv';
+    a.click();
+}
+document.getElementById('uploadArea')?.addEventListener('click', function() {
+    alert('File upload functionality requires backend implementation.');
+});
+</script>
+{% endblock %}

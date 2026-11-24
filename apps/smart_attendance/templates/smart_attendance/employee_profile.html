@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Attendance{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <a href="{% url 'smart_attendance:employees' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i> Back to Employees
+    </a>
+    {% if perms.smart_attendance.change_employee %}
+    <a href="{% url 'smart_attendance:edit_employee' employee.id %}" class="btn btn-outline-primary btn-sm">
+      <i class="fas fa-edit me-1"></i> Edit Employee
+    </a>
+    {% endif %}
+  </div>
+  
+  <div class="row mb-3">
+    <div class="col-md-4 d-flex">
+      <div class="card shadow-sm w-100">
+        <div class="card-body d-flex">
+          <div class="me-3">
+            {% if employee.profile_photo %}
+              <img src="{{ employee.profile_photo.url }}" class="rounded-circle" width="80" height="80" alt="">
+            {% else %}
+              <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width:80px;height:80px;">
+                <span class="text-white h4 mb-0">{{ employee.first_name|first|upper }}{{ employee.last_name|first|upper }}</span>
+              </div>
+            {% endif %}
+          </div>
+          <div>
+            <h4 class="mb-1">{{ employee.first_name }} {{ employee.last_name }}</h4>
+            <div class="text-muted small mb-1">{{ employee.position|default:"—" }}</div>
+            <div class="text-muted small mb-1">{{ employee.department|default:"—" }}</div>
+            <div class="text-muted small">Employee ID: {{ employee.employee_id }}</div>
+            <div class="text-muted small">Biometric UID: {{ employee.biometric_uid|default:"—" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4 d-flex">
+      <div class="card shadow-sm w-100">
+        <div class="card-header">Contact Information</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <div class="text-muted small">Email</div>
+            <div>{{ employee.email|default:"—" }}</div>
+          </div>
+          <div class="mb-2">
+            <div class="text-muted small">Phone</div>
+            <div>{{ employee.phone|default:"—" }}</div>
+          </div>
+          <div>
+            <div class="text-muted small">Status</div>
+            <span class="badge {% if employee.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+              {% if employee.is_active %}Active{% else %}Inactive{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4 d-flex">
+      <div class="card shadow-sm w-100">
+        <div class="card-header">Today's Attendance</div>
+        <div class="card-body">
+          {% if today %}
+            <div class="mb-2">
+              <div class="text-muted small">First Check-in</div>
+              <div class="h6 mb-0">{{ today.first_check_in|default:"—" }}</div>
+            </div>
+            <div class="mb-2">
+              <div class="text-muted small">Last Check-out</div>
+              <div class="h6 mb-0">{{ today.last_check_out|default:"—" }}</div>
+            </div>
+            <div class="mb-2">
+              <div class="text-muted small">Total Hours</div>
+              <div class="h6 mb-0">
+                {% if today.total_hours %}
+                  {{ today.total_hours }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+            </div>
+            <div>
+              <div class="text-muted small">Status</div>
+              <span class="badge bg-primary">{{ today.get_status_display }}</span>
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">No attendance records for today.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Recent Attendance Logs</span>
+      <span class="badge bg-secondary">{{ recent_logs|length }} records</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Punch Time</th>
+            <th>Type</th>
+            <th>Verify Mode</th>
+            <th>Device</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td>{{ log.punch_time }}</td>
+            <td>
+              {% if log.punch_type == 'Check In' %}
+                <span class="badge bg-success">Check In</span>
+              {% elif log.punch_type == 'Check Out' %}
+                <span class="badge bg-warning">Check Out</span>
+              {% else %}
+                {{ log.punch_type|default:"—" }}
+              {% endif %}
+            </td>
+            <td>{{ log.verify_mode|default:"—" }}</td>
+            <td>{% if log.device %}{{ log.device.device_name }}{% else %}—{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center text-muted py-3">No logs found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

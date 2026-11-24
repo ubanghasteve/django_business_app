@@ -1,0 +1,131 @@
+{% extends 'videocalls/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - {{ block.super }}{% endblock %}
+
+{% block video_content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-calendar-week"></i> My Scheduled Meetings</h2>
+        <a href="{% url 'videocalls:schedule_meeting' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Schedule New Meeting
+        </a>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    
+    {% if upcoming_meetings %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-calendar-event"></i> Upcoming Meetings</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Meeting</th>
+                            <th>Date & Time</th>
+                            <th>Duration</th>
+                            <th>Participants</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for meeting in upcoming_meetings %}
+                        <tr>
+                            <td>
+                                <strong>{{ meeting.meeting_title }}</strong>
+                                {% if meeting.has_password %}
+                                <i class="bi bi-lock-fill text-muted" title="Password Protected"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ meeting.scheduled_start|date:"M d, Y" }}<br>
+                                <small class="text-muted">{{ meeting.scheduled_start|time:"g:i A" }}</small>
+                            </td>
+                            <td>{{ meeting.scheduled_duration }} min</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ meeting.max_participants }}</span>
+                            </td>
+                            <td>
+                                {% if meeting.status == 'scheduled' %}
+                                <span class="badge bg-info">Scheduled</span>
+                                {% else %}
+                                <span class="badge bg-success">Live Now</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'videocalls:meeting_detail' meeting.join_link_slug %}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if meeting.status == 'started' and meeting.room %}
+                                <a href="{% url 'videocalls:room' meeting.room.room_code %}" class="btn btn-sm btn-success">
+                                    <i class="bi bi-video"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> You have no upcoming meetings scheduled.
+    </div>
+    {% endif %}
+    
+    {% if past_meetings %}
+    <div class="card">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="bi bi-clock-history"></i> Past Meetings</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Meeting</th>
+                            <th>Date & Time</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for meeting in past_meetings %}
+                        <tr class="text-muted">
+                            <td>{{ meeting.meeting_title }}</td>
+                            <td>
+                                {{ meeting.scheduled_start|date:"M d, Y" }}<br>
+                                <small>{{ meeting.scheduled_start|time:"g:i A" }}</small>
+                            </td>
+                            <td>{{ meeting.scheduled_duration }} min</td>
+                            <td>
+                                <a href="{% url 'videocalls:meeting_detail' meeting.join_link_slug %}" class="btn btn-sm btn-outline-secondary">
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="mt-4">
+        <a href="{% url 'videocalls:lobby' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Video Calls
+        </a>
+    </div>
+</div>
+{% endblock %}

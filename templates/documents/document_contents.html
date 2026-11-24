@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Extracted Contents - {{ document.get_document_type_display }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+    <div>
+      <h2 class="mb-1">Extracted Contents</h2>
+      <p class="mb-0 text-muted small">
+        {{ document.get_document_type_display }} • {{ document.file.name }}
+      </p>
+    </div>
+    <div class="d-flex align-items-center flex-wrap gap-2 mt-3 mt-md-0">
+      <a href="{% url 'documents:detail' document.pk %}" class="btn btn-outline-secondary">
+        Back to document summary
+      </a>
+      <a href="{% url 'documents:list' %}" class="btn btn-outline-secondary">
+        Back to list
+      </a>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'documents:detail' document.pk %}">Summary &amp; analysis</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link active" aria-current="page" href="#">Extracted contents</a>
+    </li>
+  </ul>
+
+  <div class="row">
+    <div class="col-lg-9">
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><strong>Document Content</strong> ({{ total_items|default:paragraph_page.paginator.count }} items)</span>
+          <small class="text-muted">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+          </small>
+        </div>
+        <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+          {% if paragraph_page.object_list %}
+            {% for para in paragraph_page.object_list %}
+              {% if para.is_heading %}
+                <div id="para-{{ para.index }}" class="mt-3 mb-2">
+                  {% if para.heading_level == 1 %}
+                    <span class="badge bg-primary me-1">H1</span>
+                  {% elif para.heading_level == 2 %}
+                    <span class="badge bg-secondary me-1">H2</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border me-1">H{{ para.heading_level }}</span>
+                  {% endif %}
+                  <strong class="text-dark">{{ para.text }}</strong>
+                </div>
+              {% else %}
+                <div id="para-{{ para.index }}" class="mb-2 ps-3 border-start border-2 border-light">
+                  <span class="text-muted">{{ para.text }}</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <p class="mb-0 text-muted small">
+              No extracted contents available for this document.
+              {% if complete_extraction %}
+              <br><a href="{% url 'documents:detail' document.pk %}">Try viewing the Full Document View</a>
+              {% endif %}
+            </p>
+          {% endif %}
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <div>
+            {% if page_obj.has_previous %}
+              <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-sm btn-outline-secondary">&laquo; Prev</a>
+            {% else %}
+              <button type="button" class="btn btn-sm btn-outline-secondary disabled">&laquo; Prev</button>
+            {% endif %}
+            {% if page_obj.has_next %}
+              <a href="?page={{ page_obj.next_page_number }}" class="btn btn-sm btn-outline-secondary">Next &raquo;</a>
+            {% else %}
+              <button type="button" class="btn btn-sm btn-outline-secondary disabled">Next &raquo;</button>
+            {% endif %}
+          </div>
+          <div class="small text-muted">
+            Showing {{ paragraph_page.start_index }}–{{ paragraph_page.end_index }} of {{ paragraph_page.paginator.count }} blocks
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-3">
+      <div class="card mb-3">
+        <div class="card-header">
+          <strong>Headings ({{ headings_outline|length }})</strong>
+        </div>
+        <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+          {% if headings_outline %}
+            <ul class="list-unstyled mb-0">
+              {% for h in headings_outline %}
+              <li class="mb-2">
+                <a href="#para-{{ h.index }}" class="text-decoration-none">
+                  {% if h.level == 1 %}
+                    <span class="badge bg-primary me-1">H1</span>
+                  {% elif h.level == 2 %}
+                    <span class="badge bg-secondary me-1">H2</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border me-1">H{{ h.level }}</span>
+                  {% endif %}
+                  <span class="small">{{ h.title|truncatechars:70 }}</span>
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="mb-0 text-muted small">
+              No headings were detected in this document.
+            </p>
+          {% endif %}
+        </div>
+      </div>
+      
+      {% if complete_extraction %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <strong>Extraction Info</strong>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0 small">
+            <dt class="col-6">Text Length</dt>
+            <dd class="col-6">{{ complete_extraction.complete_text|length|default:0 }} chars</dd>
+            <dt class="col-6">Layout Lines</dt>
+            <dd class="col-6">{{ complete_extraction.complete_layout_lines|length|default:0 }}</dd>
+            <dt class="col-6">Tables</dt>
+            <dd class="col-6">{{ complete_extraction.complete_tables|length|default:0 }}</dd>
+            <dt class="col-6">Method</dt>
+            <dd class="col-6">{{ complete_extraction.extraction_method|default:"unknown" }}</dd>
+          </dl>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+

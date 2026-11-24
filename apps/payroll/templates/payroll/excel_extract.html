@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Extract Data - {{ file.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Smart Excel Extraction</h2>
+            <p class="text-muted mb-0">{{ file.title }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'payroll:file_detail' file.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
+            <a href="{% url 'payroll:template_create' file.id %}" class="btn btn-warning">
+                <i class="fas fa-brain me-2"></i>Create Template
+            </a>
+        </div>
+    </div>
+
+    {% if file_summary %}
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-robot fa-2x me-3 text-primary"></i>
+            <div>
+                <strong>Smart Analysis Complete!</strong>
+                <p class="mb-0">
+                    Found <strong>{{ file_summary.total_sheets }}</strong> sheets total.
+                    {% if file_summary.data_sheets > 0 %}
+                        <span class="badge bg-success ms-2">{{ file_summary.data_sheets }} data sheets</span>
+                    {% endif %}
+                    {% if file_summary.chart_sheets > 0 %}
+                        <span class="badge bg-secondary ms-2">{{ file_summary.chart_sheets }} chart sheets</span>
+                    {% endif %}
+                    {% if file_summary.recommended_sheet %}
+                        <br><small>Recommended primary sheet: <strong>{{ file_summary.recommended_sheet }}</strong></small>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if sheets_data %}
+    <ul class="nav nav-tabs mb-3" id="sheetTabs" role="tablist">
+        {% for sheet in sheets_data %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if forloop.first %}active{% endif %} {% if sheet.is_empty or sheet.error %}text-muted{% endif %}"
+                    id="sheet-{{ forloop.counter }}-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#sheet-{{ forloop.counter }}"
+                    type="button"
+                    role="tab"
+                    aria-controls="sheet-{{ forloop.counter }}"
+                    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                <i class="fas {% if sheet.is_primary %}fa-star text-warning{% else %}fa-table{% endif %} me-1"></i>
+                {{ sheet.sheet_name }}
+                <span class="badge bg-secondary ms-1">{{ sheet.row_count }}</span>
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="tab-content" id="sheetTabsContent">
+        {% for sheet in sheets_data %}
+        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+             id="sheet-{{ forloop.counter }}" 
+             role="tabpanel" 
+             aria-labelledby="sheet-{{ forloop.counter }}-tab">
+            
+            {% if sheet.error %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                    <h5 class="text-danger">Error Reading Sheet</h5>
+                    <p class="text-muted">{{ sheet.error }}</p>
+                </div>
+            </div>
+            {% elif sheet.is_empty %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Empty Sheet</h5>
+                    <p class="text-muted">{{ sheet.message|default:"This sheet contains no data." }}</p>
+                </div>
+            </div>
+            {% elif sheet.headers %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2 text-success"></i>
+                            {{ sheet.sheet_name }}
+                        </h5>
+                        <small class="text-muted">
+                            {{ sheet.row_count }} data rows found
+                            {% if sheet.header_row_index > 0 %}
+                                (headers at row {{ sheet.header_row_index|add:1 }})
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'payroll:template_create' file.id %}?sheet={{ sheet.sheet_name|urlencode }}" 
+                           class="btn btn-warning">
+                            <i class="fas fa-brain me-1"></i>Create Template from This Sheet
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th class="text-center" style="width: 50px; position: sticky; left: 0; background: #f8f9fa;">#</th>
+                                    {% for header in sheet.headers %}
+                                    <th style="min-width: 120px; position: sticky; top: 0; background: #f8f9fa;">{{ header }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in sheet.data %}
+                                <tr>
+                                    <td class="text-center text-muted" style="position: sticky; left: 0; background: white;">{{ forloop.counter }}</td>
+                                    {% for header in sheet.headers %}
+                                    <td>{{ row|get_item:header|default:"" }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{{ sheet.headers|length|add:'1' }}" class="text-center text-muted py-5">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                                        <p class="mb-0">No data rows found in this sheet.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Unable to Parse Sheet</h5>
+                    <p class="text-muted">This sheet doesn't appear to have a recognizable data structure.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+            <h5 class="fw-bold mb-3"><i class="fas fa-lightbulb me-2 text-warning"></i>What Would You Like to Do?</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="{% url 'payroll:template_create' file.id %}" class="btn btn-warning w-100">
+                        <i class="fas fa-brain me-2"></i>Create Template
+                    </a>
+                    <small class="text-muted d-block mt-2">Auto-detect structure and create a dynamic form for data entry</small>
+                </div>
+                <div class="col-md-6">
+                    <a href="{% url 'payroll:files_list' %}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-list me-2"></i>View All Files
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+            <h5 class="text-muted">No Data Found</h5>
+            <p class="text-muted">Unable to extract any data from this Excel file.</p>
+            <a href="{% url 'payroll:file_detail' file.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to File
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash;
+    if (hash) {
+        const tab = document.querySelector(`[href="${hash}"]`);
+        if (tab) {
+            const bsTab = new bootstrap.Tab(tab);
+            bsTab.show();
+        }
+    }
+    
+    document.querySelectorAll('#sheetTabs .nav-link').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(event) {
+            const targetId = event.target.getAttribute('data-bs-target');
+            window.location.hash = targetId;
+        });
+    });
+});
+</script>
+{% endblock %}

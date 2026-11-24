@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Requisition - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Delete Requisition{% endblock %}
+{% block breadcrumb %}Delete Requisition{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6 class="mb-0">Delete Requisition {{ requisition.reference_number }}</h6>
+        </div>
+        <div class="card-body">
+          <p class="mb-3">Are you sure you want to delete requisition <strong>{{ requisition.reference_number }}</strong> ({{ requisition.organization_name }})? This action cannot be undone.</p>
+          <form method="post" action="{% url 'requisitions:delete' requisition.pk %}" class="d-inline" data-requisition-delete="true" data-offline-queue="true" data-record-uuid="{{ requisition.uuid|default:'' }}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Yes, delete</button>
+            <a href="{% url 'requisitions:detail' requisition.pk %}" class="btn btn-outline-secondary">Cancel</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form[data-requisition-delete="true"]');
+  if (!form) return;
+
+  form.addEventListener('submit', function (ev) {
+    if (typeof navigator === 'undefined' ||
+        navigator.onLine ||
+        !window.OfflineSync ||
+        typeof window.OfflineSync.wrapDelete !== 'function') {
+      return;
+    }
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+    }
+
+    var uuid = form.getAttribute('data-record-uuid') || '';
+    if (!uuid) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      alert('Cannot delete this requisition offline because it has no sync identifier.');
+      return;
+    }
+
+    var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+
+    window.OfflineSync.wrapDelete(
+      'requisitions',
+      uuid,
+      tenantId,
+      function () {
+        // We are in the offline branch only; this should not be called here.
+        return Promise.reject(new Error('online'));
+      }
+    ).then(function () {
+      alert('Deletion queued offline. It will sync when you are back online.');
+      window.location.href = '{% url "requisitions:list" %}';
+    }).catch(function (err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      if (!err || err.message !== 'online') {
+        alert('Could not queue this delete operation offline. Please try again when you are back online.');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load currency_filters %}
+{% block title %}Receipts{% endblock %}
+
+{% block content %}
+<style>
+@media (max-width: 600px) {
+  .container, .table-responsive, .card {
+    overflow-x: auto !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 0 !important;
+  }
+  table {
+    min-width: 700px !important;
+  }
+}
+
+/* Clearly visible borders + padding for receipts search/filter fields */
+.receipt-filter-form .form-control,
+.receipt-filter-form .form-select,
+.receipt-filter-form select.form-control {
+  border: 1px solid #4a5568 !important; /* darker, more visible border */
+  background-color: #ffffff;
+  border-radius: 6px;
+  padding: 0.375rem 0.75rem;
+  box-shadow: none;
+  min-height: 40px;
+  font-size: 0.85rem;
+}
+
+.receipt-filter-form .form-control::placeholder {
+  color: #a0aec0;
+}
+
+.receipt-filter-form .form-control:focus,
+.receipt-filter-form .form-select:focus,
+.receipt-filter-form select.form-control:focus {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+  outline: none;
+}
+</style>
+<div class="container py-4">
+    <h2 class="mb-4">Receipts</h2>
+    {% if is_company_admin or perms.receipts.download_receipt %}
+    <div class="mb-3 d-flex gap-2">
+      <a href="{% url 'receipts:export_excel' %}" class="btn btn-success btn-sm">
+        <i class="fas fa-table text-sm"></i> Export as Excel
+      </a>
+      <a href="{% url 'receipts:export_pdf' %}" class="btn btn-danger btn-sm" target="_blank">
+        <i class="fas fa-file-pdf text-sm"></i> Export as PDF
+      </a>
+    </div>
+    {% endif %}
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total Receipts Today</h5>
+                    <p class="card-text fs-4">{{ stats.total_today|currency_format_with_symbol:company_profile }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">This Week</h5>
+                    <p class="card-text fs-4">{{ stats.total_week|currency_format_with_symbol:company_profile }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">This Month</h5>
+                    <p class="card-text fs-4">{{ stats.total_month|currency_format_with_symbol:company_profile }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Top Clients</div>
+                <ul class="list-group list-group-flush">
+                    {% for client in stats.top_clients %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ client.client_name }}
+                            <span class="badge bg-primary rounded-pill">{{ client.total|currency_format_with_symbol:company_profile }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No data</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Amount Collected by Payment Method</div>
+                <ul class="list-group list-group-flush">
+                    {% for method in stats.by_method %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ method.payment_method|capfirst }}
+                            <span class="badge bg-success rounded-pill">{{ method.total|currency_format_with_symbol:company_profile }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No data</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters placed close to the receipts table for easier access -->
+    <form method="get" class="row g-3 mb-3 receipt-filter-form">
+        <div class="col-md-2">
+            <input type="text" name="search" class="form-control" placeholder="Search by client name..." value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-control">
+                <option value="">Status</option>
+                <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>Paid</option>
+                <option value="unpaid" {% if request.GET.status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                <option value="partial" {% if request.GET.status == 'partial' %}selected{% endif %}>Partially Paid</option>
+                <option value="delivered" {% if request.GET.status == 'delivered' %}selected{% endif %}>Delivered</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="payment_method" class="form-control">
+                <option value="">Payment Method</option>
+                <option value="cash" {% if request.GET.payment_method == 'cash' %}selected{% endif %}>Cash</option>
+                <option value="bank_transfer" {% if request.GET.payment_method == 'bank_transfer' %}selected{% endif %}>Bank Transfer</option>
+                <option value="cheque" {% if request.GET.payment_method == 'cheque' %}selected{% endif %}>Cheque</option>
+                <option value="card" {% if request.GET.payment_method == 'card' %}selected{% endif %}>Card</option>
+                <option value="mobile_money" {% if request.GET.payment_method == 'mobile_money' %}selected{% endif %}>Mobile Money</option>
+                <option value="other" {% if request.GET.payment_method == 'other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <input type="text" name="received_by" class="form-control" placeholder="Received By" value="{{ request.GET.received_by }}">
+        </div>
+        {% if show_created_by %}
+        <div class="col-md-2">
+            <label class="form-label small text-muted">Created by</label>
+            <select name="created_by" class="form-control">
+                <option value="">All team members</option>
+                {% for u in account_users %}
+                <option value="{{ u.pk }}" {% if request.GET.created_by == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="col-md-4">
+            <div class="row g-2">
+                <div class="col-12 col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+                <div class="col-12 col-md-4">
+                    <a href="{% url 'receipts:list' %}" class="btn btn-secondary w-100">Clear</a>
+                </div>
+                {% if perms.receipts.add_receipt %}
+                <div class="col-12 col-md-4">
+                    <a href="{% url 'receipts:create' %}" class="btn btn-success w-100">New Receipt</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>S/N</th>
+                    <th>Receipt No</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Invoice</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                    <th>Payment Type</th>
+                    <th>Balance After</th>
+                    <th>Payment Method</th>
+                    <th>Received By</th>
+                    {% if show_created_by %}<th>Created by</th>{% endif %}
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for receipt in receipts %}
+                <tr data-receipt-uuid="{{ receipt.uuid|default:'' }}">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ receipt.receipt_no }}</td>
+                    <td>{{ receipt.date_received }}</td>
+                    <td>{{ receipt.client_name }}</td>
+                    <td>{% if perms.invoices.view_invoice %}<a href="{% url 'invoices:detail' receipt.invoice.pk %}">{{ receipt.invoice.invoice_number }}</a>{% else %}{{ receipt.invoice.invoice_number }}{% endif %}</td>
+                    <td>
+                        {% if receipt.invoice.status == 'paid' %}
+                            <span class="fw-bold text-success">Paid</span>
+                        {% elif receipt.invoice.status == 'unpaid' %}
+                            <span class="fw-bold text-danger">Unpaid</span>
+                        {% elif receipt.invoice.status == 'partial' %}
+                            <span class="fw-bold text-warning">Partially Paid</span>
+                        {% elif receipt.invoice.status == 'delivered' %}
+                            <span class="fw-bold text-info">Delivered</span>
+                        {% else %}
+                            <span class="fw-bold text-secondary">{{ receipt.invoice.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ receipt.amount_received|currency_format_with_symbol:company_profile }}</td>
+                    <td>
+                        {% if receipt.payment_type == 'full' %}
+                            <span class="badge bg-success">Full</span>
+                        {% elif receipt.payment_type == 'partial' %}
+                            <span class="badge bg-warning">Partial</span>
+                        {% elif receipt.payment_type == 'over' %}
+                            <span class="badge bg-danger">Over</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ receipt.balance_after_payment|currency_format_with_symbol:company_profile }}</td>
+                    <td>{{ receipt.get_payment_method_display }}</td>
+                    <td>{{ receipt.received_by }}</td>
+                    {% if show_created_by %}
+                    <td>{% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.email }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    {% endif %}
+                    <td>
+                        <a href="{% url 'receipts:detail' receipt.pk %}" class="btn btn-sm btn-info">View</a>
+                        {% if is_company_admin or perms.receipts.change_receipt %}<a href="{% url 'receipts:edit' receipt.pk %}" class="btn btn-sm btn-warning">Edit</a>{% endif %}
+                        {% if is_company_admin or perms.receipts.delete_receipt %}<a href="{% url 'receipts:delete' receipt.pk %}" class="btn btn-sm btn-danger receipt-delete-link" data-receipt-uuid="{{ receipt.uuid|default:'' }}">Delete</a>{% endif %}
+                        {% if is_company_admin or perms.receipts.print_receipt %}
+                        <a href="{% url 'receipts:print' receipt.pk %}" class="btn btn-sm btn-secondary">Print</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="{% if show_created_by %}11{% else %}10{% endif %}" class="text-center">No receipts found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// When page is restored from back-forward cache, reload so list is always fresh
+window.addEventListener('pageshow', function(event) {
+  if (event.persisted) {
+    window.location.reload();
+  }
+});
+// Offline-first: intercept delete when offline and queue via wrapDelete
+(function() {
+  document.querySelectorAll('.receipt-delete-link').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      if (navigator.onLine) return;
+      var uuid = link.getAttribute('data-receipt-uuid');
+      if (!uuid || !window.OfflineSync || typeof window.OfflineSync.wrapDelete !== 'function') return;
+      e.preventDefault();
+      var tenantId = (window.OfflineSync.getTenantId && window.OfflineSync.getTenantId()) || '';
+      var attemptAjax = function() { window.location.href = link.href; };
+      window.OfflineSync.wrapDelete('receipts', uuid, tenantId, attemptAjax).then(function() {
+        var tr = link.closest('tr');
+        if (tr) tr.remove();
+      }).catch(function() {});
+    });
+  });
+})();
+</script>
+{% endblock %} 

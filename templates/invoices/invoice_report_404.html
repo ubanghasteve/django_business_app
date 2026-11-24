@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Invoice Report Unavailable{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-trash"></i> Invoice Report Unavailable
+                    </h5>
+                </div>
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-file-earmark-x text-danger" style="font-size: 4rem;"></i>
+                    </div>
+                    <h4 class="text-danger mb-3">This Invoice Has Been Deleted</h4>
+                    <p class="lead text-muted mb-4">
+                        The invoice <strong>#{{ invoice_id }}</strong> and all its associated records 
+                        (including the product movement report) have been permanently deleted from the system.
+                    </p>
+                    <p class="text-muted mb-4">
+                        This report page is no longer valid because the source invoice no longer exists.
+                    </p>
+                    <hr class="my-4">
+                    <a href="{% url 'invoices:list' %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Back to Invoice List
+                    </a>
+                </div>
+                <div class="card-footer text-muted small">
+                    <i class="bi bi-info-circle"></i> 
+                    If you believe this was deleted by mistake, please contact your administrator 
+                    to restore the invoice from a backup.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

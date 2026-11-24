@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% if create %}Add Department{% else %}Edit {{ department.name }}{% endif %} - HR & Staff{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}HR & Staff{% endblock %}
+{% block page_title %}{% if create %}Add Department{% else %}Edit Department{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-dept-form-wrap">
+    <div class="row">
+        <div class="col-12">
+            {% include 'hr_staff/partials/hr_top_nav.html' %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:department_list' %}" class="text-decoration-none">Departments</a></li>
+                    {% if create %}
+                    <li class="breadcrumb-item active" aria-current="page">Add Department</li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'hr_staff:department_detail' department.pk %}" class="text-decoration-none">{{ department.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                    {% endif %}
+                </ol>
+            </nav>
+            <div class="hr-dept-form-card">
+                <!-- Header: icon + title + subtitle + close -->
+                <div class="hr-dept-form-header d-flex align-items-start justify-content-between gap-2">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="hr-dept-form-icon rounded-2 d-flex align-items-center justify-content-center flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28" aria-hidden="true"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="fw-bold text-dark mb-1 hr-dept-form-title">{% if create %}Add Department{% else %}Edit Department{% endif %}</h4>
+                            <p class="text-muted small mb-0 hr-dept-form-sub">{% if create %}Create a new department and set its manager and budget.{% else %}Update department details below.{% endif %}</p>
+                        </div>
+                    </div>
+                    <a href="{% if department %}{% url 'hr_staff:department_detail' department.pk %}{% else %}{% url 'hr_staff:department_list' %}{% endif %}" class="btn btn-link text-secondary p-2 hr-dept-form-close rounded-2" aria-label="Close">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </a>
+                </div>
+
+                <form method="post"
+                      class="hr-dept-form"
+                      data-sync-model="hr_departments"
+                      data-sync-redirect="{% if department %}{% url 'hr_staff:department_detail' department.pk %}{% else %}{% url 'hr_staff:department_list' %}{% endif %}"
+                      {% if department and department.uuid %}data-record-uuid="{{ department.uuid }}"{% endif %}>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger rounded-3 mb-0">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="hr-dept-form-body">
+                        <section class="hr-dept-form-section">
+                            <h6 class="fw-bold text-dark mb-3 hr-dept-form-section-title">Department Details</h6>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="id_name" class="form-label hr-dept-form-label">Department Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="name" value="{{ form.name.value|default:'' }}" id="id_name" class="form-control hr-dept-form-input {% if form.name.errors %}is-invalid{% endif %}" required placeholder="e.g. Engineering" autocomplete="organization">
+                                    {% if form.name.errors %}<div class="invalid-feedback">{{ form.name.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_manager_name" class="form-label hr-dept-form-label">Manager Name</label>
+                                    <input type="text" name="manager_name" value="{{ form.manager_name.value|default:'' }}" id="id_manager_name" class="form-control hr-dept-form-input {% if form.manager_name.errors %}is-invalid{% endif %}" placeholder="e.g. Sarah Johnson" autocomplete="name">
+                                    {% if form.manager_name.errors %}<div class="invalid-feedback">{{ form.manager_name.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_budget" class="form-label hr-dept-form-label">Budget</label>
+                                    <div class="input-group hr-dept-budget-wrap">
+                                        <span class="input-group-text hr-dept-budget-prefix">{{ user_currency_symbol|default:"$" }}</span>
+                                        <input type="number" name="budget" value="{{ form.budget.value|default:'0' }}" id="id_budget" step="0.01" min="0" class="form-control hr-dept-form-input {% if form.budget.errors %}is-invalid{% endif %}" placeholder="0.00">
+                                    </div>
+                                    {% if form.budget.errors %}<div class="invalid-feedback d-block">{{ form.budget.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="hr-dept-form-footer d-flex flex-wrap gap-2 justify-content-end pt-4 border-top">
+                        <a href="{% if department %}{% url 'hr_staff:department_detail' department.pk %}{% else %}{% url 'hr_staff:department_list' %}{% endif %}" class="btn hr-dept-btn-cancel rounded-3">Cancel</a>
+                        <button type="submit" class="btn btn-primary hr-dept-btn-submit rounded-3 d-inline-flex align-items-center">
+                            <svg class="me-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                            {% if create %}Create Department{% else %}Save Changes{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hr-dept-form-wrap { background: #f5f7fa; min-height: 100vh; max-width: 100%; }
+.hr-dept-form-card {
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  max-width: 640px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.hr-dept-form-header { padding: 1.5rem 1.5rem 0; border-bottom: none; }
+.hr-dept-form-icon { width: 56px; height: 56px; background: rgba(25,118,210,.1); color: #1976d2; }
+.hr-dept-form-title { font-size: 1.35rem; color: #1a202c; letter-spacing: -0.02em; }
+.hr-dept-form-sub { font-size: 0.9375rem; color: #67748e; line-height: 1.4; }
+.hr-dept-form-close { text-decoration: none !important; }
+.hr-dept-form-close:hover { background: rgba(0,0,0,.06); color: #1a202c !important; }
+
+.hr-dept-form-body { padding: 1.5rem 1.5rem 0; }
+.hr-dept-form-section { margin-bottom: 0; }
+.hr-dept-form-section-title { font-size: 1rem; color: #344767; margin-bottom: 1rem !important; }
+.hr-dept-form-label { font-size: 0.9375rem; font-weight: 500; color: #344767; margin-bottom: 0.5rem; }
+.hr-dept-form-input {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  padding: 0.625rem 1rem;
+  min-height: 48px;
+  font-size: 1rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+.hr-dept-form-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25,118,210,.15);
+  outline: none;
+}
+.hr-dept-form-input::placeholder { color: #a0aec0; }
+.hr-dept-budget-wrap .hr-dept-form-input { border-radius: 0 0.625rem 0.625rem 0; }
+.hr-dept-budget-prefix {
+  border: 1px solid #e2e8f0;
+  border-right: 0;
+  border-radius: 0.625rem 0 0 0.625rem;
+  background: #f7fafc;
+  color: #4a5568;
+  font-weight: 500;
+  min-width: 48px;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.hr-dept-form-footer { padding: 1.25rem 1.5rem; background: #fafbfc; }
+.hr-dept-btn-cancel {
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+.hr-dept-btn-cancel:hover { background: #e2e8f0; color: #2d3748; }
+.hr-dept-btn-submit {
+  background: #1976d2 !important;
+  border: none !important;
+  padding: 0.625rem 1.5rem;
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+.hr-dept-btn-submit:hover { background: #1565c0 !important; color: #fff !important; }
+
+@media (max-width: 575.98px) {
+  .hr-dept-form-wrap { padding: 0.75rem !important; }
+  .hr-dept-form-header { padding: 1rem 1rem 0; flex-wrap: wrap; }
+  .hr-dept-form-icon { width: 48px; height: 48px; }
+  .hr-dept-form-title { font-size: 1.15rem; }
+  .hr-dept-form-body { padding: 1rem 1rem 0; }
+  .hr-dept-form-footer { padding: 1rem; }
+  .hr-dept-form-input { min-height: 44px; padding: 0.5rem 0.875rem; }
+  .hr-dept-form-close { order: -1; margin-left: auto; }
+}
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .hr-dept-form-card { margin-left: 0; margin-right: 0; }
+}
+</style>
+{% endblock %}

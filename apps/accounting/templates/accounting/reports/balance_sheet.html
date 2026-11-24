@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Balance Sheet{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Balance Sheet</h1>
+            <p class="text-muted">Assets, liabilities, and equity snapshot. Real-time data.</p>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="bsRefreshBtn" title="Refresh"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form class="row g-3" id="bsFilterForm" onsubmit="event.preventDefault(); loadBalanceSheet();">
+                <div class="col-md-3">
+                    <label class="form-label">As of Date</label>
+                    <input type="date" name="as_of_date" class="form-control" value="{% now 'Y-m-d' %}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Run Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="bsMessage" class="alert d-none" role="alert"></div>
+
+    <div class="card position-relative">
+        <div id="bsLoading" class="position-absolute top-0 start-0 end-0 bottom-0 d-flex align-items-center justify-content-center bg-light opacity-75 d-none" style="z-index: 5;"><div class="spinner-border text-primary" role="status"></div></div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <h5>Assets</h5>
+                    <h3 id="bsAssets">—</h3>
+                </div>
+                <div class="col-md-4">
+                    <h5>Liabilities</h5>
+                    <h3 id="bsLiabilities">—</h3>
+                </div>
+                <div class="col-md-4">
+                    <h5>Equity</h5>
+                    <h3 id="bsEquity">—</h3>
+                </div>
+            </div>
+            <p class="text-muted small mb-0 mt-2" id="bsAsOf">—</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function fmt(n) { return n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function showLoading(show) { var el = document.getElementById('bsLoading'); if (el) el.classList.toggle('d-none', !show); }
+    function showMessage(text) { var el = document.getElementById('bsMessage'); if (!el) return; el.textContent = text || ''; el.className = 'alert d-none'; if (text) { el.classList.remove('d-none'); el.classList.add('alert-danger'); } }
+    function loadBalanceSheet() {
+        var form = document.getElementById('bsFilterForm');
+        if (!form) return;
+        showMessage('');
+        showLoading(true);
+        var params = new URLSearchParams(new FormData(form));
+        fetch('{% url "accounting_api:api_balance_sheet" %}?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { if (!r.ok) throw new Error('Request failed'); return r.json(); })
+            .then(function(data) {
+                document.getElementById('bsAssets').textContent = fmt(data.assets);
+                document.getElementById('bsLiabilities').textContent = fmt(data.liabilities);
+                document.getElementById('bsEquity').textContent = fmt(data.equity);
+                var asOf = document.getElementById('bsAsOf');
+                if (asOf && data.as_of_date) asOf.textContent = 'As of ' + data.as_of_date;
+            })
+            .catch(function(err) { showMessage('Could not load balance sheet.'); console.error(err); })
+            .finally(function() { showLoading(false); });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        loadBalanceSheet();
+        var b = document.getElementById('bsRefreshBtn');
+        if (b) b.addEventListener('click', loadBalanceSheet);
+        // Periodically refresh so balance sheet stays aligned with new activity
+        setInterval(loadBalanceSheet, 60000);
+    });
+})();
+</script>
+{% endblock %}
+

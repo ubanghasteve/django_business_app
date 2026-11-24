@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Requisition - Multi-Purpose Business App{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit Requisition {{ form.instance.reference_number }}{% else %}New Requisition{% endif %}{% endblock %}
+{% block breadcrumb %}{% if form.instance.pk %}Edit Requisition{% else %}New Requisition{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+:root {
+    --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+    --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+    --text-color: {{ theme_text_color|default:"#333333" }};
+    --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+}
+.preview-panel { border: 2px solid var(--accent-color); border-radius: 10px; padding: 20px; background: #fff; }
+.signature-field-group label:has(input[name="signature-clear"]) { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; cursor: pointer; }
+.signature-field-group input[name="signature-clear"] { width: 1.1em; height: 1.1em; cursor: pointer; }
+</style>
+
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6 class="mb-0">{% if requisition %}Edit{% else %}Create{% endif %} Requisition</h6>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" id="requisitionForm" data-sync-model="requisitions" data-sync-redirect="{% url 'requisitions:list' %}" {% if requisition %}data-record-uuid="{{ requisition.uuid }}"{% endif %}>
+            {% csrf_token %}
+            <div class="row">
+              <div class="col-12 mb-3">
+                <label for="{{ form.organization_name.id_for_label }}" class="form-label">Organization name *</label>
+                {{ form.organization_name }}
+                {% if form.organization_name.errors %}<div class="invalid-feedback d-block">{{ form.organization_name.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-12 mb-3">
+                <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                {{ form.address }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.contact_number.id_for_label }}" class="form-label">Contact number</label>
+                {{ form.contact_number }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                {{ form.date }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.job_type.id_for_label }}" class="form-label">Job type</label>
+                {{ form.job_type }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
+                {% if perms.requisitions.can_approve_requisition %}
+                {{ form.status }}
+                {% else %}
+                {# Non-approvers: keep status hidden and read-only, show badge only #}
+                <input type="hidden"
+                       name="{{ form.status.html_name }}"
+                       value="{{ form.status.value|default:'draft' }}">
+                <div class="form-control-plaintext">
+                  {% with current_status=form.instance.status|default:form.status.value|default:'draft' %}
+                    {% if current_status == 'approved' %}
+                      <span class="badge bg-success">Approved</span>
+                    {% elif current_status == 'pending' %}
+                      <span class="badge bg-warning text-dark">Pending</span>
+                    {% elif current_status == 'rejected' %}
+                      <span class="badge bg-danger">Rejected</span>
+                    {% elif current_status == 'completed' %}
+                      <span class="badge bg-info text-dark">Completed</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Draft</span>
+                    {% endif %}
+                  {% endwith %}
+                </div>
+                {% endif %}
+              </div>
+              <div class="col-12 mb-3">
+                <label for="{{ form.print_product.id_for_label }}" class="form-label">Print product</label>
+                {{ form.print_product }}
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="{{ form.quantity.id_for_label }}" class="form-label">Quantity</label>
+                {{ form.quantity }}
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="{{ form.colors.id_for_label }}" class="form-label">Colors</label>
+                {{ form.colors }}
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="{{ form.size.id_for_label }}" class="form-label">Size</label>
+                {{ form.size }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.micron.id_for_label }}" class="form-label">Micron</label>
+                {{ form.micron }}
+              </div>
+              <div class="col-md-6 mb-3 signature-field-group">
+                <label for="{{ form.signature.id_for_label }}" class="form-label">Signature (image)</label>
+                {{ form.signature }}
+                {% if requisition and requisition.signature %}
+                <div class="form-check form-switch mt-3">
+                  <input class="form-check-input" type="checkbox" name="{{ form.signature.name }}-clear" id="id_signature-clear" value="1" role="switch">
+                  <label class="form-check-label" for="id_signature-clear">Remove signature</label>
+                </div>
+                <p class="small text-muted mt-1 mb-0">Current: <a href="{{ requisition.signature.url }}" target="_blank" rel="noopener">View current signature</a></p>
+                {% endif %}
+              </div>
+              <div class="col-12 mb-3">
+                <label for="{{ form.other_info.id_for_label }}" class="form-label">Other information</label>
+                {{ form.other_info }}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Update{% else %}Create{% endif %} Requisition</button>
+              <a href="{% if form.instance.pk %}{% url 'requisitions:detail' form.instance.pk %}{% else %}{% url 'requisitions:list' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6 class="mb-0">Live Preview</h6>
+        </div>
+        <div class="card-body">
+          <div class="preview-panel" id="requisitionPreview">
+            <div class="mb-2 text-muted small">Reference: <span id="previewRef">{% if form.instance.reference_number %}{{ form.instance.reference_number }}{% endif %}</span></div>
+            <p class="mb-1"><strong id="previewOrg">{% if form.organization_name.value %}{{ form.organization_name.value }}{% else %}Organization name{% endif %}</strong></p>
+            <p class="mb-1 text-muted small" id="previewAddress">{% if form.address.value %}{{ form.address.value }}{% else %}Address{% endif %}</p>
+            <p class="mb-1 text-muted small" id="previewContact">{% if form.contact_number.value %}{{ form.contact_number.value }}{% else %}Contact{% endif %}</p>
+            <p class="mb-2 small">Date: <span id="previewDate">{% if form.date.value %}{{ form.date.value }}{% else %}—{% endif %}</span> · Job: <span id="previewJobType">{% if form.job_type.value %}{{ form.job_type.value }}{% else %}—{% endif %}</span></p>
+            <table class="table table-sm table-borderless mb-0">
+              <tr><td class="text-muted">Print product</td><td id="previewPrintProduct">{% if form.print_product.value %}{{ form.print_product.value }}{% else %}—{% endif %}</td></tr>
+              <tr><td class="text-muted">Quantity</td><td id="previewQuantity">{% if form.quantity.value %}{{ form.quantity.value }}{% else %}—{% endif %}</td></tr>
+              <tr><td class="text-muted">Colors</td><td id="previewColors">{% if form.colors.value %}{{ form.colors.value }}{% else %}—{% endif %}</td></tr>
+              <tr><td class="text-muted">Size</td><td id="previewSize">{% if form.size.value %}{{ form.size.value }}{% else %}—{% endif %}</td></tr>
+              <tr><td class="text-muted">Micron</td><td id="previewMicron">{% if form.micron.value %}{{ form.micron.value }}{% else %}—{% endif %}</td></tr>
+              <tr><td class="text-muted">Status</td><td id="previewStatus">{% if form.status.value %}{{ form.status.value|title }}{% else %}—{% endif %}</td></tr>
+            </table>
+            <p class="mt-2 mb-0 small" id="previewOther">{% if form.other_info.value %}{{ form.other_info.value }}{% else %}Other info...{% endif %}</p>
+            <div class="mt-3 pt-2 border-top" id="previewSignatureWrap" {% if not requisition.signature %}style="display: none;"{% endif %}>
+              <p class="text-muted small mb-1">Signature</p>
+              <img id="previewSignatureImg" src="{% if requisition.signature %}{{ requisition.signature.url }}{% endif %}" alt="Signature" class="img-fluid" style="max-height: 80px;" data-fallback="{% if requisition.signature %}{{ requisition.signature.url }}{% endif %}">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var form = document.getElementById('requisitionForm');
+  if (!form) return;
+  var previewRef = document.getElementById('previewRef');
+  if (previewRef && !previewRef.textContent.trim()) {
+    previewRef.textContent = 'REQ-' + new Date().getFullYear() + '-' + (Math.floor(Math.random() * 900) + 100);
+  }
+  var fields = {
+    organization_name: 'previewOrg',
+    address: 'previewAddress',
+    contact_number: 'previewContact',
+    date: 'previewDate',
+    job_type: 'previewJobType',
+    print_product: 'previewPrintProduct',
+    quantity: 'previewQuantity',
+    colors: 'previewColors',
+    size: 'previewSize',
+    micron: 'previewMicron',
+    status: 'previewStatus',
+    other_info: 'previewOther'
+  };
+  function updatePreview() {
+    for (var name in fields) {
+      var input = form.querySelector('[name="' + name + '"]');
+      var el = document.getElementById(fields[name]);
+      if (!input || !el) continue;
+      var v = (input.tagName === 'SELECT') ? (input.options[input.selectedIndex] && input.options[input.selectedIndex].text) : input.value;
+      el.textContent = v || (name === 'status' ? '—' : (name === 'other_info' ? 'Other info...' : '—'));
+    }
+  }
+  form.addEventListener('input', updatePreview);
+  form.addEventListener('change', updatePreview);
+  updatePreview();
+
+  var sigInput = form.querySelector('[name="signature"]');
+  var sigClear = form.querySelector('input[name="signature-clear"]');
+  var sigWrap = document.getElementById('previewSignatureWrap');
+  var sigImg = document.getElementById('previewSignatureImg');
+
+  function updateSignaturePreview() {
+    if (!sigWrap || !sigImg) return;
+    if (sigClear && sigClear.checked) {
+      sigWrap.style.display = 'none';
+      sigImg.src = '';
+    } else {
+      var fb = sigImg.getAttribute('data-fallback');
+      if (fb) { sigImg.src = fb; sigWrap.style.display = 'block'; }
+    }
+  }
+  if (sigClear) {
+    sigClear.addEventListener('change', updateSignaturePreview);
+    updateSignaturePreview();
+  }
+
+  if (sigInput && sigWrap && sigImg) {
+    sigInput.addEventListener('change', function() {
+      var file = this.files && this.files[0];
+      if (file && file.type.indexOf('image/') === 0) {
+        if (sigClear) sigClear.checked = false;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          sigImg.src = e.target.result;
+          sigWrap.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      } else if (!file) {
+        if (sigImg.dataset.fallback) {
+          sigImg.src = sigImg.dataset.fallback;
+          sigWrap.style.display = sigImg.dataset.fallback ? 'block' : 'none';
+        } else {
+          sigImg.src = '';
+          sigWrap.style.display = 'none';
+        }
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

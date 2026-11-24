@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Invoice - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Delete Invoice{% endblock %}
+{% block breadcrumb %}Delete Invoice{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2">
+        <div class="bg-gradient-danger shadow-danger border-radius-lg pt-4 pb-3">
+          <h6 class="text-white text-capitalize ps-3">Confirm Delete</h6>
+        </div>
+      </div>
+      
+      <div class="card-body text-center">
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-triangle text-lg me-2"></i>
+          <strong>Warning!</strong> This action cannot be undone.
+        </div>
+        
+        <h5 class="mb-3">Are you sure you want to delete this invoice?</h5>
+        
+        <div class="border p-3 mb-4 rounded">
+          <h6 class="mb-2">Invoice {{ invoice.invoice_number }}</h6>
+          <p class="text-sm mb-1"><strong>Client:</strong> {{ invoice.client_name }}</p>
+          <p class="text-sm mb-1"><strong>Amount:</strong> {{ currency_symbol }}{{ invoice.grand_total|floatformat:2 }}</p>
+          <p class="text-sm mb-0"><strong>Date:</strong> {{ invoice.invoice_date|date:"M d, Y" }}</p>
+        </div>
+        
+        <form method="post" class="d-inline" data-invoice-delete="true" data-offline-queue="true" data-record-uuid="{{ invoice.uuid|default:'' }}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger me-2">
+            <i class="fas fa-trash text-sm"></i> Yes, Delete Invoice
+          </button>
+          <a href="{% url 'invoices:detail' invoice.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times text-sm"></i> Cancel
+          </a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form[data-invoice-delete="true"]');
+  if (!form) return;
+
+  form.addEventListener('submit', function (ev) {
+    if (typeof navigator === 'undefined' ||
+        navigator.onLine ||
+        !window.OfflineSync ||
+        typeof window.OfflineSync.wrapDelete !== 'function') {
+      return;
+    }
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+    }
+
+    var uuid = form.getAttribute('data-record-uuid') || '';
+    if (!uuid) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      alert('Cannot delete this invoice offline because it has no sync identifier.');
+      return;
+    }
+
+    var tenantId = window.OfflineSync.getTenantId ? window.OfflineSync.getTenantId() : '';
+
+    window.OfflineSync.wrapDelete(
+      'invoices',
+      uuid,
+      tenantId,
+      function () {
+        return Promise.reject(new Error('online'));
+      }
+    ).then(function () {
+      alert('Deletion queued offline. It will sync when you are back online.');
+      window.location.href = '{% url "invoices:list" %}';
+    }).catch(function (err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      }
+      if (!err || err.message !== 'online') {
+        alert('Could not queue this delete operation offline. Please try again when you are back online.');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,749 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Email &amp; SMS - Business App{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mailing-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+        border: 1px solid #dee2e6;
+    }
+    /* Visible form fields: clear borders and outline */
+    .mailing-card .form-control,
+    .mailing-card input[type="text"],
+    .mailing-card input[type="email"],
+    .mailing-card textarea {
+        border: 2px solid #ced4da !important;
+        outline: none;
+        background-color: #fff !important;
+    }
+    .mailing-card .form-control:focus,
+    .mailing-card input:focus,
+    .mailing-card textarea:focus {
+        border-color: #1976d2 !important;
+        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+    }
+    /* Recipient table: visible borders so rows/cells are clear */
+    .recipient-table,
+    .recipient-table th,
+    .recipient-table td {
+        border: 1px solid #adb5bd !important;
+    }
+    .recipient-table th {
+        font-weight: 600;
+        background-color: #f8f9fa;
+    }
+    .recipient-table .type-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 6px; }
+    .type-client { background: rgba(25, 118, 210, 0.15); color: #1565c0; }
+    .type-user, .type-subuser { background: rgba(102, 126, 234, 0.2); color: #5a6fd8; }
+    .type-employee { background: rgba(76, 175, 80, 0.2); color: #2e7d32; }
+    .no-email { color: #999; font-style: italic; }
+    .no-phone { color: #999; font-style: italic; }
+    #recipientsLoading, #sendResult { display: none; }
+    #sendResult.alert { display: block; }
+    /* Highly visible checkboxes: border, background, size */
+    .recipient-table input[type="checkbox"],
+    .recipient-table .form-check-input.recipient-check,
+    .recipient-table #checkAll,
+    table.recipient-table th input[type="checkbox"],
+    table.recipient-table td input[type="checkbox"] {
+        width: 1.35rem !important;
+        height: 1.35rem !important;
+        min-width: 1.35rem !important;
+        min-height: 1.35rem !important;
+        cursor: pointer !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: inline-block !important;
+        vertical-align: middle;
+        border: 2px solid #495057 !important;
+        background-color: #fff !important;
+        -webkit-appearance: none;
+        appearance: none;
+        border-radius: 0.25rem;
+        flex-shrink: 0;
+    }
+    .recipient-table input[type="checkbox"]:checked,
+    .recipient-table .recipient-check:checked,
+    .recipient-table #checkAll:checked {
+        background-color: #1976d2 !important;
+        border-color: #1976d2 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e");
+    }
+    .recipient-table td:first-child,
+    .recipient-table th:first-child {
+        vertical-align: middle;
+        text-align: center;
+        background-color: #f8f9fa;
+    }
+    /* Source filters checkboxes (Include team, Include employees) */
+    .mailing-card .form-check-input {
+        width: 1.2rem !important;
+        height: 1.2rem !important;
+        border: 2px solid #495057 !important;
+        background-color: #fff !important;
+        cursor: pointer !important;
+    }
+    .mailing-card .form-check-input:checked {
+        background-color: #1976d2 !important;
+        border-color: #1976d2 !important;
+    }
+
+    /* Mailing recipients search field: clearly visible */
+    #recipientSearch.form-control {
+        border: 2px solid #4a5568 !important;
+        background-color: #ffffff;
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        box-shadow: none;
+    }
+
+    #recipientSearch.form-control:focus {
+        border-color: #1976d2 !important;
+        box-shadow: 0 0 0 0.18rem rgba(25, 118, 210, 0.2);
+        outline: none;
+    }
+
+    #recipientSearch::placeholder {
+        color: #a0aec0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ initial_recipients|json_script:"initial-recipients" }}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-2"><i class="fas fa-paper-plane text-primary me-2"></i>Bulk Email &amp; SMS</h2>
+            <p class="text-muted mb-4">Select clients (and optionally team members or employees), then send a bulk email or SMS to the selected recipients.</p>
+        </div>
+    </div>
+
+    <!-- Source filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card mailing-card">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Recipient sources</h6>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="includeTeam" checked>
+                        <label class="form-check-label" for="includeTeam">Include team members</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="includeEmployees">
+                        <label class="form-check-label" for="includeEmployees">Include employees (HR)</label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="btnRefreshRecipients">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh list
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipients list -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card mailing-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Select recipients</h6>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" id="btnSelectAll">Select all</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnDeselectAll">Deselect all</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p id="recipientsLoading" class="text-muted mb-0"><i class="fas fa-spinner fa-spin me-1"></i>Loading recipients…</p>
+                    <div id="recipientsContainer" style="display: none;">
+                        <div class="row mb-2">
+                            <div class="col-md-4 col-sm-6">
+                                <label for="recipientSearch" class="form-label mb-1 small fw-semibold text-muted">Search recipients</label>
+                                <input type="text"
+                                       id="recipientSearch"
+                                       class="form-control form-control-sm"
+                                       placeholder="Type a few letters of name, email, or phone…"
+                                       autocomplete="off"
+                                       aria-label="Search recipients">
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover recipient-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 52px;" class="text-center"><input type="checkbox" id="checkAll" class="form-check-input" title="Select all" aria-label="Select all recipients"></th>
+                                        <th class="text-center" style="width: 56px;">S/N</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Type</th>
+                                        <th>From app</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recipientsBody"></tbody>
+                            </table>
+                        </div>
+                        <p class="text-muted small mb-0" id="recipientsSummary"></p>
+                        <p class="small text-muted mb-0">Only contacts with a valid email or phone number (10+ digits) are listed.</p>
+                        <p class="small mb-0 mt-1" id="selectedCountLine"><span id="selectedCount">0</span> selected — <strong>only checked recipients will receive messages</strong> (unchecked will not receive anything).</p>
+                    </div>
+                    <p id="recipientsEmpty" class="text-muted mb-0" style="display: none;">No recipients found. Add clients or enable team/employees above and refresh.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Email / Send SMS -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card mailing-card">
+                <div class="card-header"><h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Send bulk email</h6></div>
+                <div class="card-body">
+                    <div id="emailResult" class="alert" role="alert" style="display: none;"></div>
+                    <p class="small text-muted mb-2">Only <strong>checked</strong> recipients above and any addresses you add below will receive this email. Unchecked users will not receive it.</p>
+                    <p class="small mb-2"><i class="fas fa-envelope-open-text me-1"></i> <strong>Recipients will see (From):</strong> <code class="text-dark">{{ mailing_from_display|default:"—" }}</code></p>
+                    {% if using_gmail_smtp %}
+                    <div class="alert alert-info py-2 px-3 mb-2 small" role="alert">
+                        <strong>Using Gmail to send:</strong> Gmail often shows its own address (<code>{{ mailing_app_email|default:"" }}</code>) in the angle bracket unless you add your <strong>company email</strong> as &quot;Send mail as&quot; in that Gmail account. In Gmail: <strong>Settings (gear) → See all settings → Accounts and Import → Send mail as → Add another email address</strong>. Enter the same email you set in <a href="{% url 'core:company_profile' %}">Company Profile</a>, verify it, then send. After that, recipients will see your company email in the bracket.
+                    </div>
+                    {% endif %}
+                    {% if mailing_uses_company_email %}
+                    <p class="small text-success mb-2"><i class="fas fa-check-circle me-1"></i> Your company email is set in Company Profile; the app uses it for the From address. If you use Gmail and recipients still see the Gmail address, add your company email as &quot;Send mail as&quot; in Gmail (see above).</p>
+                    {% else %}
+                    <p class="small text-warning mb-2"><i class="fas fa-exclamation-triangle me-1"></i> <strong>Set your company email in <a href="{% url 'core:company_profile' %}">Company Profile</a></strong> so recipients see <strong>your company&#39;s email</strong> in the bracket instead of the app address (<code>{{ mailing_app_email|default:"(app email)" }}</code>).</p>
+                    {% endif %}
+                    <p class="small text-muted mb-2">The app uses <strong>your company&#39;s</strong> email and logo from <a href="{% url 'core:company_profile' %}">Company Profile</a> when you send — no need to configure anything per company in .env. Each registered company fills their own profile; the From address and logo in the email are taken from yours.</p>
+                    <p class="small text-muted mb-2">The small circle/avatar next to the sender in Gmail is shown by the email client. Your <strong>company logo and name</strong> are included inside the email body when you have a logo and company name set in Company Profile.</p>
+                    <div class="mb-3">
+                        <label for="emailSubject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="emailSubject" placeholder="Email subject" maxlength="200">
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailMessage" class="form-label">Message</label>
+                        <textarea class="form-control" id="emailMessage" rows="4" placeholder="Your message (plain text)"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="additionalEmails" class="form-label">Additional email addresses</label>
+                        <textarea class="form-control" id="additionalEmails" rows="3" placeholder="Add one or more emails (one per line or comma-separated). Example:&#10;client@example.com&#10;partner@company.com"></textarea>
+                        <div class="form-text">Anyone listed here will receive the same email. Use this to include people not in the recipient list above. All selected recipients above plus these addresses receive the message at once when you click Send.</div>
+                    </div>
+                    <p class="small mb-2"><span id="emailRecipientTotal">0</span> total recipient(s) will receive this email (selected + additional).</p>
+                    <button type="button" class="btn btn-primary" id="btnSendEmail"><i class="fas fa-paper-plane me-1"></i>Send email to selected + additional</button>
+                    <div id="emailSendStatus" class="mt-3 d-none">
+                        <div id="emailSendStatusLoading" class="d-flex align-items-center text-primary d-none">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Sending messages… Please wait.</span>
+                        </div>
+                        <div id="emailSendStatusDone" class="text-success d-none">
+                            <i class="fas fa-check-circle me-1"></i><span id="emailSendStatusDoneText">Sent.</span>
+                        </div>
+                        <div id="emailSendStatusError" class="text-danger d-none">
+                            <i class="fas fa-exclamation-circle me-1"></i><span id="emailSendStatusErrorText"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card mailing-card">
+                <div class="card-header"><h6 class="mb-0"><i class="fas fa-sms me-2"></i>Send bulk SMS</h6></div>
+                <div class="card-body">
+                    <div id="smsResult" class="alert" role="alert" style="display: none;"></div>
+                    <p class="small text-muted mb-2">Only <strong>checked</strong> recipients above and any numbers you add below will receive this SMS. Unchecked users will not receive it.</p>
+                    <p class="small text-muted mb-2" id="smsConfigNote">SMS is sent via Twilio. Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to enable.</p>
+                    <div class="mb-3">
+                        <label for="smsMessage" class="form-label">Message</label>
+                        <textarea class="form-control" id="smsMessage" rows="4" placeholder="SMS message (short recommended)" maxlength="1600"></textarea>
+                        <div class="form-text"><span id="smsCharCount">0</span>/1600</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="additionalPhones" class="form-label">Additional phone numbers (optional)</label>
+                        <textarea class="form-control" id="additionalPhones" rows="2" placeholder="One per line or comma-separated, e.g. +1234567890"></textarea>
+                        <div class="form-text">Add more numbers not in the list above. Include country code (e.g. +1 for US).</div>
+                    </div>
+                    <p class="small mb-2"><span id="smsRecipientTotal">0</span> total recipient(s) will receive this SMS (selected + additional).</p>
+                    <button type="button" class="btn btn-success" id="btnSendSms"><i class="fas fa-sms me-1"></i>Send SMS to selected + additional</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = meta ? (meta.getAttribute('content') || meta.content || '') : '';
+    const getCookie = (name) => {
+        const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : '';
+    };
+    const csrf = csrfToken || getCookie('csrftoken');
+
+    var recipients = [];
+    var initialDataEl = document.getElementById('initial-recipients');
+    if (initialDataEl && initialDataEl.textContent) {
+        try {
+            recipients = JSON.parse(initialDataEl.textContent);
+        } catch (e) {}
+    }
+
+    function showLoading(show) {
+        document.getElementById('recipientsLoading').style.display = show ? 'block' : 'none';
+        document.getElementById('recipientsContainer').style.display = show ? 'none' : (recipients.length ? 'block' : 'none');
+        document.getElementById('recipientsEmpty').style.display = (!show && recipients.length === 0) ? 'block' : 'none';
+    }
+
+    function buildRecipientsUrl() {
+        const includeTeam = document.getElementById('includeTeam').checked;
+        const includeEmployees = document.getElementById('includeEmployees').checked;
+        const params = new URLSearchParams();
+        if (includeTeam) params.set('include_team', 'true');
+        if (includeEmployees) params.set('include_employees', 'true');
+        return '/api/mailing/recipients/?' + params.toString();
+    }
+
+    // Filter visible rows in the recipients table by a free-text query (name, email, or phone)
+    function filterRecipientRows() {
+        var input = document.getElementById('recipientSearch');
+        var tbody = document.getElementById('recipientsBody');
+        var summary = document.getElementById('recipientsSummary');
+        if (!tbody) return;
+
+        var term = input ? (input.value || '').trim().toLowerCase() : '';
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+        if (!rows.length) {
+            if (summary) summary.textContent = 'No recipients found.';
+            return;
+        }
+
+        var visibleCount = 0;
+        rows.forEach(function(row) {
+            // cells: 0 = checkbox, 1 = S/N, 2 = Name, 3 = Email, 4 = Phone
+            var name = (row.cells[2] && row.cells[2].innerText || '').toLowerCase();
+            var email = (row.cells[3] && row.cells[3].innerText || '').toLowerCase();
+            var phone = (row.cells[4] && row.cells[4].innerText || '').toLowerCase();
+
+            if (!term || name.indexOf(term) !== -1 || email.indexOf(term) !== -1 || phone.indexOf(term) !== -1) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (summary) {
+            if (term) {
+                summary.textContent = 'Showing ' + visibleCount + ' of ' + rows.length +
+                    ' recipient(s) matching "' + term + '". Check only those who should receive the message.';
+            } else {
+                summary.textContent = rows.length + ' recipient(s). Check only those who should receive the message.';
+            }
+        }
+    }
+
+    function getCheckedKeys() {
+        var keys = [];
+        var tbody = document.getElementById('recipientsBody');
+        if (!tbody) return keys;
+        tbody.querySelectorAll('input.recipient-check:checked').forEach(function(cb) {
+            var type = cb.getAttribute('data-type'), id = cb.getAttribute('data-id');
+            if (type != null && id != null) keys.push(type + ':' + id);
+        });
+        return keys;
+    }
+
+    function loadRecipients(preserveSelection, silent) {
+        var keepChecked = preserveSelection ? getCheckedKeys() : [];
+        if (!silent) showLoading(true);
+        fetch(buildRecipientsUrl(), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+            .then(function(_ref) {
+                var ok = _ref.ok, data = _ref.data;
+                recipients = (data && data.recipients) ? data.recipients : [];
+                renderRecipients();
+                if (keepChecked.length) {
+                    var tbody = document.getElementById('recipientsBody');
+                    if (tbody) {
+                        tbody.querySelectorAll('input.recipient-check').forEach(function(cb) {
+                            var key = (cb.getAttribute('data-type') || '') + ':' + (cb.getAttribute('data-id') || '');
+                            if (keepChecked.indexOf(key) >= 0) cb.checked = true;
+                        });
+                        var rowChecks = tbody.querySelectorAll('input.recipient-check');
+                        var rowChecked = tbody.querySelectorAll('input.recipient-check:checked');
+                        document.getElementById('checkAll').checked = (rowChecks.length > 0 && rowChecked.length === rowChecks.length);
+                    }
+                    updateSelectedCount();
+                }
+                if (!silent) {
+                    if (!ok && data && data.error) {
+                        document.getElementById('recipientsSummary').textContent = 'Error: ' + data.error;
+                        document.getElementById('recipientsSummary').className = 'text-danger small mb-0';
+                    } else {
+                        document.getElementById('recipientsSummary').className = 'text-muted small mb-0';
+                    }
+                    showLoading(false);
+                } else {
+                    document.getElementById('recipientsSummary').className = 'text-muted small mb-0';
+                    document.getElementById('recipientsSummary').textContent = recipients.length + ' recipient(s). Check only those who should receive the message.';
+                    document.getElementById('recipientsContainer').style.display = recipients.length ? 'block' : 'none';
+                    document.getElementById('recipientsEmpty').style.display = recipients.length ? 'none' : 'block';
+                }
+            })
+            .catch(function() {
+                if (silent) return;
+                recipients = [];
+                renderRecipients();
+                var msg = (typeof navigator !== 'undefined' && !navigator.onLine)
+                    ? 'You\'re offline. Recipients will load when you\'re back online.'
+                    : 'Failed to load recipients. Check the console or try again.';
+                document.getElementById('recipientsSummary').textContent = msg;
+                document.getElementById('recipientsSummary').className = 'text-danger small mb-0';
+                showLoading(false);
+            });
+    }
+
+    function typeClass(t) {
+        if (t === 'client') return 'type-client';
+        if (t === 'user' || t === 'subuser') return 'type-user';
+        if (t === 'employee') return 'type-employee';
+        if (t === 'invoice' || t === 'receipt' || t === 'job_customer') return 'type-client';
+        if (t === 'inventory') return 'type-employee';
+        return '';
+    }
+    function typeLabel(t) {
+        if (t === 'client') return 'Client';
+        if (t === 'user') return 'User';
+        if (t === 'subuser') return 'Team';
+        if (t === 'employee') return 'Employee';
+        if (t === 'invoice') return 'Invoice';
+        if (t === 'receipt') return 'Receipt';
+        if (t === 'job_customer') return 'Job Customer';
+        if (t === 'inventory') return 'Inventory';
+        return t;
+    }
+
+    function renderRecipients() {
+        const tbody = document.getElementById('recipientsBody');
+        tbody.innerHTML = '';
+        recipients.forEach(function(r, index) {
+            const tr = document.createElement('tr');
+            const hasEmail = (r.email || '').trim().length > 0 && (r.email || '').indexOf('@') >= 0;
+            const hasPhone = (r.phone || '').trim().length >= 10;
+            const sn = index + 1;
+            const sourceApp = (r.source_app || '').escapeHtml() || '—';
+            tr.innerHTML =
+                '<td class="text-center"><input type="checkbox" class="form-check-input recipient-check" data-type="' + (r.type || 'client') + '" data-id="' + r.id + '" data-has-email="' + (hasEmail ? '1' : '0') + '" data-has-phone="' + (hasPhone ? '1' : '0') + '" aria-label="Select recipient"></td>' +
+                '<td class="text-center">' + sn + '</td>' +
+                '<td>' + (r.name || '').escapeHtml() + '</td>' +
+                '<td class="' + (hasEmail ? '' : 'no-email') + '">' + (r.email || '—').escapeHtml() + '</td>' +
+                '<td class="' + (hasPhone ? '' : 'no-phone') + '">' + (r.phone || '—').escapeHtml() + '</td>' +
+                '<td><span class="type-badge ' + typeClass(r.type) + '">' + typeLabel(r.type).escapeHtml() + '</span></td>' +
+                '<td class="text-muted small">' + sourceApp + '</td>';
+            tbody.appendChild(tr);
+        });
+        document.getElementById('recipientsSummary').textContent = recipients.length + ' recipient(s). Check only those who should receive the message.';
+        document.getElementById('checkAll').checked = false;
+        bindCheckboxListeners();
+        updateSelectedCount();
+        // Apply any active text filter after (re)rendering the rows.
+        filterRecipientRows();
+    }
+
+    function bindCheckboxListeners() {
+        var tbody = document.getElementById('recipientsBody');
+        if (tbody) {
+            tbody.querySelectorAll('input.recipient-check').forEach(function(cb) {
+                cb.removeEventListener('change', onRecipientCheckChange);
+                cb.addEventListener('change', onRecipientCheckChange);
+            });
+        }
+        var checkAll = document.getElementById('checkAll');
+        if (checkAll) {
+            checkAll.removeEventListener('change', onCheckAllChange);
+            checkAll.addEventListener('change', onCheckAllChange);
+        }
+    }
+    function onRecipientCheckChange() {
+        var checkAll = document.getElementById('checkAll');
+        var tbody = document.getElementById('recipientsBody');
+        if (tbody && checkAll) {
+            var all = tbody.querySelectorAll('input.recipient-check');
+            var checked = tbody.querySelectorAll('input.recipient-check:checked');
+            checkAll.checked = (all.length > 0 && checked.length === all.length);
+        }
+        updateSelectedCount();
+    }
+    function onCheckAllChange() {
+        var checked = document.getElementById('checkAll').checked;
+        var tbody = document.getElementById('recipientsBody');
+        if (tbody) tbody.querySelectorAll('input.recipient-check').forEach(function(cb) { cb.checked = checked; });
+        updateSelectedCount();
+    }
+
+    function countSelectedWithEmail() {
+        var n = 0;
+        var tbody = document.getElementById('recipientsBody');
+        if (!tbody) return 0;
+        tbody.querySelectorAll('input.recipient-check:checked').forEach(function(cb) {
+            if (cb.getAttribute('data-has-email') === '1') n++;
+        });
+        return n;
+    }
+    function countSelectedWithPhone() {
+        var n = 0;
+        var tbody = document.getElementById('recipientsBody');
+        if (!tbody) return 0;
+        tbody.querySelectorAll('input.recipient-check:checked').forEach(function(cb) {
+            if (cb.getAttribute('data-has-phone') === '1') n++;
+        });
+        return n;
+    }
+    function parseAdditionalEmails() {
+        var raw = (document.getElementById('additionalEmails').value || '').trim();
+        if (!raw) return [];
+        var list = [];
+        raw.split(/[\n,;]+/).forEach(function(part) {
+            part = part.trim();
+            if (part && part.indexOf('@') >= 0) list.push(part);
+        });
+        return list;
+    }
+    function parseAdditionalPhones() {
+        var raw = (document.getElementById('additionalPhones').value || '').trim();
+        if (!raw) return [];
+        var list = [];
+        raw.split(/[\n,;]+/).forEach(function(part) {
+            part = part.replace(/\D/g, '');
+            if (part.length >= 10) list.push(part);
+        });
+        return list;
+    }
+
+    function updateSelectedCount() {
+        var tbody = document.getElementById('recipientsBody');
+        var selected = tbody ? tbody.querySelectorAll('input.recipient-check:checked').length : 0;
+        document.getElementById('selectedCount').textContent = selected;
+        var withEmail = countSelectedWithEmail();
+        var withPhone = countSelectedWithPhone();
+        var addEmails = parseAdditionalEmails().length;
+        var addPhones = parseAdditionalPhones().length;
+        document.getElementById('emailRecipientTotal').textContent = withEmail + addEmails;
+        document.getElementById('smsRecipientTotal').textContent = withPhone + addPhones;
+    }
+
+    if (typeof String.prototype.escapeHtml !== 'function') {
+        String.prototype.escapeHtml = function() {
+            const div = document.createElement('div');
+            div.textContent = this;
+            return div.innerHTML;
+        };
+    }
+
+    function getSelectedRecipients() {
+        var out = [];
+        var tbody = document.getElementById('recipientsBody');
+        if (!tbody) return out;
+        var checkboxes = tbody.querySelectorAll('input.recipient-check:checked');
+        for (var i = 0; i < checkboxes.length; i++) {
+            var cb = checkboxes[i];
+            var id = parseInt(cb.getAttribute('data-id'), 10);
+            var type = cb.getAttribute('data-type') || 'client';
+            if (!isNaN(id) && type) {
+                out.push({ type: type, id: id });
+            }
+        }
+        return out;
+    }
+
+    document.getElementById('btnRefreshRecipients').addEventListener('click', function() { loadRecipients(true, false); });
+    document.getElementById('btnSelectAll').addEventListener('click', function() {
+        document.getElementById('checkAll').checked = true;
+        var tbody = document.getElementById('recipientsBody');
+        if (tbody) tbody.querySelectorAll('input.recipient-check').forEach(function(cb) { cb.checked = true; });
+        updateSelectedCount();
+    });
+    document.getElementById('btnDeselectAll').addEventListener('click', function() {
+        document.getElementById('checkAll').checked = false;
+        var tbody = document.getElementById('recipientsBody');
+        if (tbody) tbody.querySelectorAll('input.recipient-check').forEach(function(cb) { cb.checked = false; });
+        updateSelectedCount();
+    });
+
+    document.getElementById('additionalEmails').addEventListener('input', updateSelectedCount);
+    document.getElementById('additionalEmails').addEventListener('paste', function() { setTimeout(updateSelectedCount, 0); });
+    document.getElementById('additionalPhones').addEventListener('input', updateSelectedCount);
+    document.getElementById('additionalPhones').addEventListener('paste', function() { setTimeout(updateSelectedCount, 0); });
+
+    // Live search over recipients table (partial, case-insensitive matches)
+    var recipientSearchEl = document.getElementById('recipientSearch');
+    if (recipientSearchEl) {
+        var searchDebounce;
+        recipientSearchEl.addEventListener('input', function() {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(filterRecipientRows, 150);
+        });
+    }
+
+    function showRecipientsFromInitial() {
+        if (recipients.length === 0) {
+            document.getElementById('recipientsLoading').style.display = 'none';
+            document.getElementById('recipientsContainer').style.display = 'none';
+            document.getElementById('recipientsEmpty').style.display = 'block';
+            document.getElementById('recipientsSummary').textContent = '';
+            return;
+        }
+        document.getElementById('recipientsLoading').style.display = 'none';
+        document.getElementById('recipientsContainer').style.display = 'block';
+        document.getElementById('recipientsEmpty').style.display = 'none';
+        document.getElementById('recipientsSummary').textContent = recipients.length + ' recipient(s). Check only those who should receive the message.';
+        document.getElementById('recipientsSummary').className = 'text-muted small mb-0';
+        renderRecipients();
+    }
+
+    function showEmailResult(msg, isError) {
+        const el = document.getElementById('emailResult');
+        el.textContent = msg;
+        el.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success');
+        el.style.display = 'block';
+    }
+
+    function showEmailStatus(state, text) {
+        var block = document.getElementById('emailSendStatus');
+        var loading = document.getElementById('emailSendStatusLoading');
+        var done = document.getElementById('emailSendStatusDone');
+        var doneText = document.getElementById('emailSendStatusDoneText');
+        var err = document.getElementById('emailSendStatusError');
+        var errText = document.getElementById('emailSendStatusErrorText');
+        if (state === 'hide') {
+            block.classList.add('d-none');
+            return;
+        }
+        block.classList.remove('d-none');
+        loading.classList.toggle('d-none', state !== 'sending');
+        loading.classList.toggle('d-flex', state === 'sending');
+        done.classList.toggle('d-none', state !== 'sent');
+        err.classList.toggle('d-none', state !== 'error');
+        if (state === 'sent' && text) doneText.textContent = text;
+        if (state === 'error' && text) errText.textContent = text;
+    }
+    function showSmsResult(msg, isError) {
+        const el = document.getElementById('smsResult');
+        el.textContent = msg;
+        el.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success');
+        el.style.display = 'block';
+    }
+
+    document.getElementById('btnSendEmail').addEventListener('click', function() {
+        var btn = this;
+        var subject = (document.getElementById('emailSubject').value || '').trim();
+        var message = (document.getElementById('emailMessage').value || '').trim();
+        var selected = getSelectedRecipients();
+        var additional = parseAdditionalEmails();
+        var totalRecipients = countSelectedWithEmail() + additional.length;
+        if (totalRecipients === 0) { showEmailResult('Select at least one recipient with an email and/or add additional email addresses.', true); return; }
+        if (!subject) { showEmailResult('Please enter a subject.', true); return; }
+        if (!message) { showEmailResult('Please enter a message.', true); return; }
+        var payload = { recipients: Array.isArray(selected) ? selected : [], subject: subject, message: message, additional_emails: Array.isArray(additional) ? additional : [] };
+        if (typeof navigator !== 'undefined' && !navigator.onLine && window.OfflineSync && typeof window.OfflineSync.queuePendingEmail === 'function') {
+            window.OfflineSync.queuePendingEmail(payload).then(function() {
+                showEmailResult('Queued. Will send when you are back online.', false);
+                showEmailStatus('sent', 'Queued for sending when online.');
+            }).catch(function() { showEmailResult('Could not queue. Try again.', true); });
+            return;
+        }
+        btn.disabled = true;
+        showEmailResult('Sending…', false);
+        showEmailStatus('sending');
+        fetch('/api/mailing/send-email/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(payload)
+        })
+            .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+            .then(function(res) {
+                btn.disabled = false;
+                if (res.ok && res.data && res.data.success) {
+                    var sent = res.data.sent || 0, failed = res.data.failed || 0, total = res.data.total || 0;
+                    showEmailResult('Done. Sent: ' + sent + ', failed: ' + failed + ' of ' + total + ' recipient(s). Messages are delivered immediately.');
+                    showEmailStatus('sent', 'Sent. ' + sent + ' sent, ' + failed + ' failed of ' + total + ' recipient(s).');
+                } else {
+                    var errMsg = (res.data && res.data.error) || 'Send failed.';
+                    showEmailResult(errMsg, true);
+                    showEmailStatus('error', errMsg);
+                }
+            })
+            .catch(function() {
+                btn.disabled = false;
+                showEmailResult('Request failed. Check your connection and try again.', true);
+                showEmailStatus('error', 'Request failed. Check your connection and try again.');
+            });
+    });
+
+    document.getElementById('smsMessage').addEventListener('input', function() {
+        document.getElementById('smsCharCount').textContent = this.value.length;
+    });
+
+    document.getElementById('btnSendSms').addEventListener('click', function() {
+        var btn = this;
+        var message = (document.getElementById('smsMessage').value || '').trim();
+        var selected = getSelectedRecipients();
+        var additional = parseAdditionalPhones();
+        var totalRecipients = countSelectedWithPhone() + additional.length;
+        if (totalRecipients === 0) { showSmsResult('Select at least one recipient with a phone number and/or add additional phone numbers.', true); return; }
+        if (!message) { showSmsResult('Please enter a message.', true); return; }
+        var payload = { recipients: Array.isArray(selected) ? selected : [], message: message, additional_phones: Array.isArray(additional) ? additional : [] };
+        if (typeof navigator !== 'undefined' && !navigator.onLine && window.OfflineSync && typeof window.OfflineSync.queuePendingSms === 'function') {
+            window.OfflineSync.queuePendingSms(payload).then(function() {
+                showSmsResult('Queued. Will send when you are back online.', false);
+            }).catch(function() { showSmsResult('Could not queue. Try again.', true); });
+            return;
+        }
+        btn.disabled = true;
+        showSmsResult('Sending…', false);
+        fetch('/api/mailing/send-sms/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(payload)
+        })
+            .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+            .then(function(res) {
+                btn.disabled = false;
+                if (res.ok && res.data && res.data.success) {
+                    var msg = 'Done. Sent: ' + (res.data.sent || 0) + ', failed: ' + (res.data.failed || 0) + ' of ' + (res.data.total || 0) + ' recipient(s).';
+                    if (res.data.last_error) msg += ' Last error: ' + res.data.last_error;
+                    else msg += ' Messages are delivered immediately.';
+                    showSmsResult(msg, res.data.failed > 0);
+                } else {
+                    var err = (res.data && res.data.error) || 'Send failed.';
+                    if (err.indexOf('not configured') !== -1 || err.indexOf('not installed') !== -1) {
+                        err += ' Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to your .env file (see apps/mailing/SETUP_EMAIL_AND_SMS.md) and run: pip install twilio';
+                    }
+                    showSmsResult(err, true);
+                }
+            })
+            .catch(function() { btn.disabled = false; showSmsResult('Request failed. Check your connection and try again.', true); });
+    });
+
+    showRecipientsFromInitial();
+
+    var realtimeRefreshInterval = 45000;
+    var realtimeRefreshTimer = null;
+    function startRealtimeRefresh() {
+        if (realtimeRefreshTimer) return;
+        realtimeRefreshTimer = setInterval(function() {
+            loadRecipients(true, true);
+        }, realtimeRefreshInterval);
+    }
+    if (typeof window.addEventListener !== 'undefined') {
+        window.addEventListener('beforeunload', function() {
+            if (realtimeRefreshTimer) clearInterval(realtimeRefreshTimer);
+        });
+    }
+    setTimeout(startRealtimeRefresh, 2000);
+})();
+</script>
+{% endblock %}

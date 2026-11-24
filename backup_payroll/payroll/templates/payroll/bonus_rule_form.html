@@ -1,0 +1,451 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}{% if rule.id %}Edit{% else %}Create{% endif %} Bonus Rule{% endblock %}
+{% block extra_head_meta %}
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --primary: #1e88e5;
+    --primary-dark: #1565c0;
+    --primary-light: #42a5f5;
+    --success: #00c853;
+    --warning: #ff6d00;
+    --danger: #dc3545;
+    --secondary: #6c757d;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --border: #dee2e6;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    --radius: 12px;
+}
+
+.payroll-form-page {
+    background: #f5f7fa;
+    min-height: 100vh;
+}
+
+.payroll-form-page .card {
+    border: none;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.payroll-form-page .card-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    padding: 1.25rem 1.5rem;
+    border: none;
+}
+
+.payroll-form-page .card-header h5 {
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.payroll-form-page .card-body {
+    padding: 2rem;
+}
+
+.payroll-form-page .form-control,
+.payroll-form-page .form-select {
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.payroll-form-page .form-control:focus,
+.payroll-form-page .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.1);
+}
+
+.field-group {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+
+.field-group:hover {
+    border-color: var(--primary-light);
+    box-shadow: 0 2px 12px rgba(30, 136, 229, 0.1);
+}
+
+.field-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.field-group .required {
+    color: var(--danger);
+}
+
+.field-group .help-text {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+.field-icon {
+    width: 20px;
+    text-align: center;
+    color: var(--primary);
+    margin-right: 0.5rem;
+}
+
+.info-card {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border: 1px solid #a5d6a7;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-card i {
+    color: #2e7d32;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border: none;
+    padding: 0.875rem 2rem;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(30, 136, 229, 0.4);
+}
+
+.btn-outline-secondary {
+    border: 2px solid var(--border);
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    color: #6c757d;
+    background: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 1rem;
+}
+
+.breadcrumb-item a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.breadcrumb-item a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-item.active {
+    color: #6c757d;
+}
+
+.form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0;
+}
+
+.form-check-input:checked {
+    background-color: var(--success);
+    border-color: var(--success);
+}
+
+.form-check-label {
+    font-weight: 500;
+    color: #495057;
+    margin-left: 0.5rem;
+}
+
+.toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.toggle-group:hover {
+    border-color: var(--primary-light);
+}
+
+.percentage-input-wrapper {
+    position: relative;
+}
+
+.percentage-input-wrapper .input-group-text {
+    background: #e9ecef;
+    border: 2px solid var(--border);
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.percentage-input-wrapper .form-control {
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+}
+
+@media (max-width: 768px) {
+    .payroll-form-page .card-body {
+        padding: 1.25rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .row.g-4 {
+        --bs-gutter-x: 1rem;
+        --bs-gutter-y: 1rem;
+    }
+    
+    .field-group {
+        padding: 1rem;
+    }
+    
+    .btn-primary, .btn-outline-secondary {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-group-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .info-card {
+        padding: 1rem;
+    }
+    
+    .toggle-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 payroll-form-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}">Payroll</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'payroll:bonuses_list' %}">Bonuses</a></li>
+                    <li class="breadcrumb-item active">{% if rule.id %}Edit{% else %}Create{% endif %} Rule</li>
+                </ol>
+            </nav>
+            
+            <h4 class="page-title">{% if rule.id %}Edit{% else %}Create{% endif %} Bonus Rule</h4>
+            <p class="page-subtitle">Define bonus rules for employee compensation</p>
+            
+            <div class="info-card d-flex align-items-start gap-3">
+                <i class="fas fa-info-circle fa-lg mt-1"></i>
+                <div>
+                    <strong>Bonus Rule</strong>
+                    <p class="mb-0 small text-muted">
+                        Create bonus rules to automatically calculate bonuses for employees. 
+                        You can set a percentage of the basic salary or use manual bonus amounts.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="fas fa-gift"></i>
+                    <h5 class="mb-0">{% if rule.id %}Edit{% endif %} Bonus Rule Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" class="row g-4" id="bonusRuleForm" data-sync-model="bonuses" data-sync-redirect="{% url 'payroll:bonuses_list' %}">
+                        {% csrf_token %}
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_name">
+                                    <i class="fas fa-tag field-icon"></i>
+                                    Rule Name <span class="required">*</span>
+                                </label>
+                                <input type="text" name="name" id="id_name" class="form-control" 
+                                       placeholder="e.g., Performance Bonus, Holiday Bonus" required
+                                       value="{% if rule %}{{ rule.name }}{% endif %}">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_bonus_type">
+                                    <i class="fas fa-list-alt field-icon"></i>
+                                    Bonus Type <span class="required">*</span>
+                                </label>
+                                <select name="bonus_type" id="id_bonus_type" class="form-select" required>
+                                    <option value="">Select bonus type...</option>
+                                    <option value="performance" {% if rule and rule.bonus_type == 'performance' %}selected{% endif %}>Performance Bonus</option>
+                                    <option value="profit_share" {% if rule and rule.bonus_type == 'profit_share' %}selected{% endif %}>Profit Share</option>
+                                    <option value="holiday_bonus" {% if rule and rule.bonus_type == 'holiday_bonus' %}selected{% endif %}>Holiday Bonus</option>
+                                    <option value="manual_bonus" {% if rule and rule.bonus_type == 'manual_bonus' %}selected{% endif %}>Manual Bonus</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_percentage_of_basic">
+                                    <i class="fas fa-percent field-icon"></i>
+                                    Percentage of Basic Salary <span class="required">*</span>
+                                </label>
+                                <div class="percentage-input-wrapper input-group">
+                                    <input type="number" name="percentage_of_basic" id="id_percentage_of_basic" 
+                                           class="form-control" placeholder="0.00" min="0" max="100" step="0.01" required
+                                           value="{% if rule %}{{ rule.percentage_of_basic }}{% else %}0{% endif %}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="help-text">Percentage of basic salary to use as bonus (0-100%)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label>
+                                    <i class="fas fa-toggle-on field-icon"></i>
+                                    Status
+                                </label>
+                                <div class="toggle-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active" 
+                                               {% if rule.is_active or not rule %}checked{% endif %}>
+                                        <label class="form-check-label" for="id_is_active">
+                                            {% if rule.is_active or not rule %}Active{% else %}Inactive{% endif %}
+                                        </label>
+                                    </div>
+                                </div>
+                                <small class="help-text">Inactive rules won't be applied during payroll</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 mt-4">
+                            <div class="d-flex flex-wrap gap-2 btn-group-mobile">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>{% if rule.id %}Update{% else %}Create{% endif %} Rule
+                                </button>
+                                <a href="{% url 'payroll:bonuses_list' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('bonusRuleForm');
+    var isActiveSwitch = document.getElementById('id_is_active');
+    var isActiveLabel = isActiveSwitch ? isActiveSwitch.nextElementSibling : null;
+    
+    if (isActiveSwitch && isActiveLabel) {
+        isActiveSwitch.addEventListener('change', function() {
+            isActiveLabel.textContent = this.checked ? 'Active' : 'Inactive';
+        });
+    }
+    
+    var bonusTypeSelect = document.getElementById('id_bonus_type');
+    var percentageInput = document.getElementById('id_percentage_of_basic');
+    var percentageHelpText = percentageInput ? percentageInput.nextElementSibling.nextElementSibling : null;
+    
+    if (bonusTypeSelect) {
+        bonusTypeSelect.addEventListener('change', function() {
+            var selectedType = this.value;
+            
+            if (selectedType === 'manual_bonus') {
+                if (percentageInput) {
+                    percentageInput.value = '0';
+                    percentageInput.disabled = true;
+                }
+                if (percentageHelpText) {
+                    percentageHelpText.textContent = 'Manual bonuses are entered directly on employee records';
+                }
+            } else {
+                if (percentageInput) {
+                    percentageInput.disabled = false;
+                }
+                if (percentageHelpText) {
+                    percentageHelpText.textContent = 'Percentage of basic salary to use as bonus (0-100%)';
+                }
+            }
+        });
+        
+        if (bonusTypeSelect.value === 'manual_bonus' && percentageInput) {
+            percentageInput.disabled = true;
+        }
+    }
+    
+    var percentageField = document.getElementById('id_percentage_of_basic');
+    if (percentageField) {
+        percentageField.addEventListener('input', function() {
+            var value = parseFloat(this.value);
+            if (value > 100) {
+                this.value = 100;
+            }
+            if (value < 0) {
+                this.value = 0;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

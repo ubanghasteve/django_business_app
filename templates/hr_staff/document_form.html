@@ -1,0 +1,510 @@
+{% extends 'base.html' %}{% load static %}{% block title %}{% if is_edit %}Edit{% else %}Upload{% endif %} Document - HR{% endblock %}
+{% block extra_head_meta %}
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item"><a href="{% url 'hr_staff:document_list' %}">Documents</a></li><li class="breadcrumb-item active">{% if is_edit %}Edit{% else %}Upload{% endif %}</li>{% endblock %}
+{% block page_title %}{% if is_edit %}Edit{% else %}Upload{% endif %} Document{% endblock %}
+{% block extra_css %}{{ block.super }}
+<style>
+:root { --js-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+body { background: #f8fafc; }
+.hr-form-page-wrap { position: relative; }
+.hr-document-card { border: none; border-radius: 24px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08); background: white; overflow: hidden; }
+.hr-form-header { background: var(--js-primary-gradient); padding: 1.5rem 2rem; }
+.hr-form-header-icon { width: 48px; height: 48px; background: rgba(255,255,255,0.2); color: white; }
+.hr-form-title { font-size: 1.25rem; font-weight: 700; color: white; }
+.hr-form-subtitle { font-size: 0.875rem; color: rgba(255,255,255,0.8); }
+.hr-form-body { padding: 2rem; }
+.hr-form-section { margin-bottom: 1.5rem; }
+.hr-section-title { font-size: 0.875rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem; }
+.hr-form-label { font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
+.hr-form-control { width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 0.9375rem; background: #f9fafb; transition: all 0.2s; outline: none; }
+.hr-form-control:focus { border-color: #667eea; background: white; box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1); }
+.hr-form-control.is-invalid { border-color: #dc2626; }
+.hr-upload-zone { position: relative; border: 2px dashed #e2e8f0; border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.2s; cursor: pointer; background: #fafafa; }
+.hr-upload-zone:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.02); }
+.hr-upload-zone.dragover { border-color: #667eea !important; background: rgba(102, 126, 234, 0.05) !important; }
+.hr-upload-icon { width: 56px; height: 56px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.extraction-badge { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.hr-extracted-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 1rem; }
+.hr-extracted-card .badge { font-size: 0.7rem; }
+.hr-document-preview { background: #f8fafc; border-radius: 12px; padding: 1rem; margin-top: 1rem; }
+.hr-document-preview img { max-width: 100%; border-radius: 8px; }
+.invalid-feedback { font-size: 0.8rem; color: #dc2626; margin-top: 0.25rem; }
+@media (max-width: 768px) {
+  .hr-form-header, .hr-form-body { padding: 1rem; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3 hr-form-page-wrap">
+{% include 'hr_staff/partials/hr_top_nav.html' %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'hr_staff:document_list' %}" class="text-decoration-none">Documents</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit{% else %}Upload{% endif %}</li>
+  </ol>
+</nav>
+
+<div class="hr-document-card">
+  <div class="hr-form-header d-flex align-items-start justify-content-between gap-3">
+    <div class="d-flex align-items-start gap-3">
+      <div class="hr-form-header-icon rounded-2 d-flex align-items-center justify-content-center flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      </div>
+      <div class="min-w-0">
+        <h4 class="fw-bold text-white mb-1 hr-form-title">{% if is_edit %}Edit Document{% else %}Smart Document Upload{% endif %}</h4>
+        <p class="text-white-80 mb-0 hr-form-subtitle">{% if is_edit %}Update document details and metadata{% else %}Upload CVs, resumes, certificates, contracts, or any employee documents. AI will automatically extract information from CVs and resumes.{% endif %}</p>
+      </div>
+    </div>
+    <a href="{% url 'hr_staff:document_list' %}" class="btn btn-link text-white p-2" aria-label="Close">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </a>
+  </div>
+
+  <div class="hr-form-body">
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if not is_edit %}
+    <div class="hr-form-section">
+      <h6 class="hr-section-title">Document File</h6>
+      <label class="hr-upload-zone" id="hrUploadZone">
+        <input type="file" id="fileInput" name="file" class="d-none" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff">
+        <div class="mb-3">
+          <div class="hr-upload-icon rounded-circle d-flex align-items-center justify-content-center mx-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm3-10.17L14.17 8H13v6h-2V8H9.83L12 5.83zM5 18h14v2H5z"/></svg>
+          </div>
+        </div>
+        <h6 class="mb-2 text-dark fw-medium">Drag & drop or click to browse</h6>
+        <p class="text-muted small mb-2">AI will automatically extract information from CVs and resumes</p>
+        <p class="text-muted small mb-0">PDF, DOC, DOCX, JPG, PNG - Max 25MB</p>
+      </label>
+      
+      <div id="uploadProgress" class="mt-3 d-none">
+        <div class="d-flex align-items-center">
+          <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+          <span class="text-muted">Analyzing document with AI...</span>
+        </div>
+      </div>
+      
+      <div id="extractionStatus" class="alert alert-info mt-3 d-none">
+        <div class="d-flex align-items-center">
+          <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+          <span>Extracting information from document...</span>
+        </div>
+      </div>
+      
+      <div id="extractedData" class="mt-3 d-none">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="extraction-badge"><i class="fas fa-magic me-1"></i> AI Extracted</span>
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearExtraction()">Clear</button>
+        </div>
+        <div id="extractedFields" class="small"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if is_edit and existing_extracted %}
+    <div class="hr-form-section">
+      <div class="alert alert-info">
+        <div class="d-flex align-items-center">
+          <span class="extraction-badge me-2"><i class="fas fa-magic me-1"></i> Previously Extracted</span>
+          <span>This document has extracted data from a previous upload</span>
+        </div>
+      </div>
+      <div class="hr-extracted-card mt-2">
+        <div class="row g-2">
+          {% if existing_extracted.name %}
+          <div class="col-md-6"><strong>Name:</strong> {{ existing_extracted.name }}</div>
+          {% endif %}
+          {% if existing_extracted.email %}
+          <div class="col-md-6"><strong>Email:</strong> {{ existing_extracted.email }}</div>
+          {% endif %}
+          {% if existing_extracted.phone %}
+          <div class="col-md-6"><strong>Phone:</strong> {{ existing_extracted.phone|join:", " }}</div>
+          {% endif %}
+          {% if existing_extracted.position_applied %}
+          <div class="col-md-6"><strong>Position:</strong> {{ existing_extracted.position_applied }}</div>
+          {% endif %}
+          {% if existing_extracted.years_of_experience %}
+          <div class="col-md-6"><strong>Experience:</strong> {{ existing_extracted.years_of_experience }} years</div>
+          {% endif %}
+          {% if existing_extracted.address %}
+          <div class="col-12"><strong>Address:</strong> {{ existing_extracted.address }}</div>
+          {% endif %}
+          {% if existing_extracted.skills %}
+          <div class="col-12 mt-2"><strong>Skills:</strong>
+            <div class="d-flex flex-wrap gap-1 mt-1">
+              {% for category, skills in existing_extracted.skills.items %}
+                {% if skills %}
+                  {% for skill in skills|slice:":10" %}
+                  <span class="badge bg-primary">{{ skill }}</span>
+                  {% endfor %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <div class="mt-3">
+          <small class="text-muted">Upload a new file to re-extract data. Otherwise, the existing extracted data will be preserved.</small>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post" class="hr-document-form" enctype="multipart/form-data" id="documentForm" {% if not is_edit %}data-ajax-submit="true"{% endif %} data-offline-queue="true">
+      {% csrf_token %}
+      <input type="hidden" id="extractedJson" name="extracted_json">
+
+      <div class="hr-form-section">
+        <h6 class="hr-section-title">Document Details</h6>
+        
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label for="id_employee" class="hr-form-label">Employee <span class="text-danger">*</span></label>
+            <select name="employee" id="id_employee" class="form-select hr-form-control{% if form.employee.errors %} is-invalid{% endif %}">
+              <option value="">Select employee...</option>
+              {% for opt in form.employee.field.queryset %}
+              <option value="{{ opt.pk }}" {% if form.employee.value == opt.pk or request.POST.employee == opt.pk|stringformat:"s" %}selected{% endif %}>{{ opt.full_name }}</option>
+              {% endfor %}
+            </select>
+            {% if form.employee.errors %}<div class="invalid-feedback">{{ form.employee.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="id_document_type" class="hr-form-label">Document Type</label>
+            <select name="document_type" id="id_document_type" class="form-select hr-form-control{% if form.document_type.errors %} is-invalid{% endif %}">
+              {% for value, label in form.document_type.field.choices %}
+              <option value="{{ value }}" {% if form.document_type.value == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            {% if form.document_type.errors %}<div class="invalid-feedback">{{ form.document_type.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="id_title" class="hr-form-label">Title</label>
+            <input type="text" name="title" id="id_title" value="{{ form.title.value|default:'' }}" class="form-control hr-form-control{% if form.title.errors %} is-invalid{% endif %}" placeholder="Enter document title">
+            {% if form.title.errors %}<div class="invalid-feedback">{{ form.title.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label for="id_expiry_date" class="hr-form-label">Expiry Date</label>
+            <input type="date" name="expiry_date" id="id_expiry_date" value="{{ form.expiry_date.value|default:'' }}" class="form-control hr-form-control{% if form.expiry_date.errors %} is-invalid{% endif %}">
+            {% if form.expiry_date.errors %}<div class="invalid-feedback">{{ form.expiry_date.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="col-12">
+            <label for="id_file" class="hr-form-label">File {% if not is_edit %}<span class="text-muted">(Required)</span>{% endif %}</label>
+            <input type="file" name="file" id="id_file" class="form-control hr-form-control{% if form.file.errors %} is-invalid{% endif %}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff">
+            {% if form.file.errors %}<div class="invalid-feedback">{{ form.file.errors.0 }}</div>{% endif %}
+            {% if is_edit and document.file %}
+            <div class="mt-2">
+              <small class="text-muted">Current file: <a href="{{ document.file.url }}" target="_blank">{{ document.title }}</a></small>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="col-12">
+            <label for="id_notes" class="hr-form-label">Notes</label>
+            <textarea name="notes" id="id_notes" class="form-control hr-form-control{% if form.notes.errors %} is-invalid{% endif %}" rows="3" placeholder="Add any notes about this document">{{ form.notes.value|default:'' }}</textarea>
+            {% if form.notes.errors %}<div class="invalid-feedback">{{ form.notes.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mt-4">
+        <button type="submit" class="btn btn-primary rounded-2 px-4" id="submitBtn">
+          <i class="fas fa-{% if is_edit %}save{% else %}upload{% endif %} me-1"></i> 
+          {% if is_edit %}Save Changes{% else %}Upload Document{% endif %}
+        </button>
+        <a href="{% url 'hr_staff:document_list' %}" class="btn btn-outline-secondary rounded-2 px-4">Cancel</a>
+      </div>
+    </form>
+
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script>
+let extractedInfo = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  const uploadZone = document.getElementById('hrUploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const idFileInput = document.getElementById('id_file');
+  
+  function handleFile(file) {
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('File size must be less than 25MB');
+      return;
+    }
+    
+    if (idFileInput) {
+      idFileInput.files = fileInputToFileList(file);
+    }
+    
+    const uploadProgress = document.getElementById('uploadProgress');
+    if (uploadProgress) {
+      uploadProgress.classList.remove('d-none');
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('/api/hr-staff/extract-cv/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (uploadProgress) {
+        uploadProgress.classList.add('d-none');
+      }
+      
+      if (data.extraction_success) {
+        extractedInfo = data;
+        displayExtraction(data);
+        
+        if (data.name) {
+          const titleInput = document.getElementById('id_title');
+          if (titleInput) {
+            titleInput.value = data.name;
+          }
+        }
+      } else {
+        console.log('Extraction not successful, but file can still be uploaded');
+      }
+    })
+    .catch(error => {
+      if (uploadProgress) {
+        uploadProgress.classList.add('d-none');
+      }
+      console.error('Error:', error);
+    });
+  }
+  
+  if (uploadZone && fileInput) {
+    uploadZone.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'INPUT') {
+        fileInput.click();
+      }
+    });
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      uploadZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      uploadZone.addEventListener(eventName, function() {
+        uploadZone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      uploadZone.addEventListener(eventName, function() {
+        uploadZone.classList.remove('dragover');
+      }, false);
+    });
+
+    uploadZone.addEventListener('drop', function(e) {
+      const dt = e.dataTransfer;
+      if (dt.files.length > 0) {
+        handleFile(dt.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', function(e) {
+      if (this.files.length > 0) {
+        handleFile(this.files[0]);
+      }
+    });
+  }
+
+  const form = document.getElementById('documentForm');
+  if (form && form.dataset.ajaxSubmit === 'true') {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      handleFormSubmit(this);
+    });
+  }
+});
+
+function fileInputToFileList(file) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+  return dataTransfer.files;
+}
+
+function displayExtraction(data) {
+  const extractedData = document.getElementById('extractedData');
+  const extractedFields = document.getElementById('extractedFields');
+  
+  if (!extractedData || !extractedFields) return;
+  
+  let fieldsHtml = '<div class="row g-2">';
+  
+  if (data.name) {
+    fieldsHtml += `<div class="col-md-6"><strong>Name:</strong> ${data.name}</div>`;
+  }
+  if (data.email) {
+    fieldsHtml += `<div class="col-md-6"><strong>Email:</strong> ${data.email}</div>`;
+  }
+  if (data.phone && data.phone.length > 0) {
+    fieldsHtml += `<div class="col-md-6"><strong>Phone:</strong> ${Array.isArray(data.phone) ? data.phone.join(', ') : data.phone}</div>`;
+  }
+  if (data.position_applied) {
+    fieldsHtml += `<div class="col-md-6"><strong>Position:</strong> ${data.position_applied}</div>`;
+  }
+  if (data.years_of_experience) {
+    fieldsHtml += `<div class="col-md-6"><strong>Experience:</strong> ${data.years_of_experience}</div>`;
+  }
+  if (data.address) {
+    fieldsHtml += `<div class="col-12"><strong>Address:</strong> ${data.address}</div>`;
+  }
+  
+  if (data.skills && Object.keys(data.skills).length > 0) {
+    fieldsHtml += '<div class="col-12 mt-2"><strong>Skills:</strong><div class="d-flex flex-wrap gap-1 mt-1">';
+    for (const [category, skills] of Object.entries(data.skills)) {
+      if (skills && skills.length > 0) {
+        skills.slice(0, 5).forEach(skill => {
+          fieldsHtml += `<span class="badge bg-primary">${skill}</span>`;
+        });
+      }
+    }
+    fieldsHtml += '</div></div>';
+  }
+  
+  fieldsHtml += '</div>';
+  
+  extractedFields.innerHTML = fieldsHtml;
+  extractedData.classList.remove('d-none');
+  
+  const extractedJson = document.getElementById('extractedJson');
+  if (extractedJson) {
+    extractedJson.value = JSON.stringify(data);
+  }
+}
+
+function clearExtraction() {
+  extractedInfo = null;
+  const extractedData = document.getElementById('extractedData');
+  const extractedJson = document.getElementById('extractedJson');
+  const idFile = document.getElementById('id_file');
+  const fileInputEl = document.getElementById('fileInput');
+  
+  if (extractedData) extractedData.classList.add('d-none');
+  if (extractedJson) extractedJson.value = '';
+  if (idFile) idFile.value = '';
+  if (fileInputEl) fileInputEl.value = '';
+}
+
+function handleFormSubmit(form) {
+  const submitBtn = document.getElementById('submitBtn');
+  const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Uploading...';
+  }
+  
+  const formData = new FormData(form);
+  
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Form submit response:', data);
+    if (data.status === 'success') {
+      console.log('Document saved with ID:', data.document_id);
+      window.location.href = data.redirect_url || '{% url "hr_staff:document_list" %}';
+    } else {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      }
+      if (data.errors) {
+        let errorMsg = 'Please fix the following errors:\n';
+        for (const [field, errors] of Object.entries(data.errors)) {
+          errorMsg += `- ${field}: ${errors.join(', ')}\n`;
+        }
+        alert(errorMsg);
+      } else {
+        alert(data.message || 'An error occurred. Please try again.');
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnText;
+    }
+    alert('An error occurred. Please try again.');
+  });
+}
+
+(function() {
+  var empSelect = document.getElementById('id_employee');
+  if (empSelect && empSelect.options.length <= 1) {
+    fetch('/api/hr-staff/employees/?status=active&page_size=500', {
+      method: 'GET', 
+      credentials: 'same-origin', 
+      cache: 'no-store',
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) { 
+      if (data && data.results) {
+        var firstOpt = empSelect.options[0];
+        empSelect.innerHTML = '';
+        if (firstOpt) {
+          var o = document.createElement('option');
+          o.value = firstOpt.value || '';
+          o.textContent = firstOpt.textContent || 'Select employee...';
+          empSelect.appendChild(o);
+        }
+        data.results.forEach(function(e) {
+          var o = document.createElement('option');
+          o.value = e.id;
+          o.textContent = e.full_name || (e.first_name + ' ' + e.last_name);
+          empSelect.appendChild(o);
+        });
+      }
+    })
+    .catch(function() {});
+  }
+})();
+</script>
+{% endblock %}

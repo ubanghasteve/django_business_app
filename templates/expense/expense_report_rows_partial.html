@@ -1,0 +1,21 @@
+{% load humanize expense_extras %}
+{% for m in movements %}
+<tr>
+    <td class="text-center">{{ forloop.counter }}</td>
+    <td>{{ m.created_at|date:"Y-m-d g:i:s A" }}</td>
+    <td class="text-end text-success fw-semibold">{{ m.quantity_purchased|format_number }}{% if expense.unit_of_measurement %} {{ expense.unit_of_measurement }}{% endif %}</td>
+    <td class="text-end text-danger fw-semibold">{{ m.quantity_out|format_number }}{% if expense.unit_of_measurement %} {{ expense.unit_of_measurement }}{% endif %}</td>
+    <td class="text-end fw-semibold">{{ m.quantity_after|format_number }}{% if expense.unit_of_measurement %} {{ expense.unit_of_measurement }}{% endif %}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.unit_price|format_number }}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.balance|format_number }}</td>
+    <td class="text-end">{{ user_currency_symbol|default:"₦" }}{{ m.stock_value_remaining|format_number }}</td>
+    <td>{{ m.get_status_display|default:m.status }}</td>
+    <td>{% if m.quantity_after <= 0 %}<span class="badge bg-danger">Out of stock</span>{% elif m.low_stock_alert %}<span class="badge bg-warning text-dark">Low stock</span>{% else %}<span class="badge bg-success">In stock</span>{% endif %}</td>
+    <td>{{ m.created_by.get_full_name|default:m.created_by.email|default:"—" }}</td>
+    <td>{{ m.remark|truncatewords:12|default:"—" }}</td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="12" class="text-center text-muted py-4">No movements yet for this expense. When you edit quantity or price, each change will appear here.</td>
+</tr>
+{% endfor %}

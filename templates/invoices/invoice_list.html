@@ -1,0 +1,3461 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Invoices - Multi-Purpose Business App{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+{% block breadcrumb %}Invoices{% endblock %}
+
+{% block content %}
+<style>
+/* Theme colors from Company Profile - Applied globally */
+:root {
+    --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+    --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+    --text-color: {{ theme_text_color|default:"#333333" }};
+    --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+}
+
+/* Performance optimizations */
+.invoice-stats-row .card {
+    contain: layout style;
+    will-change: transform;
+}
+#invoiceReportModal {
+    contain: layout style paint;
+}
+/* Keep default container rendering; content-visibility can offset fixed overlays/modals */
+
+/* Dynamic template colors for invoice cards */
+.invoice-card {
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+.invoice-card:hover {
+    border-left-width: 6px;
+    transform: translateX(2px);
+}
+
+/* Keep table rows stable to avoid jitter while scrolling/hovering */
+.table tbody tr.invoice-card,
+.card-records-modal-body tr.invoice-card {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.table tbody tr.invoice-card:hover,
+.card-records-modal-body tr.invoice-card:hover {
+    transform: none;
+    border-left-width: 4px;
+}
+
+.invoice-status-badge {
+    background-color: var(--primary-color) !important;
+}
+
+.invoice-amount {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Invoice header: two-row layout so title is never covered by buttons */
+.invoice-list-header-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.invoice-list-header-bar .header-title-row { flex-shrink: 0; }
+.invoice-list-header-bar .header-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+/* Push stat cards down so icons (mt-n4) don't overlap header or block button clicks */
+.invoice-stats-row {
+    margin-top: 3.5rem;
+}
+
+/* Responsive Stats Cards with tap-to-view modal */
+
+/* Make stat cards clickable - Mobile friendly */
+.stats-row .card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.stats-row .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.stats-row .card:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+/* Medium screens - 2x2 grid */
+@media (max-width: 1199px) {
+    .row.px-3.mb-3 > div[class*="col-"] {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+    }
+    
+    .card-header .icon {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    .card-header .icon i {
+        font-size: 18px !important;
+    }
+    
+    .card-header .text-end h4 {
+        font-size: 0.95rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .card-header .text-end p {
+        font-size: 0.65rem !important;
+    }
+}
+
+/* Small screens - tap to view full amount */
+@media (max-width: 767px) {
+    .card-header .icon {
+        width: 35px !important;
+        height: 35px !important;
+    }
+    
+    .card-header .icon i {
+        font-size: 16px !important;
+    }
+    
+    .card-header .text-end h4 {
+        font-size: 0.8rem !important;
+    }
+    
+    .card-header .text-end p {
+        font-size: 0.55rem !important;
+    }
+    
+    .card-header .text-end::after {
+        content: 'Tap to view';
+        display: block;
+        font-size: 0.45rem;
+        color: #a0aec0;
+        margin-top: 2px;
+    }
+}
+
+/* Stat Detail Modal - Mobile Friendly */
+.stat-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 100100;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    /* Prevent hidden overlays from blocking navbar dropdown interactions */
+    pointer-events: none;
+}
+
+.stat-modal-overlay.active {
+    display: flex;
+    pointer-events: auto;
+}
+
+.stat-modal {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 300px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+    animation: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.85) translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.stat-modal-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 32px;
+    color: white;
+}
+
+.stat-modal-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 8px;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+.stat-modal-label {
+    font-size: 1rem;
+    color: #718096;
+    margin-bottom: 24px;
+    font-weight: 500;
+}
+
+.stat-modal-close {
+    background: var(--primary-color, #1976d2);
+    color: white;
+    border: none;
+    padding: 14px 40px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-height: 48px;
+}
+
+.stat-modal-close:hover,
+.stat-modal-close:active {
+    transform: scale(0.98);
+    opacity: 0.95;
+}
+
+/* Mobile specific modal adjustments */
+@media (max-width: 480px) {
+    .stat-modal {
+        max-width: 280px;
+        padding: 24px 20px;
+        border-radius: 16px;
+    }
+    
+    .stat-modal-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+        margin-bottom: 16px;
+    }
+    
+    .stat-modal-number {
+        font-size: 1.5rem;
+    }
+    
+    .stat-modal-label {
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+    
+    .stat-modal-close {
+        padding: 12px 36px;
+        font-size: 0.95rem;
+    }
+}
+
+/* Card Records Modal - table layout, same as list */
+#cardRecordsModal.active {
+    display: flex !important;
+}
+.card-records-modal-dialog {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+    max-width: 95vw;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: modalSlideIn 0.25s ease-out;
+}
+.card-records-modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+}
+.card-records-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
+    position: relative;
+}
+.card-records-modal-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: #2d3748;
+}
+.card-records-modal-total {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary-color, #1976d2);
+    margin-top: 0.35rem;
+}
+.card-records-modal-subtitle {
+    font-size: 0.8rem;
+    color: #718096;
+    margin-top: 0.25rem;
+}
+.card-records-modal-close-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #718096;
+    cursor: pointer;
+    padding: 0;
+}
+.card-records-modal-close-btn:hover {
+    color: #2d3748;
+}
+.card-records-modal-body {
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+}
+.card-records-modal-body .table {
+    font-size: 0.8rem;
+}
+.card-records-modal-body .table th,
+.card-records-modal-body .table td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+}
+.card-records-modal-footer {
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #e9ecef;
+    flex-shrink: 0;
+}
+.card-records-modal-body .invoice-amount {
+    color: var(--primary-color, #1976d2);
+    font-weight: 600;
+}
+.card-records-modal-body .badge {
+    font-size: 0.7rem;
+}
+.card-records-modal-body .btn-sm {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    min-width: 2rem;
+}
+.card-records-modal-body .table th:last-child,
+.card-records-modal-body .table td:last-child {
+    min-width: 140px;
+    white-space: nowrap;
+    overflow: visible;
+}
+.card-records-modal-body .dropdown-menu {
+    font-size: 0.8rem;
+    z-index: 100110;
+}
+.card-records-modal-body .dropdown {
+    position: static;
+}
+.card-records-modal-search {
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+}
+.card-records-modal-search .form-control,
+.card-records-modal-search .form-control-sm {
+    font-size: 0.8rem;
+    border: 1px solid #6c757d;
+    border-radius: 6px;
+}
+.card-records-modal-search .form-control:focus,
+.card-records-modal-search .form-control-sm:focus {
+    border-color: var(--primary-color, #1976d2);
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.15);
+}
+.card-records-modal-search .btn {
+    border: 1px solid #6c757d;
+}
+.tr-card-records-hidden {
+    display: none !important;
+}
+
+/* Template info indicator */
+.template-info {
+    background: var(--secondary-color);
+    border: 1px solid var(--accent-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 15px;
+    font-size: 12px;
+}
+
+.template-color-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* Clearly visible borders for invoice search/filter fields */
+.invoice-filter-form .form-control,
+.invoice-filter-form .form-select {
+    border: 1px solid #4a5568 !important;  /* darker, more visible border */
+    background-color: #ffffff;
+    border-radius: 6px;
+    padding: 0.375rem 0.75rem;
+    box-shadow: none;
+    min-height: 40px;
+    font-size: 0.85rem;
+}
+
+.invoice-filter-form .form-control::placeholder {
+    color: #a0aec0;
+}
+
+.invoice-filter-form .form-control:focus,
+.invoice-filter-form .form-select:focus {
+    border-color: var(--primary-color, #1976d2) !important;
+    box-shadow: 0 0 0 0.15rem rgba(25, 118, 210, 0.15);
+    outline: none;
+}
+</style>
+
+<!-- CSRF token for AJAX (delete, duplicate, update-status) -->
+{% csrf_token %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="card my-4">
+      <div class="card-header p-0 mt-n4 mx-3">
+        <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-4 px-3">
+          <div class="invoice-list-header-bar">
+            <div class="header-title-row">
+              <h6 class="text-white text-capitalize mb-0">Invoice Management</h6>
+            </div>
+            <div class="header-actions-row">
+              {% if can_create_invoice %}
+              <a href="{% url 'invoices:create' %}" class="btn btn-outline-white btn-sm mb-0">
+                <i class="fas fa-plus text-sm"></i> Create Invoice
+              </a>
+              <span class="text-white-50 d-none d-sm-inline">|</span>
+              {% endif %}
+              <a href="javascript:void(0)" onclick="location.reload()" class="btn btn-outline-white btn-sm mb-0" title="Refresh template colors">
+                <i class="fas fa-sync text-sm"></i> Refresh Colors
+              </a>
+              <span class="text-white-50 d-none d-sm-inline">|</span>
+              {% if can_export_invoice %}
+              <a href="{% url 'invoices:export_excel' %}" class="btn btn-success btn-sm mb-0">
+                <i class="fas fa-table text-sm"></i> Export as Excel
+              </a>
+              <a href="{% url 'invoices:export_pdf' %}" class="btn btn-danger btn-sm mb-0" target="_blank">
+                <i class="fas fa-file-pdf text-sm"></i> Export as PDF
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-body px-0 pb-2">
+        <!-- Current Template Indicator -->
+        {% if current_template %}
+        <div class="template-info mx-3">
+          <span class="template-color-indicator"></span>
+          <strong>Current Template:</strong> {{ current_template.name }}
+          <small class="text-muted ms-2">All invoices below are styled with this template's colors</small>
+        </div>
+        {% endif %}
+        <!-- Invoice Report Card - Responsive -->
+        <div class="row px-2 px-md-3 mb-3">
+          <div class="col-12">
+            <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); cursor: pointer; border-radius: 12px;" onclick="openInvoiceReport('month')">
+              <div class="card-body py-3 py-md-4">
+                <div class="row align-items-center">
+                  <div class="col-3 col-sm-2 col-lg-1 text-center mb-2 mb-md-0">
+                    <div class="icon icon-lg icon-shape bg-white bg-opacity-25 text-center border-radius-xl" style="width: 50px; height: 50px; display: inline-flex; align-items: center; justify-content: center;">
+                      <svg class="text-white" style="width: 24px; height: 24px;" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="col-9 col-sm-6 col-lg-8">
+                    <h3 class="text-white mb-0" style="font-size: 16px; font-weight: bold; line-height: 1.3;">
+                      <span class="d-none d-sm-inline">INVOICE REPORT CENTER</span>
+                      <span class="d-inline d-sm-none">REPORT CENTER</span>
+                    </h3>
+                    <p class="text-white mb-0 d-none d-sm-block" style="font-size: 13px; opacity: 0.9;">View detailed invoice analytics & reports</p>
+                  </div>
+                  <div class="col-12 col-sm-4 col-lg-3 text-center text-sm-end mt-2 mt-sm-0">
+                    <span class="btn btn-light btn-sm btn-md-lg w-100 w-sm-auto" style="font-weight: 600; padding: 8px 16px; border-radius: 8px;">
+                      <span class="d-none d-md-inline">OPEN REPORT</span>
+                      <span class="d-inline d-md-none">VIEW</span>
+                      <svg class="ms-1 ms-md-2" style="width: 16px; height: 16px; vertical-align: middle;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row px-2 px-md-3 mb-3">
+          <div class="col-12">
+            <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #1d4ed8 0%, #22c55e 100%); cursor: pointer; border-radius: 12px;" onclick="openSupplyLedgerModal('month')">
+              <div class="card-body py-3 py-md-4">
+                <div class="row align-items-center">
+                  <div class="col-3 col-sm-2 col-lg-1 text-center mb-2 mb-md-0">
+                    <div class="icon icon-lg icon-shape bg-white bg-opacity-25 text-center border-radius-xl" style="width: 50px; height: 50px; display: inline-flex; align-items: center; justify-content: center;">
+                      <i class="fas fa-clipboard-list text-white" style="font-size: 24px;"></i>
+                    </div>
+                  </div>
+                  <div class="col-9 col-sm-6 col-lg-8">
+                    <h3 class="text-white mb-0" style="font-size: 16px; font-weight: bold; line-height: 1.3;">
+                      <span class="d-none d-sm-inline">CUSTOMER SUPPLY LEDGER</span>
+                      <span class="d-inline d-sm-none">SUPPLY LEDGER</span>
+                    </h3>
+                    <p class="text-white mb-0 d-none d-sm-block" style="font-size: 13px; opacity: 0.9;">Excel-style delivery, payment and outstanding analysis</p>
+                  </div>
+                  <div class="col-12 col-sm-4 col-lg-3 text-center text-sm-end mt-2 mt-sm-0">
+                    <span class="btn btn-light btn-sm btn-md-lg w-100 w-sm-auto" style="font-weight: 600; padding: 8px 16px; border-radius: 8px;">
+                      OPEN LEDGER
+                      <svg class="ms-1 ms-md-2" style="width: 16px; height: 16px; vertical-align: middle;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="row px-3 mb-3 stats-row invoice-stats-row">
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card card-stat-card" data-filter="total_invoices" data-full-value="{{ total_invoices|default:0 }}" data-label="Total Invoices" data-color="bg-gradient-info">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-info shadow-info text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-file-invoice opacity-10" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Total Invoices</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.total_count">{{ total_invoices|default:0 }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4" title="Sum of all invoice totals (grand_total). Revenue may be lower if unpaid or part-paid.">
+            <div class="card card-stat-card" data-filter="total_amount" data-full-value="{{ currency_symbol|default:'₦' }}{{ total_amount|default:0|floatformat:2|intcomma }}" data-label="Total Amount" data-color="bg-gradient-success">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-success shadow-success text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-money-bill-wave opacity-10" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Total Amount</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.total_amount" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ total_amount|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4" title="Total cash received from customers (includes full and part payments).">
+            <div class="card card-stat-card" data-filter="paid_amount" data-full-value="{{ currency_symbol|default:'₦' }}{{ paid_amount|default:0|floatformat:2|intcomma }}" data-label="Paid Amount" data-color="bg-gradient-warning">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-warning shadow-warning text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-credit-card opacity-10" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Paid Amount</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.paid_amount" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ paid_amount|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4" title="Amount actually received (earned). Unpaid invoices = 0; part payments = only the amount paid; full/overpayment = capped at invoice total.">
+            <div class="card card-stat-card" data-filter="revenue_generated" data-full-value="{{ currency_symbol|default:'₦' }}{{ revenue_generated|default:0|floatformat:2|intcomma }}" data-label="Revenue Generated" data-color="bg-gradient-primary">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-primary shadow-primary text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-chart-line opacity-10" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Revenue Generated</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.revenue_generated" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ revenue_generated|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4" title="Amount customers still owe (balance due). Unpaid = full total; part-paid = remaining balance. Excludes overpayments (see Refund due).">
+            <div class="card card-stat-card" data-filter="outstanding" data-full-value="{{ currency_symbol|default:'₦' }}{{ outstanding_amount|default:0|floatformat:2|intcomma }}" data-label="Outstanding" data-color="bg-gradient-danger">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-danger shadow-danger text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-exclamation-triangle opacity-10" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Outstanding</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.outstanding" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ outstanding_amount|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-sm-6" title="Overpayments: amount to refund to customers (amount_paid &gt; grand_total).">
+            <div class="card card-stat-card" data-filter="refund_due" data-full-value="{{ currency_symbol|default:'₦' }}{{ refund_due|default:0|floatformat:2|intcomma }}" data-label="Refund due (to customer)" data-color="bg-gradient-secondary">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-secondary shadow-secondary text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-hand-holding-usd opacity-10" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0">Refund due (to customer)</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.refund_due" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ refund_due|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Revenue by period (Day, Week, Month, Quarter, Year) -->
+        <div class="row px-3 mb-3 stats-row">
+          <div class="col-xl col-sm-6 mb-xl-0 mb-3" title="Revenue from invoices dated today (amount received only; unpaid = 0, part payment = amount paid).">
+            <div class="card card-stat-card" data-filter="revenue_today" data-full-value="{{ currency_symbol|default:'₦' }}{{ revenue_today|default:0|floatformat:2|intcomma }}" data-label="Revenue Today" data-color="bg-gradient-info">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-info shadow-info text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-calendar-day opacity-10" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Revenue Today</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.revenue_today" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ revenue_today|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl col-sm-6 mb-xl-0 mb-3" title="Revenue from invoices dated in the current week (Mon–Sun); amount received only.">
+            <div class="card card-stat-card" data-filter="revenue_week" data-full-value="{{ currency_symbol|default:'₦' }}{{ revenue_week|default:0|floatformat:2|intcomma }}" data-label="Revenue This Week" data-color="bg-gradient-primary">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-primary shadow-primary text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-calendar-week opacity-10" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Revenue This Week</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.revenue_week" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ revenue_week|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl col-sm-6 mb-xl-0 mb-3" title="Revenue from invoices dated in the current month; amount received only.">
+            <div class="card card-stat-card" data-filter="revenue_month" data-full-value="{{ currency_symbol|default:'₦' }}{{ revenue_month|default:0|floatformat:2|intcomma }}" data-label="Revenue This Month" data-color="bg-gradient-success">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-success shadow-success text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-calendar-alt opacity-10" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Revenue This Month</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.revenue_month" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ revenue_month|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl col-sm-6 mb-xl-0 mb-3" title="Revenue from invoices dated in the current quarter (Q1–Q4); amount received only.">
+            <div class="card card-stat-card" data-filter="revenue_quarter" data-full-value="{{ currency_symbol|default:'₦' }}{{ revenue_quarter|default:0|floatformat:2|intcomma }}" data-label="Revenue This Quarter" data-color="bg-gradient-warning">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-warning shadow-warning text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-calendar opacity-10" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Revenue This Quarter</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.revenue_quarter" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ revenue_quarter|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl col-sm-6 mb-xl-0 mb-3" title="Revenue from invoices dated in the current year; amount received only.">
+            <div class="card card-stat-card" data-filter="revenue_year" data-full-value="{{ currency_symbol|default:'₦' }}{{ revenue_year|default:0|floatformat:2|intcomma }}" data-label="Revenue This Year" data-color="bg-gradient-dark">
+              <div class="card-header p-3 pt-2">
+                <div class="icon icon-lg icon-shape bg-gradient-dark shadow-dark text-center border-radius-xl mt-n4 position-absolute">
+                  <i class="fas fa-calendar-check opacity-10" style="font-size: 1.25rem;"></i>
+                </div>
+                <div class="text-end pt-1">
+                  <p class="text-sm mb-0 text-capitalize">Revenue This Year</p>
+                  <h4 class="mb-0" data-realtime-key="invoice.revenue_year" data-realtime-format="currency">{{ currency_symbol|default:"₦" }}{{ revenue_year|default:0|floatformat:2|intcomma }}</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Stat Detail Modal (simple value display when no filter) -->
+        <div class="stat-modal-overlay" id="statModal">
+          <div class="stat-modal">
+            <div class="stat-modal-icon" id="modalIcon"></div>
+            <div class="stat-modal-number" id="modalNumber">₦0.00</div>
+            <div class="stat-modal-label" id="modalLabel">Label</div>
+            <button class="stat-modal-close" onclick="closeStatModal()">Close</button>
+          </div>
+        </div>
+
+        <!-- Card Records Modal: filtered invoice list in table -->
+        <div class="stat-modal-overlay" id="cardRecordsModal" aria-hidden="true">
+          <div class="card-records-modal-dialog">
+            <div class="card-records-modal-content">
+              <div class="card-records-modal-header">
+                <h5 class="card-records-modal-title" id="cardRecordsModalTitle">Records</h5>
+                <p class="card-records-modal-total mb-0" id="cardRecordsModalTotal"></p>
+                <p class="card-records-modal-subtitle mb-0" id="cardRecordsModalSubtitle"></p>
+                <button type="button" class="card-records-modal-close-btn" onclick="closeCardRecordsModal()" aria-label="Close">&times;</button>
+              </div>
+              <div class="card-records-modal-body">
+                <div id="cardRecordsModalLoading" class="text-center py-5">
+                  <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                  <p class="mt-2 mb-0 text-secondary">Loading records...</p>
+                </div>
+                <div id="cardRecordsModalSearchWrap" class="card-records-modal-search d-none px-3 pt-2 pb-2">
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                      <label for="cardRecordsSearchInput" class="form-label small mb-0">Search by client</label>
+                      <input type="text" id="cardRecordsSearchInput" class="form-control form-control-sm" placeholder="Type name or email..." autocomplete="off">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="cardRecordsDateFrom" class="form-label small mb-0">From date</label>
+                      <input type="date" id="cardRecordsDateFrom" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="cardRecordsDateTo" class="form-label small mb-0">To date</label>
+                      <input type="date" id="cardRecordsDateTo" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-1">
+                      <button type="button" id="cardRecordsSearchClear" class="btn btn-sm btn-outline-secondary" title="Clear search">Clear</button>
+                    </div>
+                  </div>
+                </div>
+                <div id="cardRecordsModalTableWrap" class="table-responsive d-none">
+                  <table class="table align-items-center mb-0">
+                    <thead>
+                      <tr>
+                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="width: 5%;">S/N</th>
+                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Invoice</th>
+                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Client</th>
+                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date</th>
+                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Due Date</th>
+                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Amount</th>
+                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 d-none" id="cardRecordsThCreatedBy">Created by</th>
+                        <th class="text-secondary opacity-7" style="min-width: 140px;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="cardRecordsModalTbody"></tbody>
+                  </table>
+                </div>
+                <div id="cardRecordsModalEmpty" class="text-center py-5 d-none">
+                  <p class="text-secondary mb-0">No invoices found for this filter.</p>
+                </div>
+              </div>
+              <div class="card-records-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCardRecordsModal()">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Filter Form -->
+        <div class="row px-3 mb-3">
+          <div class="col-12">
+            <form method="get" class="row g-3 invoice-filter-form">
+              <div class="col-md-3">
+                <label for="{{ filter_form.search.id_for_label }}" class="form-label text-xs">Search</label>
+                {{ filter_form.search }}
+              </div>
+              <div class="col-md-2">
+                <label for="{{ filter_form.status.id_for_label }}" class="form-label text-xs">Status</label>
+                {{ filter_form.status }}
+              </div>
+              <div class="col-md-2">
+                <label for="{{ filter_form.date_from.id_for_label }}" class="form-label text-xs">From Date</label>
+                {{ filter_form.date_from }}
+              </div>
+              <div class="col-md-2">
+                <label for="{{ filter_form.date_to.id_for_label }}" class="form-label text-xs">To Date</label>
+                {{ filter_form.date_to }}
+              </div>
+              {% if show_created_by %}
+              <div class="col-md-2">
+                <label for="{{ filter_form.created_by.id_for_label }}" class="form-label text-xs">Created by</label>
+                {{ filter_form.created_by }}
+              </div>
+              {% endif %}
+              <div class="col-md-3">
+                <label class="form-label text-xs">&nbsp;</label>
+                <div>
+                  <button type="submit" class="btn btn-primary mb-0">Filter</button>
+                  <a href="{% url 'invoices:list' %}" class="btn btn-outline-secondary mb-0">Clear</a>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <!-- Filter Status -->
+        {% if filter_form.is_bound %}
+          <div class="row px-3 mb-2">
+            <div class="col-12">
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-sm text-muted">Showing {{ page_obj.paginator.count }} invoice{{ page_obj.paginator.count|pluralize }} 
+                {% if filter_form.search.value %} matching "{{ filter_form.search.value }}"{% endif %}
+                {% if filter_form.status.value %} with status "{% if filter_form.status.value == 'unpaid' %}Not Paid{% elif filter_form.status.value == 'partial' %}Pending{% elif filter_form.status.value == 'paid' %}Paid{% elif filter_form.status.value == 'delivered' %}Delivered{% else %}{{ filter_form.status.value|title }}{% endif %}"{% endif %}
+                {% if filter_form.date_from.value %} from {{ filter_form.date_from.value }}{% endif %}
+                {% if filter_form.date_to.value %} to {{ filter_form.date_to.value }}{% endif %}
+                {% if show_created_by and filter_form.created_by.value %} (filtered by creator){% endif %}
+                </span>
+                {% if filter_form.search.value or filter_form.status.value or filter_form.date_from.value or filter_form.date_to.value or filter_form.created_by.value %}
+                  <a href="{% url 'invoices:list' %}" class="btn btn-xs btn-outline-secondary">Clear All</a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+        
+        <!-- Invoices Table -->
+        <div class="table-responsive p-0">
+          <table class="table align-items-center mb-0">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="width: 5%;">S/N</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Invoice</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Client</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Due Date</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Amount</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+                {% if show_created_by %}<th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Created by</th>{% endif %}
+                <th class="text-secondary opacity-7">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for invoice in page_obj %}
+              <tr class="invoice-card">
+                <td class="serial-number">
+                  <div class="d-flex px-2 py-1 justify-content-center">
+                    <span class="text-secondary text-xs font-weight-bold">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex px-2 py-1">
+                    <div class="d-flex flex-column justify-content-center">
+                      <h6 class="mb-0 text-sm invoice-amount">{{ invoice.invoice_number }}</h6>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <p class="text-xs font-weight-bold mb-0">{{ invoice.client_name }}</p>
+                  <p class="text-xs text-secondary mb-0">{{ invoice.client_email }}</p>
+                </td>
+                <td class="align-middle text-center text-sm">
+                  <span class="text-secondary text-xs font-weight-bold">{{ invoice.invoice_date|date:"M d, Y" }}</span>
+                </td>
+                <td class="align-middle text-center text-sm">
+                  <span class="text-secondary text-xs font-weight-bold">{{ invoice.due_date|date:"M d, Y" }}</span>
+                </td>
+                <td class="align-middle text-center">
+                  <span class="invoice-amount text-xs font-weight-bold">{{ currency_symbol|default:"₦" }}{{ invoice.grand_total|floatformat:2|intcomma }}</span>
+                </td>
+                <td class="align-middle text-center text-sm">
+                  {% if can_approve_invoice %}
+                  <select class="form-select form-select-sm status-select" 
+                          data-invoice-id="{{ invoice.pk }}" 
+                          data-invoice-uuid="{{ invoice.uuid|default:'' }}"
+                          data-current-status="{{ invoice.status }}"
+                          onchange="updateInvoiceStatus(this)"
+                          style="width: auto; min-width: 100px;">
+                    <option value="unpaid" {% if invoice.status == 'unpaid' %}selected{% endif %}>Not Paid</option>
+                    <option value="partial" {% if invoice.status == 'partial' %}selected{% endif %}>Pending</option>
+                    <option value="paid" {% if invoice.status == 'paid' %}selected{% endif %}>Paid</option>
+                    <option value="delivered" {% if invoice.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                  </select>
+                  {% else %}
+                  <span class="badge bg-{% if invoice.status == 'paid' %}success{% elif invoice.status == 'delivered' %}info{% elif invoice.status == 'partial' %}warning{% else %}secondary{% endif %} text-sm">{{ invoice.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                {% if show_created_by %}
+                <td class="align-middle text-sm">
+                  <span class="text-secondary text-xs">{% if invoice.created_by %}{{ invoice.created_by.get_full_name|default:invoice.created_by.email }}{% else %}—{% endif %}</span>
+                </td>
+                {% endif %}
+                <td class="align-middle">
+                  <div class="d-flex gap-1">
+                    <!-- View Button -->
+                    <a href="{% url 'invoices:detail' invoice.pk %}" 
+                       class="btn btn-sm btn-outline-info mb-0" 
+                       title="View Invoice Details"
+                       data-bs-toggle="tooltip">
+                      <i class="fas fa-eye text-sm"></i>
+                    </a>
+                    
+                    <!-- Edit Button (company admin or permission) -->
+                    {% if can_change_invoice %}
+                    <a href="{% url 'invoices:edit' invoice.pk %}" 
+                       class="btn btn-sm btn-outline-warning mb-0" 
+                       title="Edit Invoice"
+                       data-bs-toggle="tooltip">
+                      <i class="fas fa-edit text-sm"></i>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- More Actions Dropdown -->
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-outline-secondary mb-0" 
+                              type="button" 
+                              data-bs-toggle="dropdown"
+                              title="More Actions">
+                        <i class="fas fa-ellipsis-v text-sm"></i>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                          <h6 class="dropdown-header">Export Options</h6>
+                        </li>
+
+                        {% comment %} <li>
+                          <a class="dropdown-item" href="{% url 'invoices:pdf' invoice.pk %}">
+                            <i class="fas fa-file-pdf text-sm me-2"></i>
+                            Download PDF
+                          </a>
+                        </li> {% endcomment %}
+
+                        <li>
+                          <a class="dropdown-item" href="{% url 'invoices:product_report' invoice.pk %}">
+                            <i class="fas fa-history text-sm me-2"></i>
+                            Report
+                          </a>
+                        </li>
+
+                        {% if can_print_invoice %}
+                        <li>
+                          <a class="dropdown-item" href="{% url 'invoices:print' invoice.pk %}" target="_blank">
+                            <i class="fas fa-print text-sm me-2"></i>
+                            Print Invoice
+                          </a>
+                        </li>
+                        {% endif %}
+
+                        
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <h6 class="dropdown-header">Invoice Actions</h6>
+                        </li>
+                        <li>
+                          <a class="dropdown-item invoice-action-duplicate" href="#" data-invoice-id="{{ invoice.pk }}">
+                            <i class="fas fa-copy text-sm me-2"></i>
+                            Duplicate Invoice
+                          </a>
+                        </li>
+                        {% if can_approve_invoice %}
+                        <li>
+                          <a class="dropdown-item invoice-action-mark-paid" href="#" data-invoice-id="{{ invoice.pk }}">
+                            <i class="fas fa-check-circle text-sm me-2"></i>
+                            {% if invoice.status == 'paid' %}Mark as Unpaid{% else %}Mark as Paid{% endif %}
+                          </a>
+                        </li>
+                        {% endif %}
+
+                        {% if can_delete_invoice %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <a class="dropdown-item text-danger delete-invoice-link" 
+                             href="#" 
+                             data-invoice-id="{{ invoice.pk }}"
+                             data-invoice-uuid="{{ invoice.uuid|default:'' }}"
+                             data-invoice-number="{{ invoice.invoice_number }}"
+                             onclick="confirmDeleteAjax(event, this)">
+                            <i class="fas fa-trash text-sm me-2"></i>
+                            Delete Invoice
+                          </a>
+                        </li>
+                        {% endif %}
+                      </ul>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="{% if show_created_by %}9{% else %}8{% endif %}" class="text-center py-4">
+                  <p class="text-secondary mb-0">No invoices found.</p>
+                  {% if can_create_invoice %}
+                  <a href="{% url 'invoices:create' %}" class="btn btn-primary btn-sm mt-2">Create your first invoice</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-center mt-3">
+          <nav aria-label="Page navigation">
+            <ul class="pagination">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+              {% endif %}
+              
+              {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                  <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                  <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+              {% endfor %}
+              
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Custom styles for action buttons */
+.d-flex.gap-1 {
+    gap: 0.25rem !important;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.dropdown-menu .dropdown-header {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #67748e;
+    padding: 0.5rem 1rem 0.25rem;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+}
+
+.dropdown-item i {
+    opacity: 0.8;
+}
+
+.dropdown-item:hover i {
+    opacity: 1;
+}
+
+/* Tooltip customization */
+.tooltip {
+    font-size: 0.75rem;
+}
+
+/* Serial number styling */
+.serial-number {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.serial-number span {
+    font-weight: 600;
+    color: #67748e;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Lazy load Chart.js only when modal is opened
+    var chartJsLoaded = false;
+    function loadChartJs() {
+        if (!chartJsLoaded) {
+            var script = document.createElement('script');
+            script.src = '{% static "js/plugins/chartjs.min.js" %}';
+            script.onload = function() { chartJsLoaded = true; };
+            document.head.appendChild(script);
+        }
+    }
+    // Override openInvoiceReport to load Chart.js first
+    var originalOpenInvoiceReport = null;
+</script>
+<script>
+var INVOICE_CREATE_URL = "{% url 'invoices:create' %}";
+// Stat Modal Functions (simple value display)
+function openStatModal(fullValue, label, colorClass) {
+    const modal = document.getElementById('statModal');
+    const modalNumber = document.getElementById('modalNumber');
+    const modalLabel = document.getElementById('modalLabel');
+    const modalIcon = document.getElementById('modalIcon');
+    
+    modalNumber.textContent = fullValue;
+    modalLabel.textContent = label;
+    modalIcon.className = 'stat-modal-icon ' + colorClass;
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeStatModal() {
+    const modal = document.getElementById('statModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Card Records Modal: show filtered invoices in a table
+function openCardRecordsModal() {
+    document.getElementById('cardRecordsModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCardRecordsModal() {
+    document.getElementById('cardRecordsModal').classList.remove('active');
+    document.body.style.overflow = '';
+    window._cardRecordsModalCurrent = null;
+}
+
+function invalidateCardRecordsCache() {
+    window._cardRecordsCache = {};
+}
+
+function refreshCardRecordsModalIfOpen() {
+    var modal = document.getElementById('cardRecordsModal');
+    if (!modal || !modal.classList.contains('active')) return;
+    var c = window._cardRecordsModalCurrent;
+    if (c && c.filterKey) loadCardRecords(c.filterKey, c.label, c.displayAmount);
+}
+
+function formatCurrency(symbol, amount) {
+    var num = parseFloat(amount) || 0;
+    return symbol + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function statusBadgeClass(status) {
+    if (status === 'paid') return 'success';
+    if (status === 'delivered') return 'info';
+    if (status === 'partial') return 'warning';
+    return 'secondary';
+}
+
+// Cache for prefetched card data so modal opens instantly on click after hover
+window._cardRecordsCache = window._cardRecordsCache || {};
+
+function getCardRecordsListParams() {
+    var s = (window.location.search || '').replace(/[?&]page=[^&]*/g, '').replace(/^&/, '').replace(/^\?/, '');
+    return s ? '&' + s : '';
+}
+
+function getCardRecordsCacheKey(filterKey) {
+    return filterKey + '|' + (window.location.search || '');
+}
+
+function renderCardRecordsIntoModal(data, label, showLoading, displayAmount) {
+    var loadingEl = document.getElementById('cardRecordsModalLoading');
+    var tableWrap = document.getElementById('cardRecordsModalTableWrap');
+    var tbody = document.getElementById('cardRecordsModalTbody');
+    var emptyEl = document.getElementById('cardRecordsModalEmpty');
+    var thCreatedBy = document.getElementById('cardRecordsThCreatedBy');
+    var titleEl = document.getElementById('cardRecordsModalTitle');
+    var subtitleEl = document.getElementById('cardRecordsModalSubtitle');
+    var totalEl = document.getElementById('cardRecordsModalTotal');
+
+    if (showLoading) loadingEl.classList.remove('d-none');
+    loadingEl.classList.add('d-none');
+    tableWrap.classList.add('d-none');
+    emptyEl.classList.add('d-none');
+    tbody.innerHTML = '';
+    titleEl.textContent = label;
+    if (totalEl) {
+        totalEl.textContent = displayAmount ? (displayAmount + '') : '';
+        totalEl.style.display = displayAmount ? 'block' : 'none';
+    }
+
+    var invoices = data.invoices || [];
+    var currencySymbol = data.currency_symbol || '₦';
+    var showCreatedBy = data.show_created_by;
+    var canEdit = data.can_edit;
+    var canPrint = data.can_print;
+    var canDelete = data.can_delete;
+    if (thCreatedBy) thCreatedBy.classList.toggle('d-none', !showCreatedBy);
+    if (totalEl) {
+        totalEl.dataset.currencySymbol = currencySymbol;
+    }
+    if (invoices.length === 0) {
+        showCardRecordsSearchBar(false);
+        emptyEl.classList.remove('d-none');
+        subtitleEl.textContent = '';
+        if (totalEl) totalEl.style.display = 'none';
+        return;
+    }
+    subtitleEl.textContent = invoices.length + ' record' + (invoices.length !== 1 ? 's' : '');
+    showCardRecordsSearchBar(true);
+    clearCardRecordsSearchInputs();
+    invoices.forEach(function(inv, idx) {
+        var tr = document.createElement('tr');
+        tr.className = 'invoice-card';
+        var clientSearch = ((inv.client_name || '') + ' ' + (inv.client_email || '')).toLowerCase();
+        tr.setAttribute('data-client', clientSearch);
+        tr.setAttribute('data-date-iso', inv.invoice_date_iso || '');
+        var statusClass = statusBadgeClass(inv.status);
+        var amountHtml = '<span class="invoice-amount invoice-amount-value text-xs font-weight-bold" data-amount="' + (inv.grand_total || '0') + '">' + formatCurrency(currencySymbol, inv.grand_total) + '</span>';
+        var actions = '<div class="d-flex flex-nowrap gap-1 align-items-center">' +
+            '<a href="' + inv.detail_url + '" class="btn btn-sm btn-outline-info mb-0" title="View"><i class="fas fa-eye"></i></a>';
+        if (canEdit) actions += '<a href="' + inv.edit_url + '" class="btn btn-sm btn-outline-warning mb-0" title="Edit"><i class="fas fa-edit"></i></a>';
+        actions += '<div class="dropdown" data-bs-boundary="viewport"><button class="btn btn-sm btn-outline-secondary mb-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="fas fa-ellipsis-v"></i></button><ul class="dropdown-menu dropdown-menu-end">';
+        if (canPrint) actions += '<li><a class="dropdown-item" href="' + inv.print_url + '" target="_blank"><i class="fas fa-print me-2"></i>Print Invoice</a></li>';
+        if (canDelete) actions += '<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-danger delete-invoice-link" href="#" data-invoice-id="' + inv.pk + '" data-invoice-number="' + (inv.invoice_number || '') + '" onclick="confirmDeleteAjax(event, this); closeCardRecordsModal(); return false;"><i class="fas fa-trash me-2"></i>Delete Invoice</a></li>';
+        if (!canPrint && !canDelete) actions += '<li><span class="dropdown-item text-muted small">No actions</span></li>';
+        actions += '</ul></div></div>';
+        var createdByCell = showCreatedBy ? '<td class="align-middle text-sm"><span class="text-secondary text-xs">' + (inv.created_by_name || '—') + '</span></td>' : '';
+        tr.innerHTML = '<td class="serial-number"><div class="d-flex px-2 py-1 justify-content-center"><span class="text-secondary text-xs font-weight-bold">' + (idx + 1) + '</span></div></td>' +
+            '<td><div class="d-flex px-2 py-1"><div class="d-flex flex-column justify-content-center"><h6 class="mb-0 text-sm invoice-amount">' + (inv.invoice_number || '') + '</h6></div></div></td>' +
+            '<td><p class="text-xs font-weight-bold mb-0">' + (inv.client_name || '') + '</p><p class="text-xs text-secondary mb-0">' + (inv.client_email || '') + '</p></td>' +
+            '<td class="align-middle text-center text-sm"><span class="text-secondary text-xs font-weight-bold">' + (inv.invoice_date || '—') + '</span></td>' +
+            '<td class="align-middle text-center text-sm"><span class="text-secondary text-xs font-weight-bold">' + (inv.due_date || '—') + '</span></td>' +
+            '<td class="align-middle text-center">' + amountHtml + '</td>' +
+            '<td class="align-middle text-center text-sm"><span class="badge bg-' + statusClass + ' text-sm">' + (inv.status_display || inv.status) + '</span></td>' +
+            createdByCell + '<td class="align-middle">' + actions + '</td>';
+        tbody.appendChild(tr);
+    });
+    tableWrap.classList.remove('d-none');
+    reinitCardRecordsDropdowns();
+    filterCardRecordsModalTable();
+}
+
+function showCardRecordsSearchBar(show) {
+    var wrap = document.getElementById('cardRecordsModalSearchWrap');
+    if (wrap) wrap.classList.toggle('d-none', !show);
+}
+
+function clearCardRecordsSearchInputs() {
+    var searchEl = document.getElementById('cardRecordsSearchInput');
+    var fromEl = document.getElementById('cardRecordsDateFrom');
+    var toEl = document.getElementById('cardRecordsDateTo');
+    if (searchEl) searchEl.value = '';
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+}
+
+function filterCardRecordsModalTable() {
+    var searchVal = (document.getElementById('cardRecordsSearchInput') && document.getElementById('cardRecordsSearchInput').value) ? document.getElementById('cardRecordsSearchInput').value.trim().toLowerCase() : '';
+    var dateFrom = (document.getElementById('cardRecordsDateFrom') && document.getElementById('cardRecordsDateFrom').value) || '';
+    var dateTo = (document.getElementById('cardRecordsDateTo') && document.getElementById('cardRecordsDateTo').value) || '';
+    var tbody = document.getElementById('cardRecordsModalTbody');
+    var subtitleEl = document.getElementById('cardRecordsModalSubtitle');
+    var totalEl = document.getElementById('cardRecordsModalTotal');
+    if (!tbody) return;
+    var rows = tbody.querySelectorAll('tr.invoice-card');
+    var visible = 0;
+    var totalAmount = 0;
+    var currencySymbol = (totalEl && totalEl.dataset.currencySymbol) || '';
+    rows.forEach(function(tr) {
+        var client = (tr.getAttribute('data-client') || '');
+        var dateIso = (tr.getAttribute('data-date-iso') || '');
+        var matchClient = !searchVal || client.indexOf(searchVal) !== -1;
+        var matchFrom = !dateFrom || (dateIso && dateIso >= dateFrom);
+        var matchTo = !dateTo || (dateIso && dateIso <= dateTo);
+        var show = matchClient && matchFrom && matchTo;
+        tr.classList.toggle('tr-card-records-hidden', !show);
+        if (show) {
+            visible++;
+            var amountEl = tr.querySelector('.invoice-amount-value');
+            if (amountEl) {
+                var raw = amountEl.getAttribute('data-amount');
+                var num = raw !== null ? parseFloat(raw) : parseFloat((amountEl.textContent || '').replace(/[^0-9.\-]/g, ''));
+                if (isNaN(num)) num = 0;
+                totalAmount += num;
+            }
+        }
+    });
+    var total = rows.length;
+    if (subtitleEl) {
+        if (searchVal || dateFrom || dateTo) {
+            subtitleEl.textContent = visible + ' of ' + total + ' record' + (total !== 1 ? 's' : '');
+        } else {
+            subtitleEl.textContent = total + ' record' + (total !== 1 ? 's' : '');
+        }
+    }
+    if (totalEl) {
+        if (visible > 0 && !isNaN(totalAmount)) {
+            var sym = currencySymbol || '';
+            var formatted = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            totalEl.textContent = (sym || '') + formatted;
+            totalEl.style.display = 'block';
+        } else {
+            totalEl.style.display = 'none';
+        }
+    }
+}
+
+function bindCardRecordsSearchEvents() {
+    var searchEl = document.getElementById('cardRecordsSearchInput');
+    var fromEl = document.getElementById('cardRecordsDateFrom');
+    var toEl = document.getElementById('cardRecordsDateTo');
+    var clearBtn = document.getElementById('cardRecordsSearchClear');
+    function runFilter() { filterCardRecordsModalTable(); }
+    if (searchEl) { searchEl.oninput = runFilter; searchEl.onkeyup = runFilter; }
+    if (fromEl) { fromEl.onchange = runFilter; fromEl.oninput = runFilter; }
+    if (toEl) { toEl.onchange = runFilter; toEl.oninput = runFilter; }
+    if (clearBtn) clearBtn.onclick = function() { clearCardRecordsSearchInputs(); filterCardRecordsModalTable(); };
+}
+
+function reinitCardRecordsDropdowns() {
+    var tbody = document.getElementById('cardRecordsModalTbody');
+    if (!tbody || typeof bootstrap === 'undefined') return;
+    tbody.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(function(btn) {
+        try { new bootstrap.Dropdown(btn, { boundary: 'viewport' }); } catch (e) {}
+    });
+}
+
+function loadCardRecords(filterKey, label, displayAmount) {
+    window._cardRecordsModalCurrent = { filterKey: filterKey, label: label, displayAmount: displayAmount || '' };
+    var cacheKey = getCardRecordsCacheKey(filterKey);
+    var listParams = getCardRecordsListParams();
+    var modal = document.getElementById('cardRecordsModal');
+    var titleEl = document.getElementById('cardRecordsModalTitle');
+    var subtitleEl = document.getElementById('cardRecordsModalSubtitle');
+    var totalEl = document.getElementById('cardRecordsModalTotal');
+    var loadingEl = document.getElementById('cardRecordsModalLoading');
+    var tableWrap = document.getElementById('cardRecordsModalTableWrap');
+    var tbody = document.getElementById('cardRecordsModalTbody');
+    var emptyEl = document.getElementById('cardRecordsModalEmpty');
+    var thCreatedBy = document.getElementById('cardRecordsThCreatedBy');
+
+    titleEl.textContent = label;
+    subtitleEl.textContent = '';
+    if (totalEl) { totalEl.textContent = displayAmount ? (displayAmount + '') : ''; totalEl.style.display = displayAmount ? 'block' : 'none'; }
+    loadingEl.classList.remove('d-none');
+    tableWrap.classList.add('d-none');
+    emptyEl.classList.add('d-none');
+    tbody.innerHTML = '';
+    openCardRecordsModal();
+
+    var cached = window._cardRecordsCache[cacheKey];
+    if (cached && cached.invoices !== undefined) {
+        renderCardRecordsIntoModal(cached, label, false, displayAmount);
+        return;
+    }
+    if (cached && typeof cached.then === 'function') {
+        cached.then(function(data) {
+            if (data && data.error) throw new Error(data.error);
+            renderCardRecordsIntoModal(data, label, false, displayAmount);
+        }).catch(function() {
+            delete window._cardRecordsCache[cacheKey];
+            loadingEl.classList.add('d-none');
+            emptyEl.classList.remove('d-none');
+            subtitleEl.textContent = '';
+            document.querySelector('#cardRecordsModalEmpty p').textContent = 'Error loading records. Please try again.';
+        });
+        return;
+    }
+
+    var url = '{% url "invoices:api_card_records" %}?filter=' + encodeURIComponent(filterKey) + listParams;
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) {
+            return r.text().then(function(text) {
+                var data;
+                try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { error: 'Invalid response' }; }
+                if (!r.ok) data.error = data.error || ('Request failed: ' + r.status);
+                return data;
+            });
+        })
+        .then(function(data) {
+            if (data.error) throw new Error(data.error);
+            window._cardRecordsCache[cacheKey] = data;
+            renderCardRecordsIntoModal(data, label, false, displayAmount);
+        })
+        .catch(function(err) {
+            delete window._cardRecordsCache[cacheKey];
+            loadingEl.classList.add('d-none');
+            emptyEl.classList.remove('d-none');
+            subtitleEl.textContent = '';
+            document.querySelector('#cardRecordsModalEmpty p').textContent = 'Error loading records. Please try again.';
+        });
+}
+
+function prefetchCardRecords(filterKey) {
+    var cacheKey = getCardRecordsCacheKey(filterKey);
+    if (window._cardRecordsCache[cacheKey]) return;
+    var listParams = getCardRecordsListParams();
+    var url = '{% url "invoices:api_card_records" %}?filter=' + encodeURIComponent(filterKey) + listParams;
+    var promise = fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) {
+            return r.text().then(function(text) {
+                try { return text ? JSON.parse(text) : {}; } catch (e) { return { error: 'Invalid response' }; }
+            });
+        })
+        .then(function(data) {
+            if (!data.error) window._cardRecordsCache[cacheKey] = data;
+            else delete window._cardRecordsCache[cacheKey];
+            return data;
+        })
+        .catch(function() {
+            delete window._cardRecordsCache[cacheKey];
+            throw new Error('Network error');
+        });
+    window._cardRecordsCache[cacheKey] = promise;
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    // Move custom overlays to <body> so they are not trapped inside page/card stacking contexts.
+    // This restores true viewport-fixed behavior and keeps them above the sidebar/nav.
+    ['statModal', 'cardRecordsModal'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+            document.body.appendChild(el);
+        }
+    });
+
+    // Add click handlers and prefetch-on-hover so modal opens instantly when data is ready
+    var statCards = document.querySelectorAll('.stats-row .card.card-stat-card[data-filter]');
+    statCards.forEach(function(card) {
+        var filterKey = card.getAttribute('data-filter');
+        if (filterKey) {
+            card.addEventListener('mouseenter', function() { prefetchCardRecords(filterKey); }, { once: true });
+        }
+        card.addEventListener('click', function() {
+            var filterKey = this.getAttribute('data-filter');
+            var label = this.dataset.label || 'Records';
+            var h4 = this.querySelector('h4[data-realtime-key]');
+            var displayAmount = (h4 && h4.textContent) ? h4.textContent.trim() : (this.dataset.fullValue || '');
+            if (filterKey) {
+                loadCardRecords(filterKey, label, displayAmount);
+            } else {
+                var h4 = this.querySelector('h4[data-realtime-key]');
+                var fullValue = (h4 && h4.textContent) ? h4.textContent.trim() : (this.dataset.fullValue || '0');
+                var color = this.dataset.color;
+                openStatModal(fullValue, label, color);
+            }
+        });
+    });
+    // Fallback: cards without data-filter (e.g. old markup) still open simple stat modal
+    var legacyCards = document.querySelectorAll('.stats-row .card[data-full-value]:not([data-filter])');
+    legacyCards.forEach(function(card) {
+        card.addEventListener('click', function() {
+            var h4 = this.querySelector('h4[data-realtime-key]');
+            var fullValue = (h4 && h4.textContent) ? h4.textContent.trim() : (this.dataset.fullValue || '0');
+            var label = this.dataset.label;
+            var color = this.dataset.color;
+            openStatModal(fullValue, label, color);
+        });
+    });
+
+    // Close records modal when clicking overlay
+    var recordsOverlay = document.getElementById('cardRecordsModal');
+    if (recordsOverlay) {
+        recordsOverlay.addEventListener('click', function(e) {
+            if (e.target === this) closeCardRecordsModal();
+        });
+    }
+
+    // Close stat modal when clicking overlay
+    const modalOverlay = document.getElementById('statModal');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeStatModal();
+            }
+        });
+    }
+    
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (document.getElementById('cardRecordsModal').classList.contains('active')) {
+                closeCardRecordsModal();
+            } else {
+                closeStatModal();
+            }
+        }
+    });
+
+    // Bind search inputs for the card records modal (filtering is client-side and very fast)
+    bindCardRecordsSearchEvents();
+
+    // Delegate Duplicate / Mark as Paid (no Django in onclick = no linter errors)
+    document.addEventListener('click', function(e) {
+        var dup = e.target.closest('a.invoice-action-duplicate');
+        if (dup) { e.preventDefault(); duplicateInvoice(dup.getAttribute('data-invoice-id')); }
+        var paid = e.target.closest('a.invoice-action-mark-paid');
+        if (paid) { e.preventDefault(); markAsPaid(paid.getAttribute('data-invoice-id')); }
+    });
+
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// AJAX delete function with smooth row removal; supports offline (stores soft-delete in IndexedDB, syncs when online)
+function confirmDeleteAjax(evt, linkEl) {
+    var link = linkEl || (evt && evt.target && evt.target.closest('a'));
+    if (!link) return;
+    var invoiceId = link.getAttribute('data-invoice-id');
+    var invoiceUuid = link.getAttribute('data-invoice-uuid') || '';
+    var invoiceNumber = link.getAttribute('data-invoice-number') || ('#' + invoiceId);
+    if (!confirm('Are you sure you want to delete invoice ' + invoiceNumber + '? This action cannot be undone.')) return;
+
+    var tableRow = link.closest('tr');
+    var deleteButton = link;
+    var originalText = deleteButton.innerHTML;
+    deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin text-sm me-2"></i>Deleting...';
+    deleteButton.classList.add('disabled');
+
+    function removeRowAndUpdate() {
+        tableRow.style.transition = 'opacity 0.3s ease-out';
+        tableRow.style.opacity = '0';
+        setTimeout(function() {
+            tableRow.remove();
+            recalculateSerialNumbers();
+            var tbody = document.querySelector('tbody');
+            if (tbody && tbody.children.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><p class="text-secondary mb-0">No invoices found.</p><a href="' + INVOICE_CREATE_URL + '" class="btn btn-primary btn-sm mt-2">Create your first invoice</a></td></tr>';
+            }
+            if (typeof updateStatsAfterDelete === 'function') updateStatsAfterDelete();
+        }, 300);
+    }
+
+    var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId) ? window.OfflineSync.getTenantId() : '';
+    var attemptAjax = function() {
+        return fetch('/invoices/' + invoiceId + '/delete-ajax/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCSRFToken(), 'Content-Type': 'application/json' }
+        }).then(function(r) { return r.json(); });
+    };
+
+    var requestPromise = (window.OfflineSync && window.OfflineSync.wrapDelete && invoiceUuid)
+        ? window.OfflineSync.wrapDelete('invoices', invoiceUuid, tenantId, attemptAjax)
+        : attemptAjax();
+
+    requestPromise
+        .then(function(data) {
+            if (data && data.savedOffline) {
+                showNotification('Deleted offline. Will sync when back online.', 'success');
+                removeRowAndUpdate();
+                invalidateCardRecordsCache();
+                refreshCardRecordsModalIfOpen();
+            } else if (data && data.success) {
+                showNotification(data.message || 'Invoice deleted.', 'success');
+                removeRowAndUpdate();
+                invalidateCardRecordsCache();
+                refreshCardRecordsModalIfOpen();
+            } else {
+                showNotification('Error deleting invoice: ' + (data && data.error ? data.error : 'Unknown error'), 'error');
+                deleteButton.innerHTML = originalText;
+                deleteButton.classList.remove('disabled');
+            }
+        })
+        .catch(function(error) {
+            showNotification('Error deleting invoice: ' + (error && error.message ? error.message : 'Network error'), 'error');
+            deleteButton.innerHTML = originalText;
+            deleteButton.classList.remove('disabled');
+        });
+}
+
+// Duplicate invoice (requires network; offline shows message)
+function duplicateInvoice(invoiceId) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        alert('Please go online to duplicate an invoice.');
+        return;
+    }
+    var button = event.target.closest('a');
+    var originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin text-sm me-2"></i>Duplicating...';
+    button.classList.add('disabled');
+
+    fetch('/invoices/' + invoiceId + '/duplicate/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message and redirect to new invoice
+            alert(`Invoice duplicated successfully! New invoice: ${data.new_invoice_number}`);
+            window.location.href = `/invoices/${data.new_invoice_id}/`;
+        } else {
+            alert('Error duplicating invoice: ' + (data.error || 'Unknown error'));
+            // Restore button
+            button.innerHTML = originalText;
+            button.classList.remove('disabled');
+        }
+    })
+    .catch(error => {
+        alert('Error duplicating invoice: ' + error.message);
+        // Restore button
+        button.innerHTML = originalText;
+        button.classList.remove('disabled');
+    });
+}
+
+// Update invoice status function
+function updateInvoiceStatus(selectElement) {
+    const invoiceId = selectElement.getAttribute('data-invoice-id');
+    const newStatus = selectElement.value;
+    const currentStatus = selectElement.getAttribute('data-current-status');
+    
+    console.log(`Status change triggered: Invoice ${invoiceId}, Current: "${currentStatus}", New: "${newStatus}"`);
+    
+    // If status hasn't actually changed, do nothing
+    if (newStatus === currentStatus) {
+        console.log('Status unchanged, skipping update');
+        return;
+    }
+    
+    console.log(`Updating invoice ${invoiceId} from "${currentStatus}" to "${newStatus}"`);
+    
+    // Show loading state
+    selectElement.disabled = true;
+    selectElement.style.opacity = '0.6';
+    
+    // Add loading indicator
+    const debugDiv = selectElement.parentNode.querySelector('div');
+    if (debugDiv) {
+        debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${invoiceId} | <span style="color: orange;">UPDATING...</span>`;
+    }
+    
+    // Offline-first: wrap status update (if OfflineSync available)
+    var invoiceUuid = selectElement.getAttribute('data-invoice-uuid');
+    var payload = { uuid: invoiceUuid, status: newStatus, updated_at: new Date().toISOString(), is_deleted: false };
+    var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId) ? window.OfflineSync.getTenantId() : '';
+    var attemptAjax = function() {
+        return fetch(`/invoices/${invoiceId}/update-status/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 'status': newStatus })
+        }).then(function(response) { return response.json(); });
+    };
+    var requestPromise = (window.OfflineSync && window.OfflineSync.wrapSubmit && invoiceUuid)
+        ? window.OfflineSync.wrapSubmit('invoices', payload, tenantId, attemptAjax)
+        : attemptAjax();
+    requestPromise
+    .then(function(data) {
+        if (data && data.savedOffline) {
+            selectElement.setAttribute('data-current-status', newStatus);
+            var debugDiv = selectElement.parentNode.querySelector('div');
+            if (debugDiv) debugDiv.innerHTML = `DB: "${newStatus}" | ID: ${invoiceId} | <span style="color: orange;">Saved offline</span>`;
+            selectElement.disabled = false;
+            selectElement.style.opacity = '1';
+            invalidateCardRecordsCache();
+            refreshCardRecordsModalIfOpen();
+            return;
+        }
+        if (data.success) {
+            // Update the stored current status
+            selectElement.setAttribute('data-current-status', data.new_status);
+            
+            // Update debug display
+            const debugDiv = selectElement.parentNode.querySelector('div');
+            if (debugDiv) {
+                debugDiv.innerHTML = `DB: "${data.new_status}" | ID: ${invoiceId} | <span style="color: green;">UPDATED ✓</span>`;
+                setTimeout(() => {
+                    debugDiv.innerHTML = `DB: "${data.new_status}" | ID: ${invoiceId}`;
+                }, 2000);
+            }
+            
+            // Show success feedback
+            selectElement.style.background = '#d4edda';
+            setTimeout(() => {
+                selectElement.style.background = '';
+            }, 1000);
+            
+            console.log(`Successfully updated invoice ${invoiceId} to "${data.new_status}"`);
+            console.log('Full response:', data);
+            invalidateCardRecordsCache();
+            refreshCardRecordsModalIfOpen();
+            try { window.dispatchEvent(new CustomEvent('notifications-changed')); setTimeout(function(){ if (window.refreshNotifications) window.refreshNotifications(); }, 500); } catch (e) {}
+        } else {
+            console.error('Update failed:', data.error);
+            alert('Error updating invoice status: ' + (data.error || 'Unknown error'));
+            // Restore original status
+            selectElement.value = currentStatus;
+            
+            // Update debug display
+            const debugDiv = selectElement.parentNode.querySelector('div');
+            if (debugDiv) {
+                debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${invoiceId} | <span style="color: red;">FAILED ✗</span>`;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        alert('Error updating invoice status: ' + error.message);
+        // Restore original status
+        selectElement.value = currentStatus;
+        
+        // Update debug display
+        const debugDiv = selectElement.parentNode.querySelector('div');
+        if (debugDiv) {
+            debugDiv.innerHTML = `DB: "${currentStatus}" | ID: ${invoiceId} | <span style="color: red;">ERROR ✗</span>`;
+        }
+    })
+    .finally(() => {
+        // Re-enable select
+        selectElement.disabled = false;
+        selectElement.style.opacity = '1';
+    });
+}
+
+// Mark as paid/unpaid (offline: stores status update in IndexedDB, syncs when online)
+function markAsPaid(invoiceId) {
+    var button = event.target.closest('a');
+    var originalText = button.innerHTML;
+    var isPaid = originalText.indexOf('Mark as Paid') !== -1;
+    var newStatus = isPaid ? 'paid' : 'unpaid';
+    var select = document.querySelector('.status-select[data-invoice-id="' + invoiceId + '"]');
+    var invoiceUuid = select && select.getAttribute('data-invoice-uuid') || '';
+    var tenantId = (window.OfflineSync && window.OfflineSync.getTenantId) ? window.OfflineSync.getTenantId() : '';
+    button.innerHTML = '<i class="fas fa-spinner fa-spin text-sm me-2"></i>Updating...';
+    button.classList.add('disabled');
+
+    var payload = { uuid: invoiceUuid, status: newStatus, updated_at: new Date().toISOString(), is_deleted: false };
+    var attemptAjax = function() {
+        return fetch('/invoices/' + invoiceId + '/toggle-payment/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCSRFToken(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mark_as_paid: isPaid })
+        }).then(function(r) { return r.json(); });
+    };
+    var requestPromise = (window.OfflineSync && window.OfflineSync.wrapSubmit && invoiceUuid)
+        ? window.OfflineSync.wrapSubmit('invoices', payload, tenantId, attemptAjax)
+        : attemptAjax();
+
+    requestPromise.then(function(data) {
+        if (data && data.savedOffline) {
+            if (select) { select.value = newStatus; select.setAttribute('data-current-status', newStatus); }
+            button.innerHTML = isPaid ? 'Mark as Unpaid' : 'Mark as Paid';
+            showNotification && showNotification('Saved offline. Will sync when back online.', 'success');
+        } else if (data && data.success) {
+            location.reload();
+        } else {
+            alert('Error updating invoice status: ' + (data && data.error ? data.error : 'Unknown error'));
+            button.innerHTML = originalText;
+        }
+    }).catch(function(err) {
+        alert('Error: ' + (err && err.message ? err.message : 'Network error'));
+        button.innerHTML = originalText;
+    }).finally(function() {
+        button.classList.remove('disabled');
+    });
+}
+
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Get CSRF token for AJAX: hidden input, then meta (when CSRF_USE_SESSIONS=True), then cookie
+function getCSRFToken() {
+    const input = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (input && input.value) return input.value;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+    return getCookie('csrftoken') || '';
+}
+
+// Quick actions keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Alt + N: New Invoice
+    if (e.altKey && e.key === 'n') {
+        e.preventDefault();
+        window.location.href = '{% url "invoices:create" %}';
+    }
+    
+    // Alt + D: Dynamic Creator
+    if (e.altKey && e.key === 'd') {
+        e.preventDefault();
+        window.location.href = '/invoices/create/';
+    }
+});
+
+// Recalculate serial numbers after deletion
+function recalculateSerialNumbers() {
+    const serialCells = document.querySelectorAll('.serial-number span');
+    
+    // Get current page info from URL or pagination
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentPage = parseInt(urlParams.get('page')) || 1;
+    
+    // Django pagination is set to 25 items per page
+    const itemsPerPage = 25;
+    const startIndex = (currentPage - 1) * itemsPerPage + 1;
+    
+    serialCells.forEach((cell, index) => {
+        cell.textContent = startIndex + index;
+    });
+}
+
+// Show notification function
+function showNotification(message, type = 'success') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Update all stats after delete via API (realtime, no page refresh)
+function updateStatsAfterDelete() {
+    if (typeof window.refreshDashboardMetrics === 'function') {
+        window.refreshDashboardMetrics();
+    }
+}
+
+// Add keyboard shortcut hints to page
+document.addEventListener('DOMContentLoaded', function() {
+    const shortcutHint = document.createElement('div');
+    shortcutHint.innerHTML = `
+        <small class="text-muted">
+            <i class="fas fa-keyboard text-xs"></i>
+            Shortcuts: Alt+N (New Invoice), Alt+D (Dynamic Creator), F5 (Refresh Colors)
+        </small>
+    `;
+    shortcutHint.className = 'text-center mt-2';
+    document.querySelector('.card-body').appendChild(shortcutHint);
+});
+
+// Auto-refresh when returning from template management
+let pageHidden = false;
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        pageHidden = true;
+    } else if (pageHidden) {
+        // Page became visible again, check if we need to refresh template colors
+        pageHidden = false;
+        
+        // Add a small delay to ensure any template changes are saved
+        setTimeout(function() {
+            // Check if we came from template management (basic heuristic)
+            if (document.referrer.includes('/templates/')) {
+                console.log('🎨 Returning from template management - refreshing colors...');
+                location.reload();
+            }
+        }, 1000);
+    }
+});
+
+// Manual refresh function
+window.refreshTemplateColors = function() {
+    console.log('🔄 Refreshing template colors...');
+    location.reload();
+};
+
+console.log('📋 Invoice list template color system loaded');
+</script>
+
+<!-- Invoice Report Modal -->
+<div class="modal fade" id="invoiceReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary">
+                <div class="d-flex align-items-center">
+                    <svg class="text-white me-3" style="width: 36px; height: 36px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" clip-rule="evenodd"/></svg>
+                    <div>
+                        <h5 class="modal-title text-white mb-0">Invoice Report Center</h5>
+                        <small class="text-white-50" id="reportDateRange">Comprehensive invoice analytics and reporting</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <!-- Date Filter Buttons -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="btn-group w-100 flex-wrap" role="group">
+                            <button type="button" class="btn btn-outline-dark btn-sm filter-btn active flex-fill" data-filter="today"><svg class="me-1 d-none d-sm-inline" style="width: 12px; height: 12px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>Today</button>
+                            <button type="button" class="btn btn-outline-dark btn-sm filter-btn flex-fill" data-filter="week"><svg class="me-1 d-none d-sm-inline" style="width: 12px; height: 12px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg><span class="d-none d-lg-inline">This </span>Week</button>
+                            <button type="button" class="btn btn-outline-dark btn-sm filter-btn flex-fill" data-filter="month"><svg class="me-1 d-none d-sm-inline" style="width: 12px; height: 12px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg><span class="d-none d-lg-inline">This </span>Month</button>
+                            <button type="button" class="btn btn-outline-dark btn-sm filter-btn flex-fill" data-filter="quarter"><svg class="me-1 d-none d-sm-inline" style="width: 12px; height: 12px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg><span class="d-none d-lg-inline">This </span>Qtr</button>
+                            <button type="button" class="btn btn-outline-dark btn-sm filter-btn flex-fill" data-filter="year"><svg class="me-1 d-none d-sm-inline" style="width: 12px; height: 12px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>Year</button>
+                            <button type="button" class="btn btn-outline-dark btn-sm filter-btn flex-fill" data-filter="custom"><svg class="me-1 d-none d-sm-inline" style="width: 12px; height: 12px;" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>Custom</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-3 mb-md-4 custom-date-range g-2" style="display: none;">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold mb-1">From Date</label>
+                        <input type="date" class="form-control form-control-sm form-control-lg" id="reportDateFrom" style="border: 2px solid #dee2e6; border-radius: 8px;">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold mb-1">To Date</label>
+                        <input type="date" class="form-control form-control-sm form-control-lg" id="reportDateTo" style="border: 2px solid #dee2e6; border-radius: 8px;">
+                    </div>
+                    <div class="col-12 col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-sm btn-lg w-100" onclick="loadInvoiceReport()"><svg class="me-2" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>Generate</button>
+                    </div>
+                </div>
+                <div id="reportLoading" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div>
+                    <p class="mt-3 text-muted fs-5">Loading report data...</p>
+                </div>
+                <div id="reportContent">
+                    <div class="row mb-3 mb-md-4 g-2">
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card active" data-details-filter="all" role="button" tabindex="0" aria-label="Show all invoices">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(0, 82, 212, 0.1);"><svg class="text-primary" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 0a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2h-3a2 2 0 01-2-2V5zM2 13a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 0a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2h-3a2 2 0 01-2-2v-2z"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Invoices</h6>
+                                    <h4 class="text-primary mb-0" id="reportTotalInvoices" style="font-size: 18px;">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card" data-details-filter="total_amount" role="button" tabindex="0" aria-label="Show invoices by total amount">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(25, 135, 84, 0.1);"><svg class="text-success" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Amount</h6>
+                                    <h4 class="text-success mb-0" id="reportTotalAmount" style="font-size: 18px;">₦0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card" data-details-filter="revenue_generated" role="button" tabindex="0" aria-label="Show revenue-generating invoices">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(255, 193, 7, 0.15);"><svg class="text-warning" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Revenue</h6>
+                                    <h4 class="text-warning mb-0" id="reportRevenue" style="font-size: 18px;">₦0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card" data-details-filter="outstanding" role="button" tabindex="0" aria-label="Show outstanding invoices">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(220, 53, 69, 0.1);"><svg class="text-danger" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Outstanding</h6>
+                                    <h4 class="text-danger mb-0" id="reportOutstanding" style="font-size: 18px;">₦0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card" data-details-filter="completed_paid" role="button" tabindex="0" aria-label="Show complete payment(s) invoices">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(13, 110, 253, 0.12);"><svg class="text-primary" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Complete payment(s)</h6>
+                                    <h4 class="text-primary mb-0" id="reportCompletedPaidAmount" style="font-size: 18px;">₦0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card" data-details-filter="partial_paid" role="button" tabindex="0" aria-label="Show partially paid invoices">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(255, 193, 7, 0.18);"><svg class="text-warning" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a1 1 0 00-1 1v12a1 1 0 102 0v-2h9a3 3 0 003-3V6a3 3 0 00-3-3H4z"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Partially Paid</h6>
+                                    <h4 class="text-warning mb-0" id="reportPartialPaidAmount" style="font-size: 18px;">₦0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6 col-lg-2">
+                            <div class="card border-0 shadow-sm h-100 report-summary-card" data-details-filter="refund_due" role="button" tabindex="0" aria-label="Show due payments">
+                                <div class="card-body text-center py-2 py-md-3">
+                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2 mb-md-3" style="width: 45px; height: 45px; background-color: rgba(111, 66, 193, 0.14);"><svg class="text-secondary" style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h7a2 2 0 012 2v1h1a2 2 0 012 2v2a1 1 0 11-2 0V7H4v8h5a1 1 0 110 2H6a2 2 0 01-2-2V4zm9 6a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z" clip-rule="evenodd"/></svg></div>
+                                    <h6 class="text-muted mb-1" style="font-size: 10px;">Due Payment(s)</h6>
+                                    <h4 class="text-secondary mb-0" id="reportDuePaymentAmount" style="font-size: 18px;">₦0</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3 mb-md-4">
+                        <div class="col-12 col-md-8 mb-3 mb-md-0">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header"><h6 class="mb-0"><svg class="me-2" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" clip-rule="evenodd"/></svg>Revenue Trend</h6></div>
+                                <div class="card-body"><canvas id="revenueChart" height="200"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header"><h6 class="mb-0"><svg class="me-2" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>Status</h6></div>
+                                <div class="card-body"><canvas id="statusChart" height="200"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3 mb-md-4 g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><svg class="me-2" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>Payment Rate</h6>
+                                    <span class="badge bg-success-subtle text-success-emphasis" id="paymentRateBadge">Strong</span>
+                                </div>
+                                <div class="card-body payment-rate-card-body">
+                                    <div class="d-flex justify-content-between align-items-baseline mb-2">
+                                        <small class="text-muted fw-semibold">Collection Efficiency</small>
+                                        <strong class="text-dark fs-5" id="paymentProgressValue">0.0%</strong>
+                                    </div>
+                                    <div class="progress payment-progress-track mb-3">
+                                        <div class="progress-bar" id="paymentProgress" role="progressbar" style="width: 0%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+                                    </div>
+                                    <div class="row text-center g-2 payment-kpi-grid">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Paid</small>
+                                            <h5 class="mb-0 text-success fw-bold" id="reportPaidAmount">₦0</h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Average per Invoice</small>
+                                            <h5 class="mb-0 text-primary fw-bold" id="reportAvgInvoice">₦0</h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Outstanding</small>
+                                            <h6 class="mb-0 text-danger fw-semibold" id="reportOutstandingAmountInline">₦0</h6>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">Invoices</small>
+                                            <h6 class="mb-0 text-secondary fw-semibold" id="reportInvoiceCountInline">0</h6>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <small class="text-muted" id="paymentRateHint">Waiting for data...</small>
+                                        <small class="text-muted" id="paymentRateUpdatedAt">Updated just now</small>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        Average per Invoice means: total invoice amount divided by the number of invoices in this selected period.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header"><h6 class="mb-0"><svg class="me-2" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>Top Clients</h6></div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" style="max-height: 200px;">
+                                        <table class="table table-sm table-hover mb-0" id="topClientsTable" style="font-size: 12px;">
+                                            <thead><tr><th>Client</th><th class="text-center">#</th><th class="text-end">Total</th></tr></thead>
+                                            <tbody><tr><td colspan="3" class="text-center text-muted">No data</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-0 shadow-sm">
+                                <div class="card-header"><h6 class="mb-0"><svg class="me-2" style="width: 16px; height: 16px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>Invoice Details</h6></div>
+                        <div class="card-body p-0 d-flex flex-column">
+                            <div class="report-details-search-wrap border-bottom px-3 py-2">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-5">
+                                        <label for="reportDetailsSearchClient" class="form-label small mb-1">Search by client</label>
+                                        <input type="text" id="reportDetailsSearchClient" class="form-control form-control-sm" placeholder="Client name or email">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="reportDetailsSearchDate" class="form-label small mb-1">Transaction date</label>
+                                        <input type="date" id="reportDetailsSearchDate" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" id="reportDetailsSearchClear" class="btn btn-sm btn-outline-secondary w-100">Clear</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive invoice-report-details-scroll">
+                                <table class="table table-hover mb-0" id="reportInvoicesTable">
+                                    <thead><tr><th class="text-center">S/N</th><th>Invoice #</th><th>Client</th><th>Date</th><th class="text-end">Amount</th><th class="text-end">Paid</th><th class="text-end">Due</th><th class="text-center">Status</th><th class="text-center">Action</th></tr></thead>
+                                    <tbody><tr><td colspan="9" class="text-center text-muted py-4">Select a date range to view invoices</td></tr></tbody>
+                                </table>
+                            </div>
+                            <div id="reportInvoicesPagination" class="d-none border-top bg-white">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-3 py-2">
+                                    <small class="text-muted mb-0" id="reportInvoicesPageInfo"></small>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Invoice details pages">
+                                        <button type="button" class="btn btn-outline-secondary" id="reportInvoicesPrev">Previous</button>
+                                        <button type="button" class="btn btn-outline-secondary" id="reportInvoicesNext">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><svg class="me-1" style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>Close</button>
+                <button type="button" class="btn btn-success" onclick="exportReportPDF()"><svg class="me-1" style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>Export PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="customerWaybillModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-gradient-primary">
+        <h5 class="modal-title text-white mb-0" id="customerWaybillModalTitle">Customer Waybills</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body bg-light">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3"><div class="card p-2"><small class="text-muted">Waybills</small><h6 id="cwWaybillCount" class="mb-0">0</h6></div></div>
+          <div class="col-md-3"><div class="card p-2"><small class="text-muted">Delivered</small><h6 id="cwDeliveredCount" class="mb-0">0</h6></div></div>
+          <div class="col-md-3"><div class="card p-2"><small class="text-muted">Outstanding</small><h6 id="cwOutstandingCount" class="mb-0">0</h6></div></div>
+          <div class="col-md-3"><div class="card p-2"><small class="text-muted">Total Outstanding Qty</small><h6 id="cwOutstandingQty" class="mb-0">0.00</h6></div></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label for="cwSearchInput" class="form-label small mb-1">Search waybill number</label>
+            <input type="text" id="cwSearchInput" class="form-control form-control-sm" placeholder="Type waybill number...">
+          </div>
+          <div class="col-md-3">
+            <label for="cwStatusFilter" class="form-label small mb-1">Status</label>
+            <select id="cwStatusFilter" class="form-select form-select-sm">
+              <option value="">All</option>
+              <option value="delivered">Delivered</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="dispatched">Dispatched</option>
+              <option value="not_delivered">Not Delivered</option>
+              <option value="returned">Returned</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="on_hold">On Hold</option>
+              <option value="awaiting_pickup">Awaiting Pickup</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="cwDateFilter" class="form-label small mb-1">Waybill date</label>
+            <input type="date" id="cwDateFilter" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="button" id="cwSearchClear" class="btn btn-outline-secondary btn-sm w-100">Clear</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0" id="customerWaybillTable">
+            <thead>
+              <tr>
+                <th>Waybill #</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th class="text-end">Total Qty</th>
+                <th class="text-end">Delivered</th>
+                <th class="text-end">Outstanding</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="7" class="text-center text-muted py-3">No waybill data</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Supply Ledger Modal -->
+<div class="modal fade" id="supplyLedgerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-gradient-info">
+        <h5 class="modal-title text-white mb-0">Customer Supply Ledger</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body bg-light">
+        <div class="btn-group w-100 flex-wrap mb-3" role="group">
+          <button type="button" class="btn btn-outline-dark btn-sm supply-filter-btn active" data-filter="today">Today</button>
+          <button type="button" class="btn btn-outline-dark btn-sm supply-filter-btn" data-filter="week">Week</button>
+          <button type="button" class="btn btn-outline-dark btn-sm supply-filter-btn" data-filter="month">Month</button>
+          <button type="button" class="btn btn-outline-dark btn-sm supply-filter-btn" data-filter="quarter">Quarter</button>
+          <button type="button" class="btn btn-outline-dark btn-sm supply-filter-btn" data-filter="year">Year</button>
+          <button type="button" class="btn btn-outline-dark btn-sm supply-filter-btn" data-filter="custom">Custom</button>
+        </div>
+        <div class="row g-2 mb-3" id="supplyCustomDateWrap" style="display:none;">
+          <div class="col-md-5">
+            <label class="form-label fw-bold mb-1">From</label>
+            <input type="date" id="supplyDateFrom" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label fw-bold mb-1">To</label>
+            <input type="date" id="supplyDateTo" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="button" class="btn btn-primary btn-sm w-100" onclick="loadSupplyLedger()">Apply</button>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="collapseAllLedgerGroups()">Collapse All</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="expandAllLedgerGroups()">Expand All</button>
+          </div>
+          <div class="col-md-2"><div class="card p-2 supply-summary-card active" role="button" tabindex="0" data-details-filter="all"><small class="text-muted">Rows</small><h6 id="supplyLineCount" class="mb-0">0</h6></div></div>
+          <div class="col-md-2"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="supply_amount"><small class="text-muted">Supply Amount</small><h6 id="supplyTotalAmount" class="mb-0">₦0.00</h6></div></div>
+          <div class="col-md-2"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="payment"><small class="text-muted">Payment</small><h6 id="supplyTotalPayment" class="mb-0">₦0.00</h6></div></div>
+          <div class="col-md-2"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="outstanding"><small class="text-muted">Outstanding</small><h6 id="supplyTotalOutstanding" class="mb-0">₦0.00</h6></div></div>
+          <div class="col-md-2"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="total_delivery"><small class="text-muted">Total Delivery</small><h6 id="supplyTotalDeliveryQty" class="mb-0">0.00</h6></div></div>
+          <div class="col-md-2"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="outstanding_delivery"><small class="text-muted">Outstanding Delivery</small><h6 id="supplyTotalOutstandingQty" class="mb-0">0.00</h6></div></div>
+          <div class="col-md-4"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="customer_owes_company"><small class="text-muted">Customer Owes Company</small><h6 id="supplyCustomerOwesCompany" class="mb-0">₦0.00</h6></div></div>
+          <div class="col-md-4"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="company_owes_customer"><small class="text-muted">Company Owes Customer</small><h6 id="supplyCompanyOwesCustomer" class="mb-0">₦0.00</h6></div></div>
+          <div class="col-md-4"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="excess_supplies"><small class="text-muted">Excess Supplies</small><h6 id="supplyExcessSupplies" class="mb-0">0.00</h6></div></div>
+          <div class="col-md-4"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="total_jobs_owed"><small class="text-muted">Total Jobs Owed</small><h6 id="supplyTotalJobsOwedCount" class="mb-0">0</h6></div></div>
+          <div class="col-md-4"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="total_jobs_owed_amount"><small class="text-muted">Total Jobs Owed Amount</small><h6 id="supplyTotalJobsOwedAmount" class="mb-0">₦0.00</h6></div></div>
+          <div class="col-md-4"><div class="card p-2 supply-summary-card" role="button" tabindex="0" data-details-filter="total_jobs_amount"><small class="text-muted">Total Jobs Amount</small><h6 id="supplyTotalJobsAmount" class="mb-0">₦0.00</h6></div></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label for="supplyLedgerSearchInput" class="form-label small mb-1">Search by customer/product/remark</label>
+            <input type="text" id="supplyLedgerSearchInput" class="form-control form-control-sm" placeholder="Type customer or product...">
+          </div>
+          <div class="col-md-4">
+            <label for="supplyLedgerSearchDate" class="form-label small mb-1">Transaction date</label>
+            <input type="date" id="supplyLedgerSearchDate" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="button" id="supplyLedgerSearchClear" class="btn btn-sm btn-outline-secondary w-100">Clear</button>
+          </div>
+        </div>
+        <div id="supplyLedgerLoading" class="text-center py-4 d-none">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+        <div class="table-responsive" style="max-height:60vh;">
+          <table class="table table-sm table-hover mb-0" id="supplyLedgerTable">
+            <thead>
+              <tr>
+                <th>Date</th><th>Customer Name</th><th>Product</th>
+                <th class="text-end">Quantity</th><th class="text-end">Price</th><th class="text-end">Amount</th>
+                <th class="text-end">Payment</th><th class="text-end">Q. Supplied</th>
+                <th class="text-end">Delivery</th><th class="text-end">U. Balance</th>
+                <th class="text-end">Outstanding</th><th class="text-end">Customer Owes</th><th class="text-end">Company Owes</th><th class="text-end">Excess Supplies</th><th>Remark</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="15" class="text-center text-muted py-4">Open ledger to load data.</td></tr></tbody>
+          </table>
+        </div>
+        <div id="supplyLedgerPagination" class="border-top bg-white mt-2 d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-2 py-2">
+            <div class="d-flex align-items-center gap-2">
+              <small class="text-muted mb-0" id="supplyLedgerPageInfo"></small>
+              <select id="supplyLedgerPerPage" class="form-select form-select-sm" style="width:auto;">
+                <option value="25">25 / page</option>
+                <option value="50">50 / page</option>
+                <option value="100">100 / page</option>
+              </select>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-secondary" id="supplyLedgerPrev">Previous</button>
+              <button type="button" class="btn btn-outline-secondary" id="supplyLedgerNext">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.filter-btn.active { font-weight: 600; background-color: #11998e !important; color: white !important; border-color: #11998e !important; }
+#invoiceReportModal .modal-body { padding: 25px; }
+#invoiceReportModal .card { border-radius: 12px; }
+#invoiceReportModal .report-summary-card {
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    border: 2px solid transparent;
+}
+#invoiceReportModal .report-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.12) !important;
+}
+#invoiceReportModal .report-summary-card.active {
+    border-color: #11998e;
+    box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.15);
+}
+.supply-summary-card {
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+.supply-summary-card.active {
+    border-color: #11998e;
+    box-shadow: 0 0 0 0.15rem rgba(17, 153, 142, 0.15);
+}
+#supplyLedgerModal #supplyLedgerSearchInput,
+#supplyLedgerModal #supplyLedgerSearchDate,
+#supplyLedgerModal #supplyLedgerPerPage {
+    border: 2px solid #6c757d !important;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+#supplyLedgerModal #supplyLedgerSearchInput:hover,
+#supplyLedgerModal #supplyLedgerSearchDate:hover,
+#supplyLedgerModal #supplyLedgerPerPage:hover {
+    border-color: #495057 !important;
+}
+#supplyLedgerModal #supplyLedgerSearchInput:focus,
+#supplyLedgerModal #supplyLedgerSearchDate:focus,
+#supplyLedgerModal #supplyLedgerPerPage:focus {
+    border-color: #11998e !important;
+    box-shadow: 0 0 0 0.15rem rgba(17, 153, 142, 0.2);
+}
+#supplyLedgerModal #supplyLedgerSearchClear {
+    border: 2px solid #6c757d !important;
+    border-radius: 8px;
+}
+#invoiceReportModal .custom-date-range .form-control,
+#invoiceReportModal .report-details-search-wrap .form-control {
+    border: 1.5px solid #adb5bd;
+    background-color: #fff;
+}
+#invoiceReportModal .custom-date-range .form-control:hover,
+#invoiceReportModal .report-details-search-wrap .form-control:hover {
+    border-color: #6c757d;
+}
+#invoiceReportModal .invoice-report-details-scroll {
+    max-height: min(45vh, 380px);
+    overflow-y: auto;
+}
+#invoiceReportModal .custom-date-range .form-control:focus,
+#invoiceReportModal .report-details-search-wrap .form-control:focus {
+    border-color: #11998e;
+    box-shadow: 0 0 0 0.18rem rgba(17, 153, 142, 0.18);
+}
+#invoiceReportModal .payment-rate-card-body {
+    background: linear-gradient(180deg, rgba(17, 153, 142, 0.05) 0%, rgba(255, 255, 255, 1) 65%);
+    border-radius: 0 0 12px 12px;
+}
+#invoiceReportModal .payment-progress-track {
+    height: 14px;
+    border-radius: 999px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+#invoiceReportModal #paymentProgress {
+    border-radius: 999px;
+    transition: width 0.3s ease, background-color 0.2s ease;
+    background: linear-gradient(90deg, #0ea5a0 0%, #16a34a 100%);
+}
+#invoiceReportModal .payment-kpi-grid h5,
+#invoiceReportModal .payment-kpi-grid h6 {
+    letter-spacing: 0.2px;
+}
+#invoiceReportModal #reportInvoicesPagination:not(.d-none) {
+    flex-shrink: 0;
+}
+</style>
+
+<script>
+let currentFilter = 'month';
+let revenueChart = null;
+let statusChart = null;
+let reportDetailsPage = 1;
+let reportDetailsMetricFilter = 'all';
+let reportDetailsSearchTerm = '';
+let reportDetailsTransactionDate = '';
+let invoiceReportAutoRefreshTimer = null;
+const INVOICE_REPORT_AUTO_REFRESH_MS = 5000;
+const REPORT_DETAILS_PER_PAGE = 10;
+
+function openInvoiceReport(filter) {
+    currentFilter = filter || 'month';
+    reportDetailsMetricFilter = 'all';
+    reportDetailsPage = 1;
+    reportDetailsSearchTerm = '';
+    reportDetailsTransactionDate = '';
+    syncReportDetailsSearchInputs();
+    updateReportDetailsMetricUI();
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    const filterMap = {'revenue_today': 'today', 'revenue_week': 'week', 'revenue_month': 'month', 'total_amount': 'month', 'revenue_generated': 'month', 'outstanding': 'month'};
+    const mappedFilter = filterMap[filter] || 'month';
+    document.querySelector('.filter-btn[data-filter="' + mappedFilter + '"]')?.classList.add('active');
+    
+    if (filter === 'custom') {
+        document.querySelector('.custom-date-range').style.display = 'flex';
+    } else {
+        document.querySelector('.custom-date-range').style.display = 'none';
+    }
+    
+    // Load Chart.js lazily before showing modal
+    loadChartJs();
+    
+    // Wait a moment for Chart.js to load if needed
+    setTimeout(function() {
+        var modal = new bootstrap.Modal(document.getElementById('invoiceReportModal'));
+        modal.show();
+        loadInvoiceReport();
+    }, chartJsLoaded ? 0 : 500);
+}
+
+document.querySelectorAll('.filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        currentFilter = this.dataset.filter;
+        
+        if (currentFilter === 'custom') {
+            document.querySelector('.custom-date-range').style.display = 'flex';
+        } else {
+            document.querySelector('.custom-date-range').style.display = 'none';
+            loadInvoiceReport();
+        }
+    });
+});
+
+function loadInvoiceReport(resetDetailsPage, options) {
+    options = options || {};
+    var silentRefresh = !!options.silentRefresh;
+    if (resetDetailsPage !== false) {
+        reportDetailsPage = 1;
+    }
+    var loading = document.getElementById('reportLoading');
+    var content = document.getElementById('reportContent');
+    var dateRangeEl = document.getElementById('reportDateRange');
+    var isPageOnly = (resetDetailsPage === false);
+    var detailsCard = document.getElementById('reportInvoicesTable');
+    detailsCard = detailsCard ? detailsCard.closest('.card') : null;
+    
+    var filterLabels = {'today': "Today's Invoice Report", 'week': "This Week's Invoice Report", 'month': "This Month's Invoice Report", 'quarter': "This Quarter's Invoice Report", 'year': "This Year's Invoice Report", 'custom': 'Custom Date Range Report'};
+    dateRangeEl.textContent = filterLabels[currentFilter] || 'Invoice Report';
+    
+    if (!silentRefresh && isPageOnly && detailsCard) {
+        detailsCard.style.opacity = '0.55';
+        detailsCard.style.pointerEvents = 'none';
+    } else if (!silentRefresh) {
+        loading.style.display = 'block';
+        content.style.opacity = '0.3';
+    }
+    
+    var url = '/invoices/api/report/?filter=' + encodeURIComponent(currentFilter);
+    url += '&details_page=' + encodeURIComponent(reportDetailsPage) + '&details_per_page=' + encodeURIComponent(REPORT_DETAILS_PER_PAGE);
+    if (reportDetailsMetricFilter && reportDetailsMetricFilter !== 'all') {
+        url += '&details_filter=' + encodeURIComponent(reportDetailsMetricFilter);
+    }
+    if (reportDetailsSearchTerm) {
+        url += '&details_search=' + encodeURIComponent(reportDetailsSearchTerm);
+    }
+    if (reportDetailsTransactionDate) {
+        url += '&details_transaction_date=' + encodeURIComponent(reportDetailsTransactionDate);
+    }
+    
+    if (currentFilter === 'custom') {
+        var dateFrom = document.getElementById('reportDateFrom').value;
+        var dateTo = document.getElementById('reportDateTo').value;
+        if (dateFrom) url += '&date_from=' + encodeURIComponent(dateFrom);
+        if (dateTo) url += '&date_to=' + encodeURIComponent(dateTo);
+    }
+    
+    var prevNav = document.getElementById('reportInvoicesPrev');
+    var nextNav = document.getElementById('reportInvoicesNext');
+    if (isPageOnly && prevNav && nextNav) {
+        prevNav.disabled = true;
+        nextNav.disabled = true;
+    }
+
+    fetch(url, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then(function(response) {
+            if (!response.ok) {
+                return response.text().then(function(t) {
+                    throw new Error(response.status + (t ? ': ' + t.slice(0, 120) : ''));
+                });
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            updateReportUI(data, { silentRefresh: silentRefresh });
+        })
+        .catch(function(error) {
+            console.error('Error loading report:', error);
+        })
+        .finally(function() {
+            if (!silentRefresh) {
+                loading.style.display = 'none';
+                content.style.opacity = '1';
+            }
+            if (!silentRefresh && detailsCard) {
+                detailsCard.style.opacity = '1';
+                detailsCard.style.pointerEvents = '';
+            }
+        });
+}
+
+function startInvoiceReportAutoRefresh() {
+    stopInvoiceReportAutoRefresh();
+    invoiceReportAutoRefreshTimer = setInterval(function() {
+        var modalEl = document.getElementById('invoiceReportModal');
+        if (!modalEl || !modalEl.classList.contains('show') || document.hidden) return;
+        loadInvoiceReport(false, { silentRefresh: true });
+    }, INVOICE_REPORT_AUTO_REFRESH_MS);
+}
+
+function stopInvoiceReportAutoRefresh() {
+    if (!invoiceReportAutoRefreshTimer) return;
+    clearInterval(invoiceReportAutoRefreshTimer);
+    invoiceReportAutoRefreshTimer = null;
+}
+
+function updateReportDetailsMetricUI() {
+    document.querySelectorAll('#invoiceReportModal .report-summary-card').forEach(function(card) {
+        card.classList.toggle('active', (card.dataset.detailsFilter || 'all') === reportDetailsMetricFilter);
+    });
+}
+
+function bindReportSummaryCardClicks() {
+    var reportModal = document.getElementById('invoiceReportModal');
+    if (!reportModal || reportModal.dataset.summaryCardsBound === '1') return;
+    reportModal.dataset.summaryCardsBound = '1';
+
+    function handleSummaryCard(targetCard) {
+        if (!targetCard) return;
+        reportDetailsMetricFilter = targetCard.dataset.detailsFilter || 'all';
+        reportDetailsPage = 1;
+        updateReportDetailsMetricUI();
+        loadInvoiceReport();
+        var tableEl = document.getElementById('reportInvoicesTable');
+        if (tableEl) {
+            tableEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    reportModal.addEventListener('click', function(e) {
+        var targetCard = e.target && e.target.closest ? e.target.closest('.report-summary-card') : null;
+        if (!targetCard) return;
+        e.preventDefault();
+        handleSummaryCard(targetCard);
+    });
+
+    reportModal.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var targetCard = e.target && e.target.closest ? e.target.closest('.report-summary-card') : null;
+        if (!targetCard) return;
+        e.preventDefault();
+        handleSummaryCard(targetCard);
+    });
+}
+
+function bindInvoiceReportAutoRefresh() {
+    var reportModal = document.getElementById('invoiceReportModal');
+    if (!reportModal || reportModal.dataset.autoRefreshBound === '1') return;
+    reportModal.dataset.autoRefreshBound = '1';
+
+    reportModal.addEventListener('shown.bs.modal', function() {
+        startInvoiceReportAutoRefresh();
+    });
+    reportModal.addEventListener('hidden.bs.modal', function() {
+        stopInvoiceReportAutoRefresh();
+    });
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopInvoiceReportAutoRefresh();
+            return;
+        }
+        if (reportModal.classList.contains('show')) {
+            loadInvoiceReport(false, { silentRefresh: true });
+            startInvoiceReportAutoRefresh();
+        }
+    });
+}
+
+function syncReportDetailsSearchInputs() {
+    var searchInput = document.getElementById('reportDetailsSearchClient');
+    var dateInput = document.getElementById('reportDetailsSearchDate');
+    if (searchInput) searchInput.value = reportDetailsSearchTerm || '';
+    if (dateInput) dateInput.value = reportDetailsTransactionDate || '';
+}
+
+function bindInvoiceReportDetailsSearch() {
+    var reportModal = document.getElementById('invoiceReportModal');
+    if (!reportModal || reportModal.dataset.detailsSearchBound === '1') return;
+    reportModal.dataset.detailsSearchBound = '1';
+
+    var searchInput = document.getElementById('reportDetailsSearchClient');
+    var dateInput = document.getElementById('reportDetailsSearchDate');
+    var clearBtn = document.getElementById('reportDetailsSearchClear');
+    if (!searchInput || !dateInput || !clearBtn) return;
+
+    var searchTimer = null;
+    function applySearch() {
+        reportDetailsPage = 1;
+        loadInvoiceReport();
+    }
+
+    searchInput.addEventListener('input', function() {
+        reportDetailsSearchTerm = (this.value || '').trim();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(applySearch, 300);
+    });
+    dateInput.addEventListener('change', function() {
+        reportDetailsTransactionDate = this.value || '';
+        applySearch();
+    });
+    clearBtn.addEventListener('click', function() {
+        reportDetailsSearchTerm = '';
+        reportDetailsTransactionDate = '';
+        syncReportDetailsSearchInputs();
+        applySearch();
+    });
+}
+
+function reportDetailsStepPage(delta) {
+    var pag = window.__invoiceReportDetailsPagination;
+    if (!pag || !pag.total_pages) return;
+    var next = pag.page + delta;
+    if (next < 1 || next > pag.total_pages) return;
+    reportDetailsPage = next;
+    loadInvoiceReport(false);
+}
+
+function updateInvoiceDetailsPaginationBar(pag) {
+    var wrap = document.getElementById('reportInvoicesPagination');
+    var info = document.getElementById('reportInvoicesPageInfo');
+    var prevBtn = document.getElementById('reportInvoicesPrev');
+    var nextBtn = document.getElementById('reportInvoicesNext');
+    if (!wrap || !info || !prevBtn || !nextBtn) return;
+    if (!pag || !pag.total_count) {
+        wrap.classList.add('d-none');
+        return;
+    }
+    wrap.classList.remove('d-none');
+    var start = (pag.page - 1) * pag.per_page + 1;
+    var end = Math.min(pag.page * pag.per_page, pag.total_count);
+    var pages = pag.total_pages || 1;
+    info.textContent = 'Showing ' + start + '–' + end + ' of ' + pag.total_count + ' invoices (page ' + pag.page + ' of ' + pages + ')';
+    prevBtn.disabled = !pag.has_previous;
+    nextBtn.disabled = !pag.has_next;
+}
+
+function bindInvoiceReportPaginationClicks() {
+    var reportModal = document.getElementById('invoiceReportModal');
+    if (!reportModal || reportModal.dataset.paginationBound === '1') return;
+    reportModal.dataset.paginationBound = '1';
+    reportModal.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest && e.target.closest('#reportInvoicesPrev, #reportInvoicesNext');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.id === 'reportInvoicesPrev') reportDetailsStepPage(-1);
+        else if (btn.id === 'reportInvoicesNext') reportDetailsStepPage(1);
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindInvoiceReportPaginationClicks);
+} else {
+    bindInvoiceReportPaginationClicks();
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindReportSummaryCardClicks);
+} else {
+    bindReportSummaryCardClicks();
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindInvoiceReportAutoRefresh);
+} else {
+    bindInvoiceReportAutoRefresh();
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindInvoiceReportDetailsSearch);
+} else {
+    bindInvoiceReportDetailsSearch();
+}
+
+function updateReportUI(data, options) {
+    options = options || {};
+    var silentRefresh = !!options.silentRefresh;
+    var currency = data.currency_symbol || '₦';
+    var fmt = function(num) { return currency + parseFloat(num || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+    
+    document.getElementById('reportTotalInvoices').textContent = data.summary.total_invoices;
+    document.getElementById('reportTotalAmount').textContent = fmt(data.summary.total_amount);
+    document.getElementById('reportRevenue').textContent = fmt(data.summary.revenue);
+    document.getElementById('reportOutstanding').textContent = fmt(data.summary.outstanding);
+    document.getElementById('reportPaidAmount').textContent = fmt(data.summary.paid_amount);
+    document.getElementById('reportCompletedPaidAmount').textContent = fmt(data.summary.completed_paid_amount);
+    document.getElementById('reportPartialPaidAmount').textContent = fmt(data.summary.partial_paid_amount);
+    document.getElementById('reportDuePaymentAmount').textContent = fmt(data.summary.due_payment_amount);
+    document.getElementById('reportAvgInvoice').textContent = fmt(data.summary.avg_invoice_value);
+
+    var totalAmount = parseFloat(data.summary.total_amount || 0);
+    var paidAmount = parseFloat(data.summary.paid_amount || 0);
+    var outstandingAmount = parseFloat(data.summary.outstanding || 0);
+    var totalInvoices = parseInt(data.summary.total_invoices || 0, 10);
+    var paidPercentRaw = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+    var paidPercent = Math.max(0, Math.min(100, paidPercentRaw));
+
+    var progressBar = document.getElementById('paymentProgress');
+    var progressValue = document.getElementById('paymentProgressValue');
+    var paymentRateBadge = document.getElementById('paymentRateBadge');
+    var paymentRateHint = document.getElementById('paymentRateHint');
+    var paymentRateUpdatedAt = document.getElementById('paymentRateUpdatedAt');
+    var outstandingInline = document.getElementById('reportOutstandingAmountInline');
+    var invoiceCountInline = document.getElementById('reportInvoiceCountInline');
+    var quality = getPaymentRateQuality(paidPercent);
+
+    progressBar.style.width = paidPercent + '%';
+    progressBar.setAttribute('aria-valuenow', paidPercent.toFixed(1));
+    progressBar.style.background = quality.gradient;
+    if (progressValue) progressValue.textContent = paidPercent.toFixed(1) + '%';
+    if (paymentRateBadge) {
+        paymentRateBadge.textContent = quality.label;
+        paymentRateBadge.className = quality.badgeClass;
+    }
+    if (paymentRateHint) paymentRateHint.textContent = quality.hint;
+    if (paymentRateUpdatedAt) paymentRateUpdatedAt.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (outstandingInline) outstandingInline.textContent = fmt(outstandingAmount);
+    if (invoiceCountInline) invoiceCountInline.textContent = totalInvoices.toLocaleString('en-US');
+    
+    updateStatusChart(data.status_breakdown, currency, silentRefresh);
+    updateRevenueChart(data.daily_revenue, currency, silentRefresh);
+    
+    var clientsBody = document.querySelector('#topClientsTable tbody');
+    if (data.client_breakdown && data.client_breakdown.length > 0) {
+        clientsBody.innerHTML = data.client_breakdown.slice(0, 5).map(function(c) {
+            return '<tr><td>' + c.client_name + '</td><td class="text-center">' + c.invoice_count + '</td><td class="text-end">' + fmt(c.total_amount) + '</td></tr>';
+        }).join('');
+    } else {
+        clientsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+    }
+    
+    var invoicesBody = document.querySelector('#reportInvoicesTable tbody');
+    if (data.recent_invoices && data.recent_invoices.length > 0) {
+        var currentPage = (data.invoice_details_pagination && data.invoice_details_pagination.page) || reportDetailsPage || 1;
+        var perPage = (data.invoice_details_pagination && data.invoice_details_pagination.per_page) || REPORT_DETAILS_PER_PAGE;
+        var serialStart = ((currentPage - 1) * perPage) + 1;
+
+        invoicesBody.innerHTML = data.recent_invoices.map(function(inv, index) {
+            var statusBadge = '';
+            if (inv.status === 'paid') statusBadge = '<span class="badge bg-success">Paid</span>';
+            else if (inv.status === 'partial') statusBadge = '<span class="badge bg-warning">Partial</span>';
+            else if (inv.status === 'delivered') statusBadge = '<span class="badge bg-info">Delivered</span>';
+            else statusBadge = '<span class="badge bg-danger">Unpaid</span>';
+            var detailUrl = inv.detail_url || '#';
+            
+            return '<tr><td class="text-center text-muted">' + (serialStart + index) + '</td><td><strong>' + inv.invoice_number + '</strong></td><td>' + inv.client_name + '</td><td>' + (inv.invoice_date || '—') + '</td><td class="text-end">' + fmt(inv.grand_total) + '</td><td class="text-end">' + fmt(inv.amount_paid) + '</td><td class="text-end">' + fmt(inv.balance_due) + '</td><td class="text-center">' + statusBadge + '</td><td class="text-center"><a href="' + detailUrl + '" class="btn btn-sm btn-outline-info mb-0" title="View Invoice Details"><i class="fas fa-eye me-1"></i>View</a></td></tr>';
+        }).join('');
+    } else {
+        invoicesBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No invoices found for selected period</td></tr>';
+    }
+
+    var pag = data.invoice_details_pagination;
+    if (!pag && data.summary && typeof data.summary.total_invoices === 'number' && data.summary.total_invoices > 0) {
+        var totalInv = data.summary.total_invoices;
+        var totalPagesCalc = Math.max(1, Math.ceil(totalInv / REPORT_DETAILS_PER_PAGE));
+        pag = {
+            page: reportDetailsPage,
+            per_page: REPORT_DETAILS_PER_PAGE,
+            total_count: totalInv,
+            total_pages: totalPagesCalc,
+            has_next: reportDetailsPage < totalPagesCalc,
+            has_previous: reportDetailsPage > 1
+        };
+    }
+    if (pag && typeof pag.page === 'number') {
+        reportDetailsPage = pag.page;
+    }
+    window.__invoiceReportDetailsPagination = pag || null;
+    updateInvoiceDetailsPaginationBar(pag);
+}
+
+function getPaymentRateQuality(percent) {
+    if (percent >= 85) {
+        return {
+            label: 'Excellent',
+            hint: 'Collections are very healthy for this period.',
+            badgeClass: 'badge bg-success-subtle text-success-emphasis',
+            gradient: 'linear-gradient(90deg, #0ea5a0 0%, #16a34a 100%)'
+        };
+    }
+    if (percent >= 60) {
+        return {
+            label: 'Good',
+            hint: 'Performance is solid with room to improve follow-ups.',
+            badgeClass: 'badge bg-info-subtle text-info-emphasis',
+            gradient: 'linear-gradient(90deg, #0891b2 0%, #0ea5e9 100%)'
+        };
+    }
+    if (percent >= 35) {
+        return {
+            label: 'Moderate',
+            hint: 'Partial collection trend; review overdue invoices.',
+            badgeClass: 'badge bg-warning-subtle text-warning-emphasis',
+            gradient: 'linear-gradient(90deg, #f59e0b 0%, #f97316 100%)'
+        };
+    }
+    return {
+        label: 'Low',
+        hint: 'Collection is weak. Prioritize reminders and follow-up.',
+        badgeClass: 'badge bg-danger-subtle text-danger-emphasis',
+        gradient: 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'
+    };
+}
+
+function updateStatusChart(statusData, currency, silentRefresh) {
+    var ctx = document.getElementById('statusChart').getContext('2d');
+    
+    if (statusChart) { statusChart.destroy(); }
+    
+    var labels = statusData.map(function(s) {
+        if (s.status === 'paid') return 'Paid';
+        if (s.status === 'partial') return 'Partial';
+        if (s.status === 'delivered') return 'Delivered';
+        return 'Unpaid';
+    });
+    var counts = statusData.map(function(s) { return s.count; });
+    var colors = ['#28a745', '#ffc107', '#17a2b8', '#dc3545'];
+    
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{data: counts, backgroundColor: colors.slice(0, labels.length), borderWidth: 0}]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: silentRefresh ? false : undefined,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+function updateRevenueChart(dailyData, currency, silentRefresh) {
+    var ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    if (revenueChart) { revenueChart.destroy(); }
+    
+    var labels = dailyData.map(function(d) { return d.date; });
+    var values = dailyData.map(function(d) { return d.revenue; });
+    
+    revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Revenue',
+                data: values,
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointBackgroundColor: '#4e73df'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: silentRefresh ? false : undefined,
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: function(value) { return currency + value.toLocaleString(); } } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function exportReportPDF() {
+    var url = '/invoices/export/report-pdf/?filter=' + currentFilter;
+    
+    if (currentFilter === 'custom') {
+        var dateFrom = document.getElementById('reportDateFrom').value;
+        var dateTo = document.getElementById('reportDateTo').value;
+        if (dateFrom) url += '&date_from=' + dateFrom;
+        if (dateTo) url += '&date_to=' + dateTo;
+    }
+    
+    // Show loading indicator
+    var btn = event ? event.target : document.querySelector('.modal-footer .btn-success');
+    if (btn) {
+        var originalText = btn.innerHTML;
+        btn.innerHTML = '<svg class="me-1" style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg> Generating...';
+        btn.disabled = true;
+        
+        // Open in new tab for download
+        window.open(url, '_blank');
+        
+        // Reset button after a delay
+        setTimeout(function() {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 3000);
+    }
+}
+
+let currentSupplyFilter = 'month';
+let supplyDetailsMetricFilter = 'all';
+let supplyDetailsSearchTerm = '';
+let supplyDetailsSearchDate = '';
+let supplyLedgerPage = 1;
+let supplyLedgerPerPage = 25;
+let supplyLedgerGroupState = {};
+let supplyLedgerWaybillOverview = {};
+let currentCustomerWaybills = [];
+
+function openSupplyLedgerModal(filter) {
+    currentSupplyFilter = filter || 'month';
+    supplyDetailsMetricFilter = 'all';
+    supplyDetailsSearchTerm = '';
+    supplyDetailsSearchDate = '';
+    supplyLedgerPage = 1;
+    // Do not auto-collapse groups when opening modal
+    supplyLedgerGroupState = {};
+    syncSupplyLedgerSearchInputs();
+    updateSupplySummaryCardUI();
+    document.querySelectorAll('.supply-filter-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.filter === currentSupplyFilter);
+    });
+    document.getElementById('supplyCustomDateWrap').style.display = currentSupplyFilter === 'custom' ? 'flex' : 'none';
+    var modal = new bootstrap.Modal(document.getElementById('supplyLedgerModal'));
+    modal.show();
+    loadSupplyLedger();
+}
+
+function loadSupplyLedger() {
+    var loading = document.getElementById('supplyLedgerLoading');
+    var tbody = document.querySelector('#supplyLedgerTable tbody');
+    loading.classList.remove('d-none');
+    var url = '/invoices/api/supply-ledger/?filter=' + encodeURIComponent(currentSupplyFilter);
+    if (currentSupplyFilter === 'custom') {
+        var df = document.getElementById('supplyDateFrom').value;
+        var dt = document.getElementById('supplyDateTo').value;
+        if (df) url += '&date_from=' + encodeURIComponent(df);
+        if (dt) url += '&date_to=' + encodeURIComponent(dt);
+    }
+    fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }})
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            var cur = data.currency_symbol || '₦';
+            var money = function(n){ return cur + (parseFloat(n || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+            var num = function(n){ return (parseFloat(n || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+            document.getElementById('supplyLineCount').textContent = (data.summary && data.summary.line_count) || 0;
+            document.getElementById('supplyTotalAmount').textContent = money(data.summary && data.summary.total_supply_amount);
+            document.getElementById('supplyTotalPayment').textContent = money(data.summary && data.summary.total_payment);
+            document.getElementById('supplyTotalOutstanding').textContent = money(data.summary && data.summary.total_outstanding_amount);
+            document.getElementById('supplyTotalDeliveryQty').textContent = num(data.summary && data.summary.total_delivery_qty);
+            document.getElementById('supplyTotalOutstandingQty').textContent = num(data.summary && data.summary.total_outstanding_qty);
+            document.getElementById('supplyCustomerOwesCompany').textContent = money(data.summary && data.summary.total_customer_owes_company);
+            document.getElementById('supplyCompanyOwesCustomer').textContent = money(data.summary && data.summary.total_company_owes_customer);
+            document.getElementById('supplyExcessSupplies').textContent = num(data.summary && data.summary.total_excess_supplies);
+            document.getElementById('supplyTotalJobsOwedCount').textContent = (data.summary && data.summary.total_jobs_owed_count) || 0;
+            document.getElementById('supplyTotalJobsOwedAmount').textContent = money(data.summary && data.summary.total_jobs_owed_amount);
+            document.getElementById('supplyTotalJobsAmount').textContent = money(data.summary && data.summary.total_jobs_amount);
+            window.__supplyLedgerRows = data.rows || [];
+            supplyLedgerWaybillOverview = data.waybill_overview || {};
+            renderSupplyLedgerRows(window.__supplyLedgerRows);
+        })
+        .catch(function(){
+            tbody.innerHTML = '<tr><td colspan="15" class="text-center text-danger py-4">Failed to load ledger data.</td></tr>';
+        })
+        .finally(function(){
+            loading.classList.add('d-none');
+        });
+}
+
+function parseLedgerDateToISO(dateText) {
+    if (!dateText) return '';
+    var parts = String(dateText).split('-');
+    if (parts.length !== 3) return '';
+    var day = parts[0].padStart(2, '0');
+    var mon = (parts[1] || '').toLowerCase();
+    var yy = parts[2];
+    var map = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+    if (!map[mon]) return '';
+    var year = (yy.length === 2 ? ('20' + yy) : yy);
+    return year + '-' + map[mon] + '-' + day;
+}
+
+function getFilteredSupplyRows(rows) {
+    var filter = supplyDetailsMetricFilter || 'all';
+    var term = (supplyDetailsSearchTerm || '').toLowerCase();
+    var dt = (supplyDetailsSearchDate || '').trim();
+    return (rows || []).filter(function(row){
+        var metricMatch = true;
+        if (filter === 'supply_amount') metricMatch = parseFloat(row.amount || 0) > 0;
+        else if (filter === 'payment') metricMatch = parseFloat(row.payment || 0) > 0;
+        else if (filter === 'outstanding') metricMatch = parseFloat(row.outstanding || 0) > 0;
+        else if (filter === 'total_delivery') metricMatch = parseFloat(row.delivery || 0) > 0;
+        else if (filter === 'outstanding_delivery') metricMatch = parseFloat(row.u_balance || 0) > 0;
+        else if (filter === 'customer_owes_company') metricMatch = parseFloat(row.customer_owes_company || 0) > 0;
+        else if (filter === 'company_owes_customer') metricMatch = parseFloat(row.company_owes_customer || 0) > 0;
+        else if (filter === 'excess_supplies') metricMatch = parseFloat(row.excess_supplies || 0) > 0;
+        else if (filter === 'total_jobs_owed' || filter === 'total_jobs_owed_amount') metricMatch = !!row.job_owed || parseFloat(row.u_balance || 0) > 0;
+        else if (filter === 'total_jobs_amount') metricMatch = parseFloat(row.amount || 0) > 0;
+        if (!metricMatch) return false;
+
+        if (term) {
+            var hay = ((row.customer_name || '') + ' ' + (row.product || '') + ' ' + (row.remark || '')).toLowerCase();
+            if (hay.indexOf(term) === -1) return false;
+        }
+        if (dt) {
+            var rowDate = row.date_iso || parseLedgerDateToISO(row.date || '');
+            if (rowDate !== dt) return false;
+        }
+        return true;
+    });
+}
+
+function getPagedRows(rows) {
+    var total = (rows || []).length;
+    var perPage = Math.max(1, parseInt(supplyLedgerPerPage || 25, 10));
+    var totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (supplyLedgerPage > totalPages) supplyLedgerPage = totalPages;
+    if (supplyLedgerPage < 1) supplyLedgerPage = 1;
+    var start = (supplyLedgerPage - 1) * perPage;
+    var end = start + perPage;
+    return {
+        rows: (rows || []).slice(start, end),
+        total: total,
+        totalPages: totalPages,
+        start: total ? start + 1 : 0,
+        end: Math.min(end, total)
+    };
+}
+
+function updateSupplyLedgerPaginationBar(meta) {
+    var wrap = document.getElementById('supplyLedgerPagination');
+    var info = document.getElementById('supplyLedgerPageInfo');
+    var prevBtn = document.getElementById('supplyLedgerPrev');
+    var nextBtn = document.getElementById('supplyLedgerNext');
+    if (!wrap || !info || !prevBtn || !nextBtn) return;
+    if (!meta || !meta.total) {
+        wrap.classList.add('d-none');
+        return;
+    }
+    wrap.classList.remove('d-none');
+    info.textContent = 'Showing ' + meta.start + '–' + meta.end + ' of ' + meta.total + ' rows (page ' + supplyLedgerPage + ' of ' + meta.totalPages + ')';
+    prevBtn.disabled = supplyLedgerPage <= 1;
+    nextBtn.disabled = supplyLedgerPage >= meta.totalPages;
+}
+
+function renderSupplyLedgerRows(allRows) {
+    var tbody = document.querySelector('#supplyLedgerTable tbody');
+    var cur = '₦';
+    var money = function(n){ return cur + (parseFloat(n || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var num = function(n){ return (parseFloat(n || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var rowsFilteredAll = getFilteredSupplyRows(allRows);
+    var paged = getPagedRows(rowsFilteredAll);
+    var rowsFiltered = paged.rows;
+    if (rowsFiltered && rowsFiltered.length) {
+        var grouped = {};
+        rowsFiltered.forEach(function(row){
+            var key = row.customer_name || 'Unknown Customer';
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(row);
+        });
+        var html = '';
+        Object.keys(grouped).sort().forEach(function(customerName){
+            var rows = grouped[customerName];
+            var customerKey = (rows[0] && rows[0].customer_key) || '';
+            var groupId = 'cust-' + customerName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            var sub = { quantity:0, amount:0, payment:0, q_supplied:0, delivery:0, u_balance:0, outstanding:0, customer_owes_company:0, company_owes_customer:0, excess_supplies:0 };
+            rows.forEach(function(row){
+                sub.quantity += parseFloat(row.quantity || 0); sub.amount += parseFloat(row.amount || 0); sub.payment += parseFloat(row.payment || 0);
+                sub.q_supplied += parseFloat(row.q_supplied || 0); sub.delivery += parseFloat(row.delivery || 0); sub.u_balance += parseFloat(row.u_balance || 0);
+                sub.outstanding += parseFloat(row.outstanding || 0); sub.customer_owes_company += parseFloat(row.customer_owes_company || 0);
+                sub.company_owes_customer += parseFloat(row.company_owes_customer || 0); sub.excess_supplies += parseFloat(row.excess_supplies || 0);
+            });
+            html += '<tr class="table-light ledger-customer-header" data-group="' + groupId + '" style="cursor:pointer;"><td colspan="15"><strong><span class="ledger-toggle-indicator me-1">▼</span>Customer: ' + customerName + '</strong> <button type="button" class="btn btn-sm btn-outline-primary ms-2 view-waybill-btn" data-group="' + groupId + '" data-customer-key="' + customerKey + '" data-customer-name="' + customerName.replace(/"/g, '&quot;') + '" data-customer-owes="' + sub.customer_owes_company + '" data-company-owes="' + sub.company_owes_customer + '" data-customer-outstanding="' + sub.outstanding + '">View Waybills</button></td></tr>';
+            html += '<tr class="ledger-waybill-tab-row d-none" data-group="' + groupId + '"><td colspan="15"><div class="p-2 bg-white border rounded" id="inline-waybill-tab-' + groupId + '"></div></td></tr>';
+            html += '<tr class="table-info text-dark fw-semibold ledger-group-row" data-group="' + groupId + '"><td colspan="3">Customer Grand Summary</td><td class="text-end">' + num(sub.quantity) + '</td><td class="text-end">-</td><td class="text-end">' + money(sub.amount) + '</td><td class="text-end">' + money(sub.payment) + '</td><td class="text-end">' + num(sub.q_supplied) + '</td><td class="text-end">' + num(sub.delivery) + '</td><td class="text-end">' + num(sub.u_balance) + '</td><td class="text-end">' + money(sub.outstanding) + '</td><td class="text-end">' + money(sub.customer_owes_company) + '</td><td class="text-end">' + money(sub.company_owes_customer) + '</td><td class="text-end">' + num(sub.excess_supplies) + '</td><td>All products total</td></tr>';
+            rows.forEach(function(row){
+                html += '<tr class="ledger-group-row" data-group="' + groupId + '"><td>' + (row.date || '—') + '</td><td>' + (row.customer_name || '—') + '</td><td>' + (row.product || '—') + '</td><td class="text-end">' + num(row.quantity) + '</td><td class="text-end">' + money(row.price) + '</td><td class="text-end">' + money(row.amount) + '</td><td class="text-end">' + money(row.payment) + '</td><td class="text-end">' + num(row.q_supplied) + '</td><td class="text-end">' + num(row.delivery) + '</td><td class="text-end">' + num(row.u_balance) + '</td><td class="text-end">' + money(row.outstanding) + '</td><td class="text-end">' + money(row.customer_owes_company) + '</td><td class="text-end">' + money(row.company_owes_customer) + '</td><td class="text-end">' + num(row.excess_supplies) + '</td><td>' + (row.remark || '-') + '</td></tr>';
+            });
+            html += '<tr class="table-secondary fw-bold ledger-group-row" data-group="' + groupId + '"><td colspan="3">Subtotal - ' + customerName + '</td><td class="text-end">' + num(sub.quantity) + '</td><td class="text-end">-</td><td class="text-end">' + money(sub.amount) + '</td><td class="text-end">' + money(sub.payment) + '</td><td class="text-end">' + num(sub.q_supplied) + '</td><td class="text-end">' + num(sub.delivery) + '</td><td class="text-end">' + num(sub.u_balance) + '</td><td class="text-end">' + money(sub.outstanding) + '</td><td class="text-end">' + money(sub.customer_owes_company) + '</td><td class="text-end">' + money(sub.company_owes_customer) + '</td><td class="text-end">' + num(sub.excess_supplies) + '</td><td>Customer subtotal</td></tr>';
+        });
+        tbody.innerHTML = html;
+        bindLedgerGroupToggles();
+        bindCustomerWaybillButtons();
+        updateSupplyLedgerPaginationBar(paged);
+    } else {
+        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted py-4">No ledger rows found for selected filter/search.</td></tr>';
+        updateSupplyLedgerPaginationBar({ total: 0 });
+    }
+}
+
+function bindCustomerWaybillButtons() {
+    document.querySelectorAll('.view-waybill-btn').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var groupId = btn.getAttribute('data-group') || '';
+            var customerKey = btn.getAttribute('data-customer-key') || '';
+            var customerName = btn.getAttribute('data-customer-name') || 'Customer';
+            var customerOwes = parseFloat(btn.getAttribute('data-customer-owes') || 0);
+            var companyOwes = parseFloat(btn.getAttribute('data-company-owes') || 0);
+            var outstanding = parseFloat(btn.getAttribute('data-customer-outstanding') || 0);
+            toggleInlineWaybillTab(groupId, customerKey, customerName, customerOwes, companyOwes, outstanding);
+        });
+    });
+}
+
+function toggleInlineWaybillTab(groupId, customerKey, customerName, customerOwes, companyOwes, outstanding) {
+    var row = document.querySelector('.ledger-waybill-tab-row[data-group="' + groupId + '"]');
+    if (!row) return;
+    var isHidden = row.classList.contains('d-none');
+    document.querySelectorAll('.ledger-waybill-tab-row').forEach(function(r){ r.classList.add('d-none'); });
+    if (!isHidden) return;
+    renderInlineWaybillTab(groupId, customerKey, customerName, customerOwes, companyOwes, outstanding);
+    row.classList.remove('d-none');
+}
+
+function renderInlineWaybillTab(groupId, customerKey, customerName, customerOwes, companyOwes, outstanding) {
+    var target = document.getElementById('inline-waybill-tab-' + groupId);
+    if (!target) return;
+    var data = supplyLedgerWaybillOverview[customerKey] || { waybills: [], waybill_count: 0, delivered_waybills: 0, outstanding_waybills: 0, total_outstanding_qty: 0 };
+    var n = function(v){ return (parseFloat(v || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var waybills = data.waybills || [];
+    target.innerHTML = ''
+      + '<div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0 text-primary fw-bold">Waybill Tab - ' + customerName + '</h5><button type="button" class="btn btn-sm btn-outline-secondary inline-waybill-close-btn" data-group="' + groupId + '">Close Tab</button></div>'
+      + '<div class="small text-muted mb-2">Waybill records and delivery/outstanding summary for this customer</div>'
+      + '<div class="row g-2 mb-2">'
+      + '<div class="col-md-2"><div class="card p-2"><small class="text-muted">Waybills</small><strong>' + (data.waybill_count || 0) + '</strong></div></div>'
+      + '<div class="col-md-2"><div class="card p-2"><small class="text-muted">Delivered</small><strong>' + (data.delivered_waybills || 0) + '</strong></div></div>'
+      + '<div class="col-md-2"><div class="card p-2"><small class="text-muted">Outstanding</small><strong>' + (data.outstanding_waybills || 0) + '</strong></div></div>'
+      + '<div class="col-md-2"><div class="card p-2"><small class="text-muted">Outstanding Qty</small><strong>' + n(data.total_outstanding_qty || 0) + '</strong></div></div>'
+      + '<div class="col-md-2"><div class="card p-2"><small class="text-muted">Customer Owes Us</small><strong>₦' + n(customerOwes) + '</strong></div></div>'
+      + '<div class="col-md-2"><div class="card p-2"><small class="text-muted">We Owe Customer</small><strong>₦' + n(companyOwes) + '</strong></div></div>'
+      + '</div>'
+      + '<div class="row g-2 mb-2"><div class="col-md-5"><input type="text" class="form-control form-control-sm" id="inlineWbSearch-' + groupId + '" placeholder="Search waybill number..."></div><div class="col-md-3"><select class="form-select form-select-sm" id="inlineWbStatus-' + groupId + '"><option value="">All status</option><option value="delivered">Delivered</option><option value="pending">Pending</option><option value="processing">Processing</option><option value="dispatched">Dispatched</option><option value="not_delivered">Not Delivered</option><option value="returned">Returned</option><option value="cancelled">Cancelled</option><option value="on_hold">On Hold</option><option value="awaiting_pickup">Awaiting Pickup</option></select></div><div class="col-md-3"><input type="date" class="form-control form-control-sm" id="inlineWbDate-' + groupId + '"></div><div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-secondary w-100" id="inlineWbClear-' + groupId + '">Clear</button></div></div>'
+      + '<div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-primary"><tr><th>Waybill #</th><th>Date</th><th>Status</th><th class="text-end">Total Qty</th><th class="text-end">Delivered Qty</th><th class="text-end">Outstanding Qty</th><th>Action</th></tr></thead><tbody id="inlineWbBody-' + groupId + '"></tbody></table></div>'
+      + '<div class="mt-2"><small class="text-muted">Customer outstanding amount: ₦' + n(outstanding) + '</small></div>';
+
+    function renderFilteredInlineWaybills() {
+        var body = document.getElementById('inlineWbBody-' + groupId);
+        if (!body) return;
+        var term = ((document.getElementById('inlineWbSearch-' + groupId) || {}).value || '').trim().toLowerCase();
+        var status = ((document.getElementById('inlineWbStatus-' + groupId) || {}).value || '').trim().toLowerCase();
+        var date = ((document.getElementById('inlineWbDate-' + groupId) || {}).value || '').trim();
+        var filtered = waybills.filter(function(w){
+            if (term && String(w.waybill_number || '').toLowerCase().indexOf(term) === -1) return false;
+            if (status && String(w.status || '').toLowerCase() !== status) return false;
+            if (date) {
+                var iso = parseWaybillDateToISO(w.waybill_date || '');
+                if (iso !== date) return false;
+            }
+            return true;
+        });
+        if (!filtered.length) {
+            body.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-2">No waybills found.</td></tr>';
+            return;
+        }
+        body.innerHTML = filtered.map(function(w){
+            return '<tr><td>' + (w.waybill_number || '-') + '</td><td>' + (w.waybill_date || '—') + '</td><td>' + (w.status || '-') + '</td><td class="text-end">' + n(w.total_qty) + '</td><td class="text-end">' + n(w.delivered_qty) + '</td><td class="text-end">' + n(w.outstanding_qty) + '</td><td><a class="btn btn-sm btn-outline-info" target="_blank" href="' + (w.detail_url || '#') + '">Open</a></td></tr>';
+        }).join('');
+    }
+
+    var search = document.getElementById('inlineWbSearch-' + groupId);
+    var status = document.getElementById('inlineWbStatus-' + groupId);
+    var date = document.getElementById('inlineWbDate-' + groupId);
+    var clear = document.getElementById('inlineWbClear-' + groupId);
+    if (search) search.addEventListener('input', renderFilteredInlineWaybills);
+    if (status) status.addEventListener('change', renderFilteredInlineWaybills);
+    if (date) date.addEventListener('change', renderFilteredInlineWaybills);
+    if (clear) clear.addEventListener('click', function(){ if (search) search.value=''; if (status) status.value=''; if (date) date.value=''; renderFilteredInlineWaybills(); });
+    var closeBtn = target.querySelector('.inline-waybill-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function(){
+            var row = document.querySelector('.ledger-waybill-tab-row[data-group="' + groupId + '"]');
+            if (row) row.classList.add('d-none');
+        });
+    }
+    renderFilteredInlineWaybills();
+}
+
+function openCustomerWaybillModal(customerKey, customerName) {
+    var data = supplyLedgerWaybillOverview[customerKey] || { waybills: [], waybill_count: 0, delivered_waybills: 0, outstanding_waybills: 0, total_outstanding_qty: 0 };
+    currentCustomerWaybills = data.waybills || [];
+    var n = function(v){ return (parseFloat(v || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    document.getElementById('customerWaybillModalTitle').textContent = 'Customer Waybills - ' + (customerName || 'Customer');
+    document.getElementById('cwWaybillCount').textContent = data.waybill_count || 0;
+    document.getElementById('cwDeliveredCount').textContent = data.delivered_waybills || 0;
+    document.getElementById('cwOutstandingCount').textContent = data.outstanding_waybills || 0;
+    document.getElementById('cwOutstandingQty').textContent = n(data.total_outstanding_qty || 0);
+    var cwSearchInput = document.getElementById('cwSearchInput');
+    var cwStatusFilter = document.getElementById('cwStatusFilter');
+    var cwDateFilter = document.getElementById('cwDateFilter');
+    if (cwSearchInput) cwSearchInput.value = '';
+    if (cwStatusFilter) cwStatusFilter.value = '';
+    if (cwDateFilter) cwDateFilter.value = '';
+    renderCustomerWaybillRows();
+    var modal = new bootstrap.Modal(document.getElementById('customerWaybillModal'));
+    modal.show();
+}
+
+function parseWaybillDateToISO(dateText) {
+    if (!dateText) return '';
+    var parts = String(dateText).split('-');
+    if (parts.length !== 3) return '';
+    var day = parts[0].padStart(2, '0');
+    var mon = (parts[1] || '').toLowerCase();
+    var yy = parts[2];
+    var map = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+    if (!map[mon]) return '';
+    var year = (yy.length === 2 ? ('20' + yy) : yy);
+    return year + '-' + map[mon] + '-' + day;
+}
+
+function renderCustomerWaybillRows() {
+    var tbody = document.querySelector('#customerWaybillTable tbody');
+    var n = function(v){ return (parseFloat(v || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var searchTerm = ((document.getElementById('cwSearchInput') || {}).value || '').trim().toLowerCase();
+    var statusVal = ((document.getElementById('cwStatusFilter') || {}).value || '').trim().toLowerCase();
+    var dateVal = ((document.getElementById('cwDateFilter') || {}).value || '').trim();
+    var filtered = (currentCustomerWaybills || []).filter(function(w){
+        if (searchTerm && String(w.waybill_number || '').toLowerCase().indexOf(searchTerm) === -1) return false;
+        if (statusVal && String(w.status || '').toLowerCase() !== statusVal) return false;
+        if (dateVal) {
+            var rowDate = parseWaybillDateToISO(w.waybill_date || '');
+            if (rowDate !== dateVal) return false;
+        }
+        return true;
+    });
+    if (filtered.length) {
+        tbody.innerHTML = filtered.map(function(w){
+            return '<tr>'
+                + '<td>' + (w.waybill_number || '-') + '</td>'
+                + '<td>' + (w.waybill_date || '—') + '</td>'
+                + '<td>' + (w.status || '-') + '</td>'
+                + '<td class="text-end">' + n(w.total_qty) + '</td>'
+                + '<td class="text-end">' + n(w.delivered_qty) + '</td>'
+                + '<td class="text-end">' + n(w.outstanding_qty) + '</td>'
+                + '<td><a class="btn btn-sm btn-outline-info" target="_blank" href="' + (w.detail_url || '#') + '">Open</a></td>'
+                + '</tr>';
+        }).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No waybill records found for this filter.</td></tr>';
+    }
+}
+
+function bindCustomerWaybillSearch() {
+    var modal = document.getElementById('customerWaybillModal');
+    if (!modal || modal.dataset.searchBound === '1') return;
+    modal.dataset.searchBound = '1';
+    var input = document.getElementById('cwSearchInput');
+    var status = document.getElementById('cwStatusFilter');
+    var date = document.getElementById('cwDateFilter');
+    var clearBtn = document.getElementById('cwSearchClear');
+    if (input) input.addEventListener('input', function(){ renderCustomerWaybillRows(); });
+    if (status) status.addEventListener('change', function(){ renderCustomerWaybillRows(); });
+    if (date) date.addEventListener('change', function(){ renderCustomerWaybillRows(); });
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(){
+            if (input) input.value = '';
+            if (status) status.value = '';
+            if (date) date.value = '';
+            renderCustomerWaybillRows();
+        });
+    }
+}
+
+document.querySelectorAll('.supply-filter-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+        document.querySelectorAll('.supply-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentSupplyFilter = btn.dataset.filter || 'month';
+        document.getElementById('supplyCustomDateWrap').style.display = currentSupplyFilter === 'custom' ? 'flex' : 'none';
+        if (currentSupplyFilter !== 'custom') {
+            loadSupplyLedger();
+        }
+    });
+});
+
+function updateSupplySummaryCardUI() {
+    document.querySelectorAll('.supply-summary-card').forEach(function(card){
+        card.classList.toggle('active', (card.dataset.detailsFilter || 'all') === supplyDetailsMetricFilter);
+    });
+}
+
+function bindSupplySummaryCardClicks() {
+    var modal = document.getElementById('supplyLedgerModal');
+    if (!modal || modal.dataset.summaryCardsBound === '1') return;
+    modal.dataset.summaryCardsBound = '1';
+    modal.addEventListener('click', function(e){
+        var card = e.target && e.target.closest ? e.target.closest('.supply-summary-card') : null;
+        if (!card) return;
+        supplyDetailsMetricFilter = card.dataset.detailsFilter || 'all';
+        supplyLedgerPage = 1;
+        updateSupplySummaryCardUI();
+        renderSupplyLedgerRows(window.__supplyLedgerRows || []);
+    });
+}
+
+function syncSupplyLedgerSearchInputs() {
+    var input = document.getElementById('supplyLedgerSearchInput');
+    var dateInput = document.getElementById('supplyLedgerSearchDate');
+    if (input) input.value = supplyDetailsSearchTerm || '';
+    if (dateInput) dateInput.value = supplyDetailsSearchDate || '';
+}
+
+function bindSupplyLedgerSearch() {
+    var modal = document.getElementById('supplyLedgerModal');
+    if (!modal || modal.dataset.searchBound === '1') return;
+    modal.dataset.searchBound = '1';
+    var input = document.getElementById('supplyLedgerSearchInput');
+    var dateInput = document.getElementById('supplyLedgerSearchDate');
+    var clearBtn = document.getElementById('supplyLedgerSearchClear');
+    if (!input || !dateInput || !clearBtn) return;
+    var timer = null;
+    input.addEventListener('input', function(){
+        supplyDetailsSearchTerm = (input.value || '').trim();
+        supplyLedgerPage = 1;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function(){ renderSupplyLedgerRows(window.__supplyLedgerRows || []); }, 250);
+    });
+    dateInput.addEventListener('change', function(){
+        supplyDetailsSearchDate = dateInput.value || '';
+        supplyLedgerPage = 1;
+        renderSupplyLedgerRows(window.__supplyLedgerRows || []);
+    });
+    clearBtn.addEventListener('click', function(){
+        supplyDetailsSearchTerm = '';
+        supplyDetailsSearchDate = '';
+        supplyLedgerPage = 1;
+        syncSupplyLedgerSearchInputs();
+        renderSupplyLedgerRows(window.__supplyLedgerRows || []);
+    });
+}
+
+function bindSupplyLedgerPagination() {
+    var modal = document.getElementById('supplyLedgerModal');
+    if (!modal || modal.dataset.paginationBound === '1') return;
+    modal.dataset.paginationBound = '1';
+    var perPageSelect = document.getElementById('supplyLedgerPerPage');
+    var prevBtn = document.getElementById('supplyLedgerPrev');
+    var nextBtn = document.getElementById('supplyLedgerNext');
+    if (perPageSelect) {
+        perPageSelect.value = String(supplyLedgerPerPage);
+        perPageSelect.addEventListener('change', function(){
+            supplyLedgerPerPage = parseInt(perPageSelect.value || '25', 10) || 25;
+            supplyLedgerPage = 1;
+            renderSupplyLedgerRows(window.__supplyLedgerRows || []);
+        });
+    }
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function(){
+            if (supplyLedgerPage <= 1) return;
+            supplyLedgerPage -= 1;
+            renderSupplyLedgerRows(window.__supplyLedgerRows || []);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function(){
+            supplyLedgerPage += 1;
+            renderSupplyLedgerRows(window.__supplyLedgerRows || []);
+        });
+    }
+}
+
+function bindLedgerGroupToggles() {
+    document.querySelectorAll('.ledger-customer-header').forEach(function(header){
+        var groupId = header.getAttribute('data-group');
+        if (groupId && supplyLedgerGroupState[groupId] === true) {
+            setLedgerGroupExpanded(groupId, true);
+        } else if (groupId) {
+            // Default behavior: collapsed until user explicitly expands.
+            setLedgerGroupExpanded(groupId, false);
+        }
+        header.addEventListener('click', function(){
+            var groupId = header.getAttribute('data-group');
+            if (!groupId) return;
+            var rows = document.querySelectorAll('.ledger-group-row[data-group="' + groupId + '"]');
+            if (!rows.length) return;
+            var hiddenNow = rows[0].style.display === 'none';
+            rows.forEach(function(row){
+                row.style.display = hiddenNow ? '' : 'none';
+            });
+            var indicator = header.querySelector('.ledger-toggle-indicator');
+            if (indicator) indicator.textContent = hiddenNow ? '▼' : '▶';
+            supplyLedgerGroupState[groupId] = hiddenNow;
+        });
+    });
+}
+
+function setLedgerGroupExpanded(groupId, expanded) {
+    if (!groupId) return;
+    var rows = document.querySelectorAll('.ledger-group-row[data-group="' + groupId + '"]');
+    rows.forEach(function(row){
+        row.style.display = expanded ? '' : 'none';
+    });
+    var header = document.querySelector('.ledger-customer-header[data-group="' + groupId + '"]');
+    if (header) {
+        var indicator = header.querySelector('.ledger-toggle-indicator');
+        if (indicator) indicator.textContent = expanded ? '▼' : '▶';
+    }
+    supplyLedgerGroupState[groupId] = expanded;
+}
+
+function collapseAllLedgerGroups() {
+    document.querySelectorAll('.ledger-customer-header').forEach(function(header){
+        setLedgerGroupExpanded(header.getAttribute('data-group'), false);
+    });
+}
+
+function expandAllLedgerGroups() {
+    document.querySelectorAll('.ledger-customer-header').forEach(function(header){
+        setLedgerGroupExpanded(header.getAttribute('data-group'), true);
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindSupplySummaryCardClicks);
+    document.addEventListener('DOMContentLoaded', bindSupplyLedgerSearch);
+    document.addEventListener('DOMContentLoaded', bindSupplyLedgerPagination);
+    document.addEventListener('DOMContentLoaded', bindCustomerWaybillSearch);
+} else {
+    bindSupplySummaryCardClicks();
+    bindSupplyLedgerSearch();
+    bindSupplyLedgerPagination();
+    bindCustomerWaybillSearch();
+}
+</script>
+{% endblock %}

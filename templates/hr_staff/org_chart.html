@@ -1,0 +1,48 @@
+{% extends 'base.html' %}{% load static %}{% block title %}Organization Chart - HR & Staff{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item active">Org Chart</li>{% endblock %}
+{% block page_title %}Organization Chart{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0"><h5 class="mb-0 fw-bold">Organization Chart</h5></div>
+<div class="card-body" id="orgChartContent">
+<div class="text-center text-muted py-5"><i class="fas fa-spinner fa-spin fa-2x mb-3"></i><p>Loading organization chart...</p></div>
+</div>
+</div></div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+  var POLL_MS = 30000;
+  function renderOrgChart(data) {
+    var container = document.getElementById('orgChartContent');
+    if (!data || !data.nodes || data.nodes.length === 0) {
+      container.innerHTML = '<div class="alert alert-info">Organization chart - Visualize your company\'s reporting structure.</div>';
+      return;
+    }
+    var html = '<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>Employee</th><th>Position</th><th>Department</th><th>Manager</th></tr></thead><tbody>';
+    data.nodes.forEach(function(node) {
+      html += '<tr>';
+      html += '<td>' + (node.name || '') + '</td>';
+      html += '<td>' + (node.position || '—') + '</td>';
+      html += '<td>' + (node.department || '—') + '</td>';
+      html += '<td>' + (node.manager_name || '—') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+  function loadOrgChart() {
+    fetch('/api/hr-staff/org-chart/', { 
+      method: 'GET', credentials: 'same-origin', cache: 'no-store', 
+      headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+    }).then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) { if (data) renderOrgChart(data); }).catch(function() {});
+  }
+  loadOrgChart();
+  setInterval(loadOrgChart, POLL_MS);
+})();
+</script>
+{% endblock %}

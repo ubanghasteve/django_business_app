@@ -1,0 +1,48 @@
+{% extends 'base.html' %}{% load static %}{% block title %}Training - HR & Staff{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}">HR & Staff</a></li><li class="breadcrumb-item active">Training</li>{% endblock %}
+{% block page_title %}Training Courses{% endblock %}
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">{% include 'hr_staff/partials/hr_top_nav.html' %}
+<div class="card border-0 shadow-sm rounded-3 mt-3">
+<div class="card-header bg-transparent border-0 d-flex justify-content-between pt-3 pb-0"><h5 class="mb-0 fw-bold">Training Courses</h5>
+<div class="d-flex gap-2"><a href="{% url 'hr_staff:training_enrollment_create' %}" class="btn btn-outline-secondary btn-sm rounded-2">Enroll Employee</a><a href="{% url 'hr_staff:training_course_create' %}" class="btn btn-primary btn-sm rounded-2"><i class="fas fa-plus me-1"></i> Add Course</a></div></div>
+<div class="card-body pt-2"><div class="table-responsive"><table class="table table-hover mb-0" id="coursesTable"><thead><tr><th>Title</th><th>Category</th><th>Duration</th><th>Enrolled</th><th>Status</th><th></th></tr></thead><tbody id="coursesTableBody">{% for course in courses %}<tr><td><a href="{% url 'hr_staff:training_course_detail' course.pk %}">{{ course.title }}</a></td><td>{{ course.category|default:"—" }}</td><td>{{ course.duration_hours }} hrs</td><td>{{ course.enrollments.count }}</td><td><span class="badge bg-{% if course.status == 'active' %}success{% else %}secondary{% endif %}">{{ course.get_status_display }}</span></td><td><a href="{% url 'hr_staff:training_course_detail' course.pk %}" class="btn btn-sm btn-outline-secondary">View</a></td></tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No courses yet.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function() {
+  var POLL_MS = 20000;
+  function renderCourses(data) {
+    var tbody = document.getElementById('coursesTableBody');
+    if (!tbody || !data.results || data.results.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No courses yet.</td></tr>';
+      return;
+    }
+    var html = '';
+    data.results.forEach(function(course) {
+      var detailUrl = '/hr-staff/training/' + course.id + '/';
+      html += '<tr>';
+      html += '<td><a href="' + detailUrl + '">' + (course.title || '') + '</a></td>';
+      html += '<td>' + (course.category || '—') + '</td>';
+      html += '<td>' + (course.duration_hours || 0) + ' hrs</td>';
+      html += '<td>' + (course.enrollments_count || 0) + '</td>';
+      html += '<td><span class="badge bg-' + (course.status === 'active' ? 'success' : 'secondary') + '">' + (course.status_display || course.status || '') + '</span></td>';
+      html += '<td><a href="' + detailUrl + '" class="btn btn-sm btn-outline-secondary">View</a></td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+  function loadCourses() {
+    fetch('/api/hr-staff/training-courses/?page_size=500', { 
+      method: 'GET', credentials: 'same-origin', cache: 'no-store', 
+      headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+    }).then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) { if (data) renderCourses(data); }).catch(function() {});
+  }
+  loadCourses();
+  setInterval(loadCourses, POLL_MS);
+})();
+</script>
+{% endblock %}

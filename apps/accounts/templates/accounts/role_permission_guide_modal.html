@@ -1,0 +1,141 @@
+{# Role & Permission Guide Modal - responsive, scrollable, self-explanatory. Include on role_list and role_form. #}
+<div class="modal fade" id="rolePermissionGuideModal" tabindex="-1" aria-labelledby="rolePermissionGuideModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl modal-fullscreen-md-down">
+    <div class="modal-content">
+      <div class="modal-header border-bottom bg-light">
+        <h2 class="modal-title h5 mb-0 d-flex align-items-center" id="rolePermissionGuideModalLabel">
+          <i class="fas fa-book-open text-info me-2"></i>Role &amp; Permission Guide
+        </h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-4">
+        <section class="mb-4">
+          <h3 class="h6 text-dark mb-2"><i class="fas fa-info-circle me-1"></i>What are roles and permissions?</h3>
+          <p class="small text-muted mb-0">
+            A <strong>role</strong> is a named set of permissions (e.g. &quot;Accountant&quot;, &quot;Sales Rep&quot;). When you assign a role to a user, they can do only what that role allows. <strong>Permissions</strong> are fine-grained actions such as &quot;view expenses&quot;, &quot;add invoices&quot;, or &quot;delete receipts&quot;. Creating clear roles with the right permissions keeps your account secure and makes it easy to onboard new team members.
+          </p>
+        </section>
+
+        <section class="mb-4">
+          <h3 class="h6 text-dark mb-2"><i class="fas fa-list-ol me-1"></i>How to create a role and assign permissions</h3>
+          <ol class="small text-muted mb-0 ps-3">
+            <li class="mb-1">Give the role a clear name (e.g. &quot;Expense Viewer&quot;, &quot;Invoice Manager&quot;).</li>
+            <li class="mb-1">In the <strong>Permissions</strong> list below the name, check only the actions this role should be allowed to perform.</li>
+            <li class="mb-1">Use <strong>view</strong> for read-only access, <strong>add</strong> to create new records, <strong>change</strong> to edit, and <strong>delete</strong> to remove. Grant only what is needed for the job.</li>
+            <li class="mb-1">Click <strong>Save Role</strong>. After saving, go to <strong>Roles &amp; Permissions</strong> and use &quot;Manage members&quot; to assign users to the role.</li>
+          </ol>
+        </section>
+
+        <section class="mb-4">
+          <h3 class="h6 text-dark mb-2"><i class="fas fa-shield-alt me-1"></i>Best practices</h3>
+          <ul class="small text-muted mb-0 ps-3">
+            <li class="mb-1">Follow the principle of least privilege: grant only the permissions necessary for the role.</li>
+            <li class="mb-1">Use descriptive role names so anyone can understand who should have that role.</li>
+            <li class="mb-1">You can only assign permissions that you yourself have; you cannot grant abilities you don&apos;t have.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3 class="h6 text-dark mb-3"><i class="fas fa-users-cog me-1"></i>Example roles and suggested permissions</h3>
+          <p class="small text-muted mb-3">Below are 17 example roles with typical permission combinations. The exact permissions available in your account may vary by module (expenses, invoices, inventory, etc.). Use these as a starting point and adjust to match your business.</p>
+
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm small mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width: 140px;">Role name</th>
+                  <th>Suggested permissions (what this role can do)</th>
+                </tr>
+              </thead>
+              <tbody class="text-muted">
+                <tr>
+                  <td><strong class="text-dark">Viewer (read-only)</strong></td>
+                  <td>View expenses, view invoices, view receipts, view inventory, view quotations, view job orders. No add/change/delete.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Expense Viewer</strong></td>
+                  <td>View expenses and expense categories only.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Expense Entry</strong></td>
+                  <td>View and add expenses; view expense categories. Optionally: change/delete own entries only if your app supports it.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Expense Manager</strong></td>
+                  <td>View, add, change, and delete expenses; manage expense categories.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Invoice Viewer</strong></td>
+                  <td>View invoices and related data only.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Invoice Creator</strong></td>
+                  <td>View and add invoices; view customers and products. Optionally change/delete if needed.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Invoice Manager</strong></td>
+                  <td>View, add, change, and delete invoices; manage invoice templates and related settings.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Receipt Viewer</strong></td>
+                  <td>View receipts only.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Receipt Entry</strong></td>
+                  <td>View and add receipts; optionally change/delete.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Inventory Viewer</strong></td>
+                  <td>View inventory items, categories, and stock levels only.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Inventory Clerk</strong></td>
+                  <td>View and add inventory; adjust stock (if applicable); view categories.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Inventory Manager</strong></td>
+                  <td>View, add, change, and delete inventory; manage categories and templates.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Quotation / Sales</strong></td>
+                  <td>View and add quotations; view and add invoices; view customers and products.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Job Order Operator</strong></td>
+                  <td>View and add job orders; view products and layouts; optionally change status.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Staff Offence Officer</strong></td>
+                  <td>View staff offence registers; add and edit offence entries; print registers. Optionally: download PDF, update payment status, manage signatures.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Store Keeper</strong></td>
+                  <td>View and add store records; edit stock quantities; print/download. Optionally: approve store records.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Accountant / Finance</strong></td>
+                  <td>View and manage expenses, invoices, receipts; view reports. Usually no user/role management.</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Company Admin</strong></td>
+                  <td>View, add, change, and delete across core modules: expenses, invoices, receipts, inventory, quotations, job orders; manage categories and templates; optionally manage subusers/team members. Does not include creating or editing roles and permissions (reserved for account owner).</td>
+                </tr>
+                <tr>
+                  <td><strong class="text-dark">Company Profile Viewer</strong></td>
+                  <td>View company profile only (name, address, logo, contact details, etc.). No other permissions—no expenses, invoices, inventory, or other modules.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="small text-muted mt-3 mb-0">
+            <i class="fas fa-lightbulb me-1"></i>Tip: Start with a small set of permissions and add more only when needed. You can always edit a role later from the Roles list.
+          </p>
+        </section>
+      </div>
+      <div class="modal-footer border-top bg-light">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it</button>
+      </div>
+    </div>
+  </div>
+</div>

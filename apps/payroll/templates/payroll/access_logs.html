@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Access Logs - Smart Payroll{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Access Logs</h2>
+            <p class="text-muted mb-0">Track who accessed your payroll records</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0 px-4 py-3">Record</th>
+                            <th class="border-0 py-3">Action</th>
+                            <th class="border-0 py-3">User</th>
+                            <th class="border-0 py-3">IP Address</th>
+                            <th class="border-0 py-3">Date/Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="px-4">
+                                <a href="{% url 'payroll:record_detail' log.record.id %}">{{ log.record.title|truncatechars:40 }}</a>
+                            </td>
+                            <td>
+                                {% if log.action == 'view' %}
+                                <span class="badge bg-primary">View</span>
+                                {% elif log.action == 'download' %}
+                                <span class="badge bg-success">Download</span>
+                                {% elif log.action == 'preview' %}
+                                <span class="badge bg-info">Preview</span>
+                                {% elif log.action == 'verify' %}
+                                <span class="badge bg-warning">Verify</span>
+                                {% elif log.action == 'approve' %}
+                                <span class="badge bg-success">Approve</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ log.action }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.user %}
+                                {{ log.user.email }}
+                                {% else %}
+                                <span class="text-muted">Anonymous</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.ip_address %}
+                                <code>{{ log.ip_address }}</code>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if logs.has_other_pages %}
+            <div class="card-footer bg-white">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if logs.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ logs.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in logs.paginator.page_range %}
+                        {% if logs.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > logs.number|add:'-3' and num < logs.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if logs.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ logs.next_page_number }}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ logs.paginator.num_pages }}">Last</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history text-muted fs-1 mb-3"></i>
+                <h5 class="text-muted">No access logs yet</h5>
+                <p class="text-muted">Access logs will appear here when users view or download records.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

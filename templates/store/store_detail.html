@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static humanize store_extras %}
+{% block title %}Store - {{ object.sn }}{% endblock %}
+{% block page_title %}Store {{ object.sn }}{% endblock %}
+{% block breadcrumb %}Store Details{% endblock %}
+{% block extra_head_meta %}
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+{% endblock %}
+
+{% block content %}
+<style>
+:root {
+    --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+    --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
+    --text-color: {{ theme_text_color|default:"#333333" }};
+    --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; color: var(--text-color); -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact; }
+
+.preview-scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.preview-scroll-wrapper::-webkit-scrollbar { height: 8px; }
+.preview-scroll-wrapper::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+.mobile-scroll-hint { display: none; text-align: center; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 12px; border-radius: 20px; margin: 0 auto 15px; width: fit-content; }
+@media (max-width: 850px) {
+    .mobile-scroll-hint { display: block; }
+    .store-preview { min-width: 750px; }
+}
+
+.store-preview {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    box-shadow: none;
+    border: 2px solid var(--accent-color);
+    border-radius: 10px;
+}
+
+.store-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--accent-color);
+    gap: 30px;
+}
+.company-logo { flex-shrink: 0; }
+.company-logo img { max-height: 80px; max-width: 200px; }
+.company-details { flex: 1; text-align: left; padding-left: 20px; }
+.company-details h2 {
+    color: var(--primary-color) !important;
+    -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+    margin-bottom: 10px; font-size: 24px;
+}
+.company-details p { margin: 5px 0; color: #666; }
+
+.doc-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--primary-color) !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0;
+    -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+}
+.store-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f8f9fa !important;
+    border-radius: 6px;
+    -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+}
+.store-info-left { display: flex; gap: 15px; flex-wrap: wrap; }
+
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 30px 0;
+    background: white;
+}
+.items-table th, .items-table td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+.items-table th {
+    background: var(--primary-color) !important;
+    color: white !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    width: 35%;
+    -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact;
+}
+.items-table tr:nth-child(even) { background: #f8f9fa !important; -webkit-print-color-adjust: exact; color-adjust: exact; print-color-adjust: exact; }
+
+@media print {
+    * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { padding: 0; margin: 0; }
+    .store-preview { box-shadow: none; padding: 20px; margin: 0; max-width: none; border: none; }
+    .no-print { display: none !important; }
+    .items-table th { background: var(--primary-color) !important; color: white !important; }
+    .doc-title { color: var(--primary-color) !important; }
+}
+</style>
+
+<div class="row">
+  <div class="col-12">
+    <div class="card my-4">
+      <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2 no-print">
+        <div class="bg-gradient-primary shadow-primary border-radius-lg pt-4 pb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="text-white text-capitalize ps-3">Store {{ object.sn }}</h6>
+            <div class="pe-3">
+              <a href="{% url 'store:print' object.pk %}" target="_blank" class="btn btn-outline-white btn-sm mb-0 me-2">
+                <i class="fas fa-print text-sm"></i> Print
+              </a>
+              <a href="{% url 'store:print' object.pk %}" target="_blank" class="btn btn-outline-white btn-sm mb-0 me-2">
+                <i class="fas fa-file-pdf text-sm"></i> Download PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="mobile-scroll-hint no-print"><i class="fas fa-arrows-left-right"></i> Swipe left/right to view full document</div>
+        <div class="preview-scroll-wrapper">
+        <div class="store-preview">
+          <!-- Company Header -->
+          <div class="store-header">
+            <div class="company-logo">
+              {% if company_logo %}
+                <img src="{{ company_logo }}" alt="Company Logo">
+              {% else %}
+                <img src="{% static 'img/logo-ct.png' %}" alt="Company Logo">
+              {% endif %}
+            </div>
+            <div class="company-details">
+              <h2>{{ company_profile.company_name|default:"Your Company Name" }}</h2>
+              <p>{{ company_profile.address|default:"Company Address" }}</p>
+              <p>{{ company_profile.phone|default:"Phone Number" }}</p>
+              <p>{{ company_profile.email|default:"Email Address" }}</p>
+              {% if company_profile.website %}<p>{{ company_profile.website }}</p>{% endif %}
+            </div>
+          </div>
+
+          <!-- Document Title & Info -->
+          <div class="store-info">
+            <div class="store-info-left">
+              <div class="doc-title">STORE RECORD</div>
+              <div><strong>S/N:</strong> {{ object.sn }}</div>
+              <div><strong>Created:</strong> {{ object.created_at|date:"M d, Y g:i:s A" }}</div>
+              {% if object.created_by %}
+              <div><strong>Created by:</strong> {{ object.created_by.get_full_name|default:object.created_by.email }}</div>
+              {% endif %}
+              {% if object.approval_status == 'approved' and object.approved_by %}
+              <div><strong>Approved by:</strong> {{ object.approved_by.get_full_name|default:object.approved_by.email }}{% if object.approved_at %} on {{ object.approved_at|date:"M d, Y g:i:s A" }}{% endif %}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Record Table -->
+          <table class="items-table">
+            <thead>
+              <tr><th>Field</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>S/N</th><td>{{ object.sn }}</td></tr>
+              <tr><th>Product Name</th><td>{{ object.product_name }}</td></tr>
+              <tr><th>Opening Stock</th><td>{% firstof object.opening_stock_input object.opening_stock %}</td></tr>
+              <tr><th>Received (Input)</th><td>{% firstof object.quantity_in_input object.quantity_in %}</td></tr>
+              <tr><th>Output</th><td>{% firstof object.quantity_out_input object.quantity_out %}</td></tr>
+              <tr><th>Waste</th><td>{% if object.waste_input %}{{ object.waste_input }}{% elif object.waste > 0 %}{{ object.waste|format_number }}{% else %}—{% endif %}</td></tr>
+              <tr><th>Total Stock</th><td>{% firstof object.opening_stock_input object.balance_quantity %}</td></tr>
+              <tr><th>Date</th><td>{{ object.date|date:"M d, Y"|default:"—" }}</td></tr>
+              <tr><th>Created By</th><td>{{ object.created_by.get_full_name|default:object.created_by.email|default:"—" }}</td></tr>
+              {% if object.remark %}
+              <tr><th>Remark</th><td>{{ object.remark }}</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+        </div>
+
+        <div class="row mt-4 no-print">
+          <div class="col-12 text-center">
+            <a href="{% url 'store:list' %}" class="btn btn-outline-secondary me-2">
+              <i class="fas fa-arrow-left text-sm"></i> Back to Store
+            </a>
+            {% if perms.store.change_store %}
+            <a href="{% url 'store:update' object.pk %}" class="btn btn-primary me-2">
+              <i class="fas fa-edit text-sm"></i> Edit
+            </a>
+            {% endif %}
+            {% if perms.store.print_store %}
+            <a href="{% url 'store:print' object.pk %}" target="_blank" class="btn btn-success me-2">
+              <i class="fas fa-file-pdf text-sm"></i> Download PDF
+            </a>
+            {% endif %}
+            {% if perms.store.view_store %}
+            <a href="{% url 'store:product_report' object.pk %}" class="btn btn-info">
+              <i class="fas fa-chart-line text-sm"></i> View Report
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

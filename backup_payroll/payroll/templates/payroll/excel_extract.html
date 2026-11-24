@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Excel Data - {{ payroll_file.title }}{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Excel Data Extraction{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:files_list' %}" class="text-decoration-none">Files</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:file_detail' payroll_file.id %}" class="text-decoration-none">{{ payroll_file.title|truncatechars:30 }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Extract Data</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">Excel Data Extraction</h4>
+            <p class="text-muted mb-0 small">{{ payroll_file.original_filename }}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'payroll:file_detail' payroll_file.id %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Back to File
+            </a>
+            {% if has_parsed %}
+            <button class="btn btn-success btn-sm" id="parseAndSaveBtn" onclick="parseAndSave()">
+                <i class="fas fa-save me-1"></i> Extract & Save All Data
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h6 class="fw-bold mb-0">Workbook Information</h6>
+                        <span class="badge bg-primary">{{ sheet_info|length }} Sheet(s)</span>
+                    </div>
+                </div>
+                <div class="card-body pt-2">
+                    {% if sheet_info %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Sheet Name</th>
+                                    <th>Rows</th>
+                                    <th>Columns</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sheet in sheet_info %}
+                                <tr>
+                                    <td class="fw-semibold">{{ sheet.name }}</td>
+                                    <td>{{ sheet.rows }}</td>
+                                    <td>{{ sheet.columns }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewSheet('{{ sheet.name }}')">
+                                            <i class="fas fa-eye"></i> Preview
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No sheets found in this workbook.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if extracted_records %}
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h6 class="fw-bold mb-0">Extracted Records</h6>
+                        <a href="{% url 'payroll:excel_records_list' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-list me-1"></i> View All Records
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Period</th>
+                                    <th class="text-end">Basic Salary</th>
+                                    <th class="text-end">Gross</th>
+                                    <th class="text-end">Net</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in extracted_records %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">{{ record.employee_name }}</div>
+                                        <small class="text-muted">{{ record.employee_id }}</small>
+                                    </td>
+                                    <td>{{ record.period_display }}</td>
+                                    <td class="text-end">{{ record.basic_salary|default:0|intcomma }}</td>
+                                    <td class="text-end">{{ record.gross_salary|default:0|intcomma }}</td>
+                                    <td class="text-end fw-bold">{{ record.net_salary|default:0|intcomma }}</td>
+                                    <td>
+                                        {% if record.is_verified %}
+                                        <span class="badge bg-success">Verified</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                        {% endif %}
+                                        {% if record.is_linked_to_employee %}
+                                        <span class="badge bg-info">Linked</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Unlinked</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'payroll:excel_records_link' record.id %}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-link"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if records_preview %}
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-transparent border-0 pt-3 pb-0">
+                    <h6 class="fw-bold mb-0">Data Preview</h6>
+                </div>
+                <div class="card-body pt-2">
+                    {% for sheet_name, rows in records_preview.items %}
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-2">{{ sheet_name }}</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                                <thead class="bg-light">
+                                    <tr>
+                                        {% for key, value in rows.0.items %}
+                                        {% if not key.startswith '_' %}
+                                        <th>{{ key }}</th>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in rows|slice:":10" %}
+                                    <tr>
+                                        {% for key, value in row.items %}
+                                        {% if not key.startswith '_' %}
+                                        <td>{{ value|default:"" }}</td>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if rows|length > 10 %}
+                        <p class="text-muted small mt-1 mb-0">Showing 10 of {{ rows|length }} rows</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function viewSheet(sheetName) {
+    alert('Sheet preview: ' + sheetName);
+}
+
+function parseAndSave() {
+    const btn = document.getElementById('parseAndSaveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processing...';
+    
+    fetch('{% url "payroll:excel_parse_save" payroll_file.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i> Extract & Save All Data';
+        }
+    })
+    .catch(err => {
+        alert('Error: ' + err);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-1"></i> Extract & Save All Data';
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

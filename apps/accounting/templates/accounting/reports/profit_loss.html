@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Profit &amp; Loss{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Profit &amp; Loss</h1>
+            <p class="text-muted">Income and expenses over a selected period. Data updates in real time.</p>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="plRefreshBtn" title="Refresh"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form class="row g-3" id="plFilterForm" onsubmit="event.preventDefault(); loadProfitLoss();">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{% now 'Y-m-01' %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{% now 'Y-m-d' %}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Run Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="plMessage" class="alert d-none" role="alert"></div>
+
+    <div class="card position-relative">
+        <div id="plLoading" class="position-absolute top-0 start-0 end-0 bottom-0 d-flex align-items-center justify-content-center bg-light opacity-75 d-none" style="z-index: 5;"><div class="spinner-border text-primary" role="status"></div></div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <h5>Income</h5>
+                    <h3 id="plIncome" class="text-success">—</h3>
+                </div>
+                <div class="col-md-4">
+                    <h5>Expenses</h5>
+                    <h3 id="plExpenses" class="text-danger">—</h3>
+                </div>
+                <div class="col-md-4">
+                    <h5>Net Profit</h5>
+                    <h3 id="plNetProfit">—</h3>
+                </div>
+            </div>
+            <p class="text-muted small mb-0 mt-2" id="plPeriod">—</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function fmt(n) { return n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function showLoading(show) { var el = document.getElementById('plLoading'); if (el) el.classList.toggle('d-none', !show); }
+    function showMessage(text, type) {
+        var el = document.getElementById('plMessage');
+        if (!el) return;
+        el.textContent = text || '';
+        el.className = 'alert d-none';
+        if (text) { el.classList.remove('d-none'); el.classList.add(type === 'error' ? 'alert-danger' : 'alert-info'); }
+    }
+    function loadProfitLoss() {
+        var form = document.getElementById('plFilterForm');
+        if (!form) return;
+        showMessage('');
+        showLoading(true);
+        var params = new URLSearchParams(new FormData(form));
+        fetch('{% url "accounting_api:api_profit_loss" %}?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { if (!r.ok) throw new Error('Request failed'); return r.json(); })
+            .then(function(data) {
+                document.getElementById('plIncome').textContent = fmt(data.income);
+                document.getElementById('plExpenses').textContent = fmt(data.expenses);
+                var netEl = document.getElementById('plNetProfit');
+                netEl.textContent = fmt(data.net_profit);
+                netEl.className = (data.net_profit >= 0 ? 'text-success' : 'text-danger');
+                var periodEl = document.getElementById('plPeriod');
+                if (periodEl) periodEl.textContent = data.period ? 'Period: ' + data.period : '';
+            })
+            .catch(function(err) { showMessage('Could not load report.'); console.error(err); })
+            .finally(function() { showLoading(false); });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProfitLoss();
+        var b = document.getElementById('plRefreshBtn');
+        if (b) b.addEventListener('click', loadProfitLoss);
+        // Periodically refresh so P&L reflects latest transactions without reload
+        setInterval(loadProfitLoss, 60000);
+    });
+})();
+</script>
+{% endblock %}
+

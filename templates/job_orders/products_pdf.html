@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Orders Report</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10px;
+            margin: 12px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 8px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            color: #2c3e50;
+        }
+        .header p {
+            margin: 3px 0;
+            color: #666;
+        }
+        .header .currency-note {
+            font-size: 9px;
+            color: #555;
+        }
+        .table-wrap {
+            width: 100%;
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            table-layout: fixed;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 4px;
+            text-align: left;
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 9px;
+        }
+        td {
+            font-size: 9px;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .col-job-order { width: 7%; }
+        .col-date { width: 7%; }
+        .col-organization { width: 10%; }
+        .col-job-title { width: 10%; }
+        .col-product { width: 10%; }
+        .col-colors { width: 6%; }
+        .col-size { width: 5%; }
+        .col-width { width: 4%; }
+        .col-sealing { width: 6%; }
+        .col-cutting { width: 5%; }
+        .col-gusset { width: 5%; }
+        .col-qty { width: 4%; }
+        .col-price { width: 7%; }
+        .col-total { width: 7%; }
+        .col-delivery { width: 7%; }
+        .col-status { width: 6%; }
+        .col-created-by { width: 8%; }
+        .col-created-on { width: 4%; }
+        .status-pending {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        .status-approved {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .status-rejected {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+        }
+        .summary h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }
+        @media print {
+            body { margin: 0; }
+            .header { page-break-after: avoid; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            th, td { word-wrap: break-word; overflow-wrap: break-word; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Job Orders Report</h1>
+        <p>Generated on: {% now "F d, Y" %} at {% now "g:i A" %}</p>
+        <p>Total Records: {{ products|length }}</p>
+        <p class="currency-note">All amounts in {{ currency_display|default:currency_code|default:"NGN" }}</p>
+    </div>
+
+    {% if products %}
+        <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-job-order">Job Order</th>
+                    <th class="col-date">Job Order Date</th>
+                    <th class="col-organization">Organization</th>
+                    <th class="col-job-title">Job Title</th>
+                    <th class="col-product">Product</th>
+                    <th class="col-colors">Colors</th>
+                    <th class="col-size">Thickness</th>
+                    <th class="col-width">Width</th>
+                    <th class="col-sealing">Sealing</th>
+                    <th class="col-cutting">Cutting</th>
+                    <th class="col-gusset">Gusset</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Price ({{ currency_code|default:"NGN" }})</th>
+                    <th class="col-total">Total ({{ currency_code|default:"NGN" }})</th>
+                    <th class="col-delivery">Est. Delivery</th>
+                    <th class="col-status">Status</th>
+                    {% if show_created_by %}<th class="col-created-by">Created by</th><th class="col-created-on">Created on</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td class="col-job-order"><strong>{{ product.job_order }}</strong></td>
+                    <td class="col-date">{{ product.job_order_date|date:"M d, Y"|default:"-" }}</td>
+                    <td class="col-organization">{{ product.organization_name|default:"-" }}</td>
+                    <td class="col-job-title">{{ product.job_title|default:"-" }}</td>
+                    <td class="col-product">{{ product.print_product|default:"-" }}</td>
+                    <td class="col-colors">{{ product.colors|default:"-" }}</td>
+                    <td class="col-size">{{ product.size|default:"-" }}</td>
+                    <td class="col-width">{{ product.width|default:"-" }}</td>
+                    <td class="col-sealing">{{ product.sealing_type|default:"-" }}</td>
+                    <td class="col-cutting">{{ product.cutting|default:"-" }}</td>
+                    <td class="col-gusset">{{ product.gusset|default:"-" }}</td>
+                    <td class="col-qty text-center">{{ product.order_quantity|default:"-" }}</td>
+                    <td class="col-price text-right">{{ currency_code|default:"NGN" }} {{ product.price|floatformat:2|default:"0.00" }}</td>
+                    <td class="col-total text-right">{% if product.total is not None %}<strong>{{ currency_code|default:"NGN" }} {{ product.total|floatformat:2 }}</strong>{% else %}—{% endif %}</td>
+                    <td class="col-delivery">{{ product.estimated_delivery_date|date:"M d, Y"|default:"-" }}</td>
+                    <td class="col-status text-center">
+                        <span class="status-{{ product.approval_status }}">
+                            {{ product.get_approval_status_display }}
+                        </span>
+                    </td>
+                    {% if show_created_by %}<td class="col-created-by">{% if product.created_by %}{{ product.created_by.get_full_name|default:product.created_by.email }}{% else %}—{% endif %}</td><td class="col-created-on">{{ product.date_created|date:"M d, Y" }}</td>{% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        <div class="summary">
+            <h3>Summary</h3>
+            <p><strong>Total Products:</strong> {{ products|length }}</p>
+            <p><strong>Pending:</strong> {{ pending_count|default:0 }}</p>
+            <p><strong>Approved:</strong> {{ approved_count|default:0 }}</p>
+            <p><strong>Rejected:</strong> {{ rejected_count|default:0 }}</p>
+            <p><strong>Total Value ({{ currency_code|default:"NGN" }}):</strong> {{ currency_code|default:"NGN" }} {{ total_value|floatformat:2 }}</p>
+        </div>
+    {% else %}
+        <div class="no-data">
+            <h3>No Job Orders Found</h3>
+            <p>There are no job orders to display in this report.</p>
+        </div>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,685 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}{% if loan.id %}Edit{% else %}Create{% endif %} Loan{% endblock %}
+{% block extra_head_meta %}
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --primary: #1e88e5;
+    --primary-dark: #1565c0;
+    --primary-light: #42a5f5;
+    --success: #00c853;
+    --warning: #ff6d00;
+    --danger: #dc3545;
+    --secondary: #6c757d;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --border: #dee2e6;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    --radius: 12px;
+}
+
+.payroll-form-page {
+    background: #f5f7fa;
+    min-height: 100vh;
+}
+
+.payroll-form-page .card {
+    border: none;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.payroll-form-page .card-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    padding: 1.25rem 1.5rem;
+    border: none;
+}
+
+.payroll-form-page .card-header h5 {
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.payroll-form-page .card-body {
+    padding: 2rem;
+}
+
+.form-floating > label {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.payroll-form-page .form-control,
+.payroll-form-page .form-select {
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.payroll-form-page .form-control:focus,
+.payroll-form-page .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.1);
+}
+
+.payroll-form-page .input-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+}
+
+.payroll-form-page .input-group > .form-select,
+.payroll-form-page .input-group > .form-control {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+}
+
+.payroll-form-page .input-group-text {
+    background: #e9ecef;
+    border: 2px solid var(--border);
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    font-weight: 600;
+    color: #495057;
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.payroll-form-page .input-group .form-control {
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+}
+
+.payroll-form-page .input-group .form-control:focus {
+    border-left: none;
+}
+
+.payroll-form-page .input-group .form-select {
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+}
+
+.payroll-form-page .input-group .form-control {
+    border-radius: 0 10px 10px 0;
+}
+
+.payroll-form-page .input-group .form-control:focus {
+    border-radius: 0 10px 10px 0;
+}
+
+.field-group {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    transition: all 0.2s ease;
+    height: 100%;
+    position: relative;
+}
+
+.field-group:hover {
+    border-color: var(--primary-light);
+    box-shadow: 0 2px 12px rgba(30, 136, 229, 0.1);
+}
+
+.field-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.field-group .required {
+    color: var(--danger);
+}
+
+.field-group .help-text {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.75rem;
+    display: block;
+    clear: both;
+}
+
+.field-icon {
+    width: 20px;
+    text-align: center;
+    color: var(--primary);
+}
+
+.input-group {
+    position: relative;
+}
+
+.input-group .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.input-group .form-control {
+    padding-left: 2.75rem;
+    padding-right: 1rem;
+}
+
+.input-group .input-group-text {
+    position: relative;
+    z-index: 5;
+}
+
+.field-group .form-control,
+.field-group .form-select {
+    margin-bottom: 0;
+}
+
+.field-group .input-group {
+    margin-bottom: 0;
+}
+
+.info-card {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 1px solid #90caf9;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-card i {
+    color: var(--primary-dark);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border: none;
+    padding: 0.875rem 2rem;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(30, 136, 229, 0.4);
+}
+
+.btn-outline-secondary {
+    border: 2px solid var(--border);
+    padding: 0.875rem 1.5rem;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 1rem;
+}
+
+.breadcrumb-item a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.breadcrumb-item a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-item.active {
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .payroll-form-page .card-body {
+        padding: 1.25rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .row.g-4 {
+        --bs-gutter-x: 1rem;
+        --bs-gutter-y: 1rem;
+    }
+    
+    .field-group {
+        padding: 1rem;
+    }
+    
+    .field-group label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .input-group {
+        margin-bottom: 0;
+    }
+    
+    .btn-primary, .btn-outline-secondary {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-group-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-group-mobile .btn {
+        margin: 0;
+    }
+    
+    .info-card {
+        padding: 1rem;
+    }
+    
+    .info-card .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+.employee-search-wrapper {
+    position: relative;
+}
+
+.employee-search-wrapper .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.employee-search-wrapper .form-select {
+    padding-left: 2.75rem;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px 12px;
+    padding-right: 2.5rem;
+}
+
+.employee-loading {
+    display: none;
+    text-align: left;
+    padding: 0.5rem 0 0 0;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+.employee-loading.active {
+    display: block;
+}
+
+#employeeSpinner {
+    display: none;
+    font-size: 0.7rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-width: 1px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 payroll-form-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}">Payroll</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'payroll:loans_list' %}">Loans</a></li>
+                    <li class="breadcrumb-item active">{% if loan.id %}Edit{% else %}Create{% endif %} Loan</li>
+                </ol>
+            </nav>
+            
+            <h4 class="page-title">{% if loan.id %}Edit{% else %}Create{% endif %} Employee Loan</h4>
+            <p class="page-subtitle">Manage employee salary loans and repayments</p>
+            
+            <div class="info-card d-flex align-items-start gap-3">
+                <i class="fas fa-info-circle fa-lg mt-1"></i>
+                <div>
+                    <strong>Employee Loan</strong>
+                    <p class="mb-0 small text-muted">
+                        Create a loan record for an employee. The principal amount will be automatically set as the outstanding balance.
+                        Repayments will be deducted from their salary during payroll processing.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <h5 class="mb-0">{% if loan.id %}Edit{% else %}New{% endif %} Loan Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" class="row g-4" id="loanForm" data-sync-model="loans" data-sync-redirect="{% url 'payroll:loans_list' %}">
+                        {% csrf_token %}
+                        
+                        <div class="col-12">
+                            <div class="field-group">
+                                <label for="id_employee">
+                                    <i class="fas fa-user field-icon"></i>
+                                    Employee <span class="required">*</span>
+                                    <span class="ms-2 spinner-border spinner-border-sm text-primary" id="employeeSpinner"></span>
+                                </label>
+                                <div class="employee-search-wrapper">
+                                    <i class="fas fa-search search-icon"></i>
+                                    <select name="employee" id="id_employee" class="form-select" required>
+                                        <option value="">Search and select employee...</option>
+                                    </select>
+                                </div>
+                                <div class="employee-loading" id="employeeLoading">
+                                    <i class="fas fa-circle-notch spinner"></i> Loading employees...
+                                </div>
+                                {% if form.employee.help_text %}
+                                <small class="help-text">{{ form.employee.help_text }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_principal_amount">
+                                    <i class="fas fa-money-bill-wave field-icon"></i>
+                                    Principal Amount <span class="required">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">{{ user_currency_symbol|default:"₦" }}</span>
+                                    <input type="text" name="principal_amount" id="id_principal_amount" 
+                                           class="form-control" placeholder="Enter loan amount" required
+                                           value="{% if loan %}{{ loan.principal_amount }}{% endif %}"
+                                           inputmode="decimal">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_monthly_repayment_amount">
+                                    <i class="fas fa-calendar-alt field-icon"></i>
+                                    Monthly Repayment <span class="required">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">{{ user_currency_symbol|default:"₦" }}</span>
+                                    <input type="text" name="monthly_repayment_amount" id="id_monthly_repayment_amount" 
+                                           class="form-control" placeholder="Monthly deduction" required
+                                           value="{% if loan %}{{ loan.monthly_repayment_amount }}{% endif %}"
+                                           inputmode="decimal">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_outstanding_balance">
+                                    <i class="fas fa-credit-card field-icon"></i>
+                                    Outstanding Balance
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">{{ user_currency_symbol|default:"₦" }}</span>
+                                    <input type="text" name="outstanding_balance" id="id_outstanding_balance" 
+                                           class="form-control" placeholder="Remaining balance"
+                                           value="{% if loan %}{{ loan.outstanding_balance }}{% else %}0{% endif %}"
+                                           inputmode="decimal">
+                                </div>
+                                <small class="help-text">Auto-set to principal amount if left empty</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_start_date">
+                                    <i class="fas fa-calendar-check field-icon"></i>
+                                    Start Date <span class="required">*</span>
+                                </label>
+                                <input type="date" name="start_date" id="id_start_date" 
+                                       class="form-control" required
+                                       value="{% if loan %}{{ loan.start_date|date:'Y-m-d' }}{% endif %}">
+                            </div>
+                        </div>
+                        
+                        {% if loan %}
+                        <div class="col-md-6">
+                            <div class="field-group">
+                                <label for="id_status">
+                                    <i class="fas fa-toggle-on field-icon"></i>
+                                    Status
+                                </label>
+                                <select name="status" id="id_status" class="form-select">
+                                    <option value="active" {% if loan.status == 'active' %}selected{% endif %}>Active</option>
+                                    <option value="completed" {% if loan.status == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="defaulted" {% if loan.status == 'defaulted' %}selected{% endif %}>Defaulted</option>
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-12 mt-4">
+                            <div class="d-flex flex-wrap gap-2 btn-group-mobile">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>{% if loan.id %}Update{% else %}Create{% endif %} Loan
+                                </button>
+                                <a href="{% url 'payroll:loans_list' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var currencySymbol = '{{ user_currency_symbol|default:"₦"|escapejs }}';
+    var isEditMode = {% if loan %}true{% else %}false{% endif %};
+    var selectedEmployeeId = {% if loan and loan.employee %}{{ loan.employee.id }}{% else %}null{% endif %};
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatNumberWithCommas(input) {
+        var value = input.value.replace(/[^0-9.]/g, '');
+        var parts = value.split('.');
+        if (parts.length > 1) {
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            input.value = parts[0] + '.' + parts[1].slice(0, 2);
+        } else {
+            input.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+    }
+    
+    function removeCommas(str) {
+        return str.replace(/,/g, '');
+    }
+    
+    function addCommaFormattingToInput(input) {
+        if (!input) return;
+        
+        input.addEventListener('input', function(e) {
+            var cursorPosition = this.selectionStart;
+            var oldValue = this.value;
+            formatNumberWithCommas(this);
+            var newValue = this.value;
+            if (oldValue !== newValue) {
+                var diff = newValue.length - oldValue.length;
+                this.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
+            }
+        });
+        
+        input.addEventListener('blur', function() {
+            if (this.value && this.value !== '.') {
+                var num = parseFloat(removeCommas(this.value));
+                if (!isNaN(num)) {
+                    this.value = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+                }
+            }
+        });
+        
+        input.addEventListener('focus', function() {
+            this.value = removeCommas(this.value);
+        });
+    }
+    
+    function fetchEmployees() {
+        var select = document.getElementById('id_employee');
+        var spinner = document.getElementById('employeeSpinner');
+        var loading = document.getElementById('employeeLoading');
+        
+        if (!select) return;
+        
+        spinner.style.display = 'inline-block';
+        loading.classList.add('active');
+        
+        var url = '/api/payroll/run-employees/';
+        
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            spinner.style.display = 'none';
+            loading.classList.remove('active');
+            
+            if (data && data.results) {
+                var html = '<option value="">Search and select employee...</option>';
+                data.results.forEach(function(emp) {
+                    var label = emp.full_name + (emp.employee_id ? ' (' + emp.employee_id + ')' : '');
+                    var selected = isEditMode && selectedEmployeeId === emp.id ? ' selected' : '';
+                    html += '<option value="' + emp.id + '"' + selected + '>' + escapeHtml(label) + '</option>';
+                });
+                select.innerHTML = html;
+            }
+        })
+        .catch(function() {
+            spinner.style.display = 'none';
+            loading.classList.remove('active');
+            select.innerHTML = '<option value="">Failed to load employees</option>';
+        });
+    }
+    
+    var principalInput = document.getElementById('id_principal_amount');
+    var balanceInput = document.getElementById('id_outstanding_balance');
+    var monthlyRepaymentInput = document.getElementById('id_monthly_repayment_amount');
+    
+    addCommaFormattingToInput(principalInput);
+    addCommaFormattingToInput(balanceInput);
+    addCommaFormattingToInput(monthlyRepaymentInput);
+    
+    if (isEditMode) {
+        if (principalInput && principalInput.value) {
+            principalInput.value = parseFloat(principalInput.value).toLocaleString('en-US');
+        }
+        if (balanceInput && balanceInput.value) {
+            balanceInput.value = parseFloat(balanceInput.value).toLocaleString('en-US');
+        }
+        if (monthlyRepaymentInput && monthlyRepaymentInput.value) {
+            monthlyRepaymentInput.value = parseFloat(monthlyRepaymentInput.value).toLocaleString('en-US');
+        }
+    }
+    
+    if (principalInput && balanceInput) {
+        principalInput.addEventListener('change', function() {
+            if (!isEditMode && !balanceInput.value) {
+                balanceInput.value = removeCommas(this.value);
+            }
+        });
+    }
+    
+    var form = document.getElementById('loanForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var inputsToClean = [
+                document.getElementById('id_principal_amount'),
+                document.getElementById('id_outstanding_balance'),
+                document.getElementById('id_monthly_repayment_amount')
+            ];
+            
+            inputsToClean.forEach(function(input) {
+                if (input && input.value) {
+                    input.value = removeCommas(input.value);
+                }
+            });
+        });
+    }
+    
+    fetchEmployees();
+    
+    setInterval(fetchEmployees, 60000);
+    
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            fetchEmployees();
+        }
+    });
+})();
+</script>
+{% endblock %}

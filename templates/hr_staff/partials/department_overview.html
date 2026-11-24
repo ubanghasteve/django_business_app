@@ -1,0 +1,38 @@
+{% load humanize %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h6 class="mb-0 fw-bold">Department Overview</h6>
+            <a href="{% url 'hr_staff:department_list' %}" class="hr-view-all-link">View all</a>
+        </div>
+        <div class="row" id="hrDepartmentsOverviewContainer">
+            {% if load_async %}
+            <div class="col-12"><p class="text-muted small mb-0"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading…</p></div>
+            {% else %}
+            {% for dept in departments_overview %}
+            <div class="col-xl-4 col-md-6 col-12 mb-4">
+                <a href="{% url 'hr_staff:department_detail' dept.pk %}" class="text-decoration-none text-body d-block h-100">
+                    <div class="card border shadow-sm h-100 rounded-3 hr-card hr-dept-overview-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="hr-dept-icon-box rounded-3 bg-secondary bg-opacity-10 text-secondary d-flex align-items-center justify-content-center me-2 flex-shrink-0">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <h6 class="mb-0 fw-bold">{{ dept.name }}</h6>
+                            </div>
+                            <p class="text-muted small mb-1">{{ dept.employee_count }} employee{{ dept.employee_count|pluralize }}</p>
+                            <p class="text-muted small mb-1">Manager: {{ dept.manager_name|default:"—" }}</p>
+                            <p class="text-muted small mb-0">Budget: {{ user_currency_symbol|default:"$" }}{{ dept.budget|floatformat:0|intcomma }}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-muted small mb-0">No departments yet.</p>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</div>

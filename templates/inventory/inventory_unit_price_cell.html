@@ -1,0 +1,14 @@
+{% load inventory_extras %}
+<div class="unit-price-cell d-flex align-items-center justify-content-end gap-1 flex-nowrap">
+    <span class="unit-price-currency text-muted small" aria-hidden="true">{{ user_currency_symbol|default:"₦" }}</span>
+    <span class="editable-cell text-end unit-price-editable"{% if can_change_inventory %} contenteditable="true"{% endif %} data-field="unit_price" title="Unit price — commas added when you leave the field; currency is from company settings">
+        {% if obj.unit_price_input %}{{ obj.unit_price_input|format_unit_price_display }}{% else %}{{ obj.unit_price|format_unit_price_display }}{% endif %}
+    </span>
+    <button type="button"
+            class="btn btn-sm btn-light border unit-price-dropdown-btn px-1 py-0 flex-shrink-0"
+            data-pk="{{ obj.pk }}"
+            aria-expanded="false"
+            title="Unit price &amp; value history">
+        <i class="fas fa-caret-down text-muted" aria-hidden="true"></i>
+    </button>
+</div>

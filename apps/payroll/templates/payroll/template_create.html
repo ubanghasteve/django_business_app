@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Create Template - Smart Payroll{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <div class="mb-4">
+        <h2 class="fw-bold text-dark mb-1">Create Template</h2>
+        <p class="text-muted">Auto-detect payroll structure from Excel and create a dynamic form.</p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-file-excel text-success me-2"></i>{{ file.title }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if excel_data_list %}
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">Template Name</label>
+                            <input type="text" name="name" class="form-control" value="Template from {{ file.title }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description (optional)</label>
+                            <textarea name="description" class="form-control" rows="2"></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Source Sheet</label>
+                            <select name="sheet_name" class="form-select">
+                                {% for data in excel_data_list %}
+                                <option value="{{ data.sheet_name }}">{{ data.sheet_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-brain me-2"></i>Auto-Detect Template Structure
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <h6 class="fw-bold mb-3">Available Sheets Preview</h6>
+                    {% for data in excel_data_list %}
+                    <div class="alert alert-light">
+                        <strong>{{ data.sheet_name }}</strong>
+                        <div class="small text-muted mt-1">Headers: {{ data.headers|join:", "|truncatechars:100 }}</div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted mb-3"></i>
+                        <p class="text-muted">Loading Excel data...</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-info"></i>How It Works</h5>
+                    <ol class="mb-0">
+                        <li class="mb-2">Select the Excel sheet containing your payroll data</li>
+                        <li class="mb-2">Our AI will analyze the headers and detect the structure</li>
+                        <li class="mb-2">A dynamic form will be created based on the detected columns</li>
+                        <li>Use the form to enter payroll data month after month</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

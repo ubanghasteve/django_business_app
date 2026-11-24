@@ -1,0 +1,545 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ job_seeker.name }} - Employee Record Details{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{% url 'hr_staff:dashboard' %}" class="text-decoration-none">HR & Staff</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'hr_staff:job_seeker_list' %}" class="text-decoration-none">Employee Records</a></li>
+  <li class="breadcrumb-item active">{{ job_seeker.name }}</li>
+{% endblock %}
+{% block page_title %}Employee Record Details{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+:root {
+  --js-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --js-card-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  --js-card-hover-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+body { background: #f8fafc; }
+
+.js-detail-wrapper { animation: fadeInUp 0.6s ease-out; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.js-profile-card {
+  background: white;
+  border: none;
+  border-radius: 24px;
+  box-shadow: var(--js-card-shadow);
+  overflow: hidden;
+}
+
+.js-profile-header {
+  background: var(--js-primary-gradient);
+  padding: 2rem;
+  position: relative;
+}
+
+.js-profile-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+}
+
+.js-profile-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 24px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #667eea;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.js-profile-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.js-profile-position {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+
+.js-profile-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.js-btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.js-btn-primary {
+  background: white;
+  color: #667eea;
+}
+
+.js-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  color: #667eea;
+}
+
+.js-btn-outline {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.js-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.js-content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .js-content-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.js-section {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.js-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #667eea;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.js-section-title svg {
+  width: 18px;
+  height: 18px;
+}
+
+.js-info-row {
+  display: flex;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.js-info-row:last-child {
+  border-bottom: none;
+}
+
+.js-info-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.js-info-value {
+  font-size: 0.9375rem;
+  color: #1a202c;
+  word-break: break-word;
+}
+
+/* CV Preview */
+.js-cv-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.js-cv-preview {
+  background: #f8fafc;
+  padding: 2rem;
+  text-align: center;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.js-cv-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: var(--js-primary-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.js-cv-icon svg {
+  width: 40px;
+  height: 40px;
+  color: white;
+}
+
+.js-cv-filename {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+}
+
+.js-cv-meta {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+}
+
+.js-cv-download {
+  background: var(--js-primary-gradient);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.js-cv-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+  color: white;
+}
+
+.js-no-cv {
+  text-align: center;
+  padding: 2rem;
+}
+
+.js-no-cv-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.js-no-cv-icon svg {
+  width: 28px;
+  height: 28px;
+  color: #94a3b8;
+}
+
+.js-no-cv-text {
+  color: #94a3b8;
+  font-size: 0.9375rem;
+}
+
+/* Skills Tags */
+.js-skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.js-skill-tag {
+  padding: 0.375rem 0.875rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+}
+
+/* Status Badge */
+.js-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.js-status-badge.new { background: rgba(79, 172, 254, 0.1); color: #4facfe; }
+.js-status-badge.reviewing { background: rgba(102, 126, 234, 0.1); color: #667eea; }
+.js-status-badge.shortlisted { background: rgba(17, 153, 142, 0.1); color: #11998e; }
+.js-status-badge.rejected { background: rgba(235, 51, 73, 0.1); color: #eb3349; }
+.js-status-badge.hired { background: rgba(56, 239, 125, 0.1); color: #11998e; }
+
+/* Responsive */
+@media (max-width: 767.98px) {
+  .js-profile-header {
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .js-profile-actions {
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  .js-content-grid {
+    padding: 1rem;
+  }
+  .js-info-row {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .js-info-label {
+    width: auto;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+  {% include 'hr_staff/partials/hr_top_nav.html' %}
+  
+  <div class="js-detail-wrapper mt-3 mt-md-4">
+    <div class="js-profile-card">
+      <div class="js-profile-header">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="js-profile-avatar">
+              {{ job_seeker.name|make_list|first|upper }}
+            </div>
+            <div>
+              <h4 class="js-profile-name">{{ job_seeker.name|default:"No Name" }}</h4>
+              {% if job_seeker.position_applied %}
+              <p class="js-profile-position">{{ job_seeker.position_applied }}</p>
+              {% endif %}
+              <span class="js-status-badge {{ job_seeker.status }}">{{ job_seeker.get_status_display }}</span>
+            </div>
+          </div>
+          <div class="js-profile-actions">
+            <a href="{% url 'hr_staff:job_seeker_edit' job_seeker.pk %}" class="js-btn js-btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              Edit
+            </a>
+            <a href="{% url 'hr_staff:job_seeker_delete' job_seeker.pk %}" class="js-btn" style="background: rgba(235, 51, 73, 0.15); color: #eb3349; border: 2px solid rgba(235, 51, 73, 0.3);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              Delete
+            </a>
+            <a href="{% url 'hr_staff:job_seeker_list' %}" class="js-btn js-btn-outline">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              Back
+            </a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="js-content-grid">
+        <!-- Left Column: Info -->
+        <div class="js-left-col">
+          <!-- Contact Info -->
+          <div class="js-section">
+            <h5 class="js-section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              Contact Information
+            </h5>
+            <div class="js-info-row">
+              <span class="js-info-label">Email</span>
+              <span class="js-info-value">{{ job_seeker.email|default:"—" }}</span>
+            </div>
+            <div class="js-info-row">
+              <span class="js-info-label">Phone</span>
+              <span class="js-info-value">{{ job_seeker.phone|default:"—" }}</span>
+            </div>
+            <div class="js-info-row">
+              <span class="js-info-label">Address</span>
+              <span class="js-info-value">{{ job_seeker.address|default:"—" }}</span>
+            </div>
+            {% if job_seeker.date_of_birth %}
+            <div class="js-info-row">
+              <span class="js-info-label">Date of Birth</span>
+              <span class="js-info-value">{{ job_seeker.date_of_birth }}</span>
+            </div>
+            {% endif %}
+            {% if job_seeker.gender %}
+            <div class="js-info-row">
+              <span class="js-info-label">Gender</span>
+              <span class="js-info-value">{{ job_seeker.gender }}</span>
+            </div>
+            {% endif %}
+          </div>
+          
+          <!-- Professional Info -->
+          <div class="js-section">
+            <h5 class="js-section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+              Professional Information
+            </h5>
+            <div class="js-info-row">
+              <span class="js-info-label">Position</span>
+              <span class="js-info-value">{{ job_seeker.position_applied|default:"—" }}</span>
+            </div>
+            <div class="js-info-row">
+              <span class="js-info-label">Experience</span>
+              <span class="js-info-value">{{ job_seeker.years_of_experience|default:"—" }}</span>
+            </div>
+            {% if job_seeker.skills %}
+            <div class="js-info-row">
+              <span class="js-info-label">Skills</span>
+              <span class="js-info-value">{{ job_seeker.skills|linebreaks }}</span>
+            </div>
+            {% endif %}
+          </div>
+          
+          <!-- Education -->
+          {% if job_seeker.education %}
+          <div class="js-section">
+            <h5 class="js-section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+              Education
+            </h5>
+            <div class="js-info-value" style="white-space: pre-wrap;">{{ job_seeker.education }}</div>
+          </div>
+          {% endif %}
+          
+          <!-- Work Experience -->
+          {% if job_seeker.work_experience %}
+          <div class="js-section">
+            <h5 class="js-section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              Work Experience
+            </h5>
+            <div class="js-info-value" style="white-space: pre-wrap;">{{ job_seeker.work_experience }}</div>
+          </div>
+          {% endif %}
+          
+          <!-- Notes -->
+          {% if job_seeker.notes %}
+          <div class="js-section">
+            <h5 class="js-section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              Notes
+            </h5>
+            <div class="js-info-value" style="white-space: pre-wrap;">{{ job_seeker.notes }}</div>
+          </div>
+          {% endif %}
+        </div>
+        
+        <!-- Right Column: CV -->
+        <div class="js-right-col">
+          <div class="js-cv-card">
+            <div class="js-section-title" style="padding: 1rem 1.5rem; margin-bottom: 0;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              Main CV
+            </div>
+            {% if job_seeker.cv_file %}
+            <div class="js-cv-preview">
+              <div>
+                <div class="js-cv-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                </div>
+                <p class="js-cv-filename">{{ job_seeker.cv_file_name }}</p>
+                {% if job_seeker.cv_uploaded_at %}
+                <p class="js-cv-meta">Uploaded: {{ job_seeker.cv_uploaded_at|date:"M d, Y" }}</p>
+                {% endif %}
+                <a href="{{ job_seeker.cv_file.url }}" target="_blank" class="js-cv-download">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  View/Download CV
+                </a>
+              </div>
+            </div>
+            {% else %}
+            <div class="js-no-cv">
+              <div class="js-no-cv-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              </div>
+              <p class="js-no-cv-text">No CV uploaded yet</p>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Additional Documents Section -->
+          <div class="js-cv-card mt-3">
+            <div class="js-section-title" style="padding: 1rem 1.5rem; margin-bottom: 0;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              Additional Documents
+              {% if documents %}<span class="badge bg-primary ms-2">{{ documents.count }}</span>{% endif %}
+            </div>
+            {% if documents %}
+            <div class="p-3" style="max-height: 400px; overflow-y: auto;">
+              {% for doc in documents %}
+              <div class="d-flex align-items-center justify-content-between p-2 mb-2" style="background: #f8fafc; border-radius: 8px;">
+                <div class="d-flex align-items-center gap-2">
+                  <div style="width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  </div>
+                  <div>
+                    <div class="fw-semibold" style="font-size: 0.875rem; color: #1a202c;">{{ doc.file_name }}</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">
+                      {% if doc.file_size %}{{ doc.file_size|filesizeformat }}{% endif %}
+                      {% if doc.created_at %} &bull; {{ doc.created_at|date:"M d, Y" }}{% endif %}
+                    </div>
+                  </div>
+                </div>
+                <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                  View
+                </a>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="js-no-cv">
+              <div class="js-no-cv-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              </div>
+              <p class="js-no-cv-text">No additional documents</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

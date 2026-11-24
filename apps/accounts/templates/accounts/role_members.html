@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Role Members | {{ block.super }}{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+{% block page_title %}Role Members{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 col-md-10">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="mb-1">
+          <i class="fas fa-users-cog me-2"></i>Members of "{{ role.role_name }}"
+        </h2>
+        <p class="text-muted mb-0">
+          Select which users in your account should have this role.
+        </p>
+      </div>
+      <div>
+        <a href="{% url 'accounts:role_list' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i>Back to Roles
+        </a>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Account Users</label>
+            <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+              {% for user in all_users %}
+              <label class="list-group-item d-flex align-items-center">
+                <input
+                  class="form-check-input me-2"
+                  type="checkbox"
+                  name="user_ids"
+                  value="{{ user.id }}"
+                  {% if user.id in current_member_ids %}checked{% endif %}
+                >
+                <div>
+                  <strong>{{ user.get_full_name|default:user.email }}</strong>
+                  <div class="text-muted small">{{ user.email }}</div>
+                </div>
+              </label>
+              {% empty %}
+              <div class="text-center py-4 text-muted">
+                No users in this account.
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Save Members
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="alert alert-info mt-4">
+      <strong><i class="fas fa-info-circle me-2"></i>Permission inheritance</strong>
+      <p class="mb-0">
+        Users selected here will inherit all permissions assigned to this role via Django’s built-in group system.
+        Access checks throughout the app will use <code>user.has_perm()</code>, so changes take effect immediately.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

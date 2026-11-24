@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Employees{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <a href="{% url 'smart_attendance:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+      </a>
+    </div>
+    {% if perms.smart_attendance.add_employee %}
+    <a href="{% url 'smart_attendance:create_employee' %}" class="btn btn-primary">
+      <i class="fas fa-plus me-1"></i> Add Employee
+    </a>
+    {% endif %}
+  </div>
+  
+  <h2 class="mb-3">Employees</h2>
+  
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Department</th>
+            <th>Position</th>
+            <th>Biometric UID</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in employees %}
+          <tr>
+            <td>
+              {% if e.profile_photo %}
+                <img src="{{ e.profile_photo.url }}" class="rounded-circle" width="36" height="36" alt="">
+              {% else %}
+                <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center text-white" style="width:36px;height:36px;font-size:0.75rem;">
+                  {{ e.first_name|first|upper }}{{ e.last_name|first|upper }}
+                </div>
+              {% endif %}
+            </td>
+            <td><a href="{% url 'smart_attendance:employee_profile' e.id %}">{{ e.employee_id }}</a></td>
+            <td>{{ e.first_name }} {{ e.last_name }}</td>
+            <td>{{ e.email|default:"—" }}</td>
+            <td>{{ e.phone|default:"—" }}</td>
+            <td>{{ e.department|default:"—" }}</td>
+            <td>{{ e.position|default:"—" }}</td>
+            <td>{{ e.biometric_uid|default:"—" }}</td>
+            <td>
+              <span class="badge {% if e.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                {% if e.is_active %}Active{% else %}Inactive{% endif %}
+              </span>
+            </td>
+            <td>
+              {% if perms.smart_attendance.change_employee %}
+              <a href="{% url 'smart_attendance:edit_employee' e.id %}" class="btn btn-sm btn-outline-primary" title="Edit">
+                <i class="fas fa-edit"></i>
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center text-muted py-3">No employees found. Click "Add Employee" to register staff.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

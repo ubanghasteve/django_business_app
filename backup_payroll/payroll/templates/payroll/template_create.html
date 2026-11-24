@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block title %}Create Template - {{ payroll_file.title }}{% endblock %}
+{% block breadcrumb %}Payroll{% endblock %}
+{% block page_title %}Create Template{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 py-md-4 px-2 px-sm-3">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}" class="text-decoration-none">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:files_list' %}" class="text-decoration-none">Files</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Create Template</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">Create Smart Template</h4>
+            <p class="text-muted mb-0 small">We'll analyze your Excel file and create a template based on its structure</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <div class="file-icon-large rounded-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background-color: #27ae6020;">
+                            <i class="fas fa-file-excel fa-2x text-success"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">{{ payroll_file.title }}</h5>
+                            <p class="text-muted small mb-0">{{ payroll_file.original_filename }} &middot; {{ payroll_file.file_size_display }}</p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info border-0 rounded-3 mb-4">
+                        <div class="d-flex gap-2">
+                            <i class="fas fa-magic mt-1"></i>
+                            <div>
+                                <strong>Smart Detection</strong>
+                                <p class="mb-0 small">We'll automatically detect columns like Employee Name, Basic Salary, Allowances, Deductions, and more from your file.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Template Name</label>
+                            <input type="text" name="name" class="form-control" 
+                                   placeholder="e.g., Monthly Payroll Template"
+                                   value="{{ payroll_file.title }}">
+                            <small class="text-muted">Give your template a descriptive name</small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-magic me-1"></i> Create Template
+                            </button>
+                            <a href="{% url 'payroll:file_detail' payroll_file.id %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="bg-light rounded-3 p-3">
+                        <h6 class="fw-bold mb-3">What happens next?</h6>
+                        <ol class="mb-0 small">
+                            <li class="mb-2">We analyze your Excel file structure</li>
+                            <li class="mb-2">Columns are detected and categorized</li>
+                            <li class="mb-2">A dynamic form is generated</li>
+                            <li class="mb-2">You can fill payroll online anytime</li>
+                            <li>No need to re-upload files for each payroll!</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

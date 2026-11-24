@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Create Payroll Structure{% endblock %}
+{% block extra_css %}
+<style>
+.payroll-form-page .card { border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid #dee2e6; }
+.payroll-form-page .card-header { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); color: #fff; border-radius: 11px 11px 0 0; }
+.payroll-form-page .form-label { font-weight: 600; font-size: 0.9rem; color: #495057; margin-bottom: 0.5rem; }
+.payroll-form-page .form-control, 
+.payroll-form-page .form-select { 
+    border-radius: 8px; 
+    border: 2px solid #dee2e6; 
+    padding: 0.75rem 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.payroll-form-page .form-control:focus, 
+.payroll-form-page .form-select:focus { 
+    border-color: #1e88e5; 
+    box-shadow: 0 0 0 0.2rem rgba(30,136,229,.15); 
+}
+.payroll-form-page .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.1rem;
+    cursor: pointer;
+}
+.payroll-form-page .form-check-label {
+    font-weight: 500;
+    margin-left: 0.5rem;
+    cursor: pointer;
+}
+.payroll-field-group {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.25rem;
+    border: 1px solid #e9ecef;
+    margin-bottom: 1rem;
+}
+.payroll-field-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+.payroll-required {
+    color: #dc3545;
+    margin-left: 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 payroll-form-page">
+    {% include 'payroll/partials/payroll_top_nav.html' %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="{% url 'payroll:dashboard' %}">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'payroll:structures_list' %}">Structures</a></li>
+            <li class="breadcrumb-item active">Create</li>
+        </ol>
+    </nav>
+    <div class="card mt-3">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Create Payroll Structure</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" class="row g-4">
+                {% csrf_token %}
+                
+                <div class="col-12">
+                    <div class="payroll-field-group">
+                        <label class="payroll-field-label" for="id_name">
+                            Structure Name <span class="payroll-required">*</span>
+                        </label>
+                        <input type="text" name="name" id="id_name" class="form-control" 
+                               placeholder="e.g., Monthly Salary Structure" required>
+                        {% if form.name.errors %}
+                        <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="col-12">
+                    <div class="payroll-field-group">
+                        <label class="payroll-field-label" for="id_description">
+                            Description
+                        </label>
+                        <textarea name="description" id="id_description" class="form-control" 
+                                  rows="3" placeholder="Optional description for this payroll structure"></textarea>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="payroll-field-group">
+                        <div class="form-check">
+                            <input type="checkbox" name="enable_thirteenth_salary" id="id_enable_thirteenth_salary" 
+                                   class="form-check-input">
+                            <label class="form-check-label" for="id_enable_thirteenth_salary">
+                                Enable 13th Month Salary
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Automatically add extra month's salary in December
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="payroll-field-group">
+                        <div class="form-check">
+                            <input type="checkbox" name="is_active" id="id_is_active" 
+                                   class="form-check-input" checked>
+                            <label class="form-check-label" for="id_is_active">
+                                Active
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Inactive structures won't appear in payroll runs
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="col-12 mt-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Create Structure
+                    </button>
+                    <a href="{% url 'payroll:structures_list' %}" class="btn btn-outline-secondary btn-lg ms-2">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

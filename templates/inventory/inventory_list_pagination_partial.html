@@ -1,0 +1,24 @@
+{% with base=pagination_base_query|default:"" %}
+<nav class="inventory-pagination" aria-label="Inventory pagination">
+    <span class="pagination-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }})</span>
+    {% if page_obj.has_previous %}
+    <a class="page-link prev-next" href="?{% if base %}{{ base }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous page"><i class="fas fa-chevron-left me-1"></i>Previous</a>
+    {% else %}
+    <span class="page-link prev-next disabled" aria-disabled="true"><i class="fas fa-chevron-left me-1"></i>Previous</span>
+    {% endif %}
+    {% if page_obj.paginator.num_pages > 1 %}
+    {% for p in page_obj.paginator.page_range %}
+      {% if p == page_obj.number %}
+    <span class="page-link page-num current" aria-current="page">{{ p }}</span>
+      {% else %}
+    <a class="page-link page-num" href="?{% if base %}{{ base }}&{% endif %}page={{ p }}">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a class="page-link prev-next" href="?{% if base %}{{ base }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next page">Next<i class="fas fa-chevron-right ms-1"></i></a>
+    {% else %}
+    <span class="page-link prev-next disabled" aria-disabled="true">Next<i class="fas fa-chevron-right ms-1"></i></span>
+    {% endif %}
+</nav>
+{% endwith %}
