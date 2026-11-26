@@ -12,8 +12,8 @@
     /* Theme colors from Company Profile - Applied globally */
     :root {
         --receipt-blue: #1a237e;
-        --receipt-primary: {{ theme_primary_color|default:"#1976d2" }};
-        --primary-color: {{ theme_primary_color|default:"#1976d2" }};
+        --receipt-primary: {{ receipt.custom_color|default:theme_primary_color|default:"#1976d2" }};
+        --primary-color: {{ receipt.custom_color|default:theme_primary_color|default:"#1976d2" }};
         --secondary-color: {{ theme_secondary_color|default:"#f8f9fa" }};
         --text-color: {{ theme_text_color|default:"#333333" }};
         --accent-color: {{ theme_accent_color|default:"#e9ecef" }};
@@ -764,7 +764,7 @@
             
             <div class="body-field">
                 <label>Amount</label>
-                <div class="field-value">{{ user_currency_symbol }}{{ receipt.amount_received|floatformat:2|intcomma }}</div>
+                <div class="field-value">{{ user_currency_symbol }}{{ receipt.amount_received|money }}</div>
             </div>
             
             <div class="body-field">
@@ -808,21 +808,21 @@
             <div class="acct-row">
                 <div class="acct-field">
                     <label>ACCT.</label>
-                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.grand_total|floatformat:2|intcomma }}</div>
+                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.grand_total|money }}</div>
                 </div>
                 <div class="acct-field">
                     <label>PAID</label>
-                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.amount_paid|floatformat:2|intcomma }}</div>
+                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.amount_paid|money }}</div>
                 </div>
                 <div class="acct-field">
                     <label>DUE</label>
-                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.balance_due|floatformat:2|intcomma }}</div>
+                    <div class="field-value">{{ user_currency_symbol }}{{ receipt.invoice.balance_due|money }}</div>
                 </div>
             </div>
             
             <div class="amount-box">
                 <span class="amount-box-label">Amount=</span>
-                <div class="amount-box-value">{{ user_currency_symbol }}{{ receipt.amount_received|floatformat:2|intcomma }}</div>
+                <div class="amount-box-value">{{ user_currency_symbol }}{{ receipt.amount_received|money }}</div>
             </div>
             
             {% if receipt.notes %}

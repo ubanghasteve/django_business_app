@@ -25,6 +25,41 @@ from apps.core.ownership import for_user_queryset, get_account_for_user
 import base64
 
 
+def _receipt_primary_color(receipt, fallback='#1976d2'):
+    """Prefer the receipt's saved custom_color for detail/print/PDF; else company theme."""
+    color = (getattr(receipt, 'custom_color', None) or '').strip()
+    return color or fallback or '#1976d2'
+
+
+def _invoice_payload(invoice, user, company_context=None):
+    """Compact invoice payload embedded in the create/edit page for instant UI (no wait)."""
+    if not invoice:
+        return None
+    ctx = company_context or {}
+    receiver = ''
+    if user is not None:
+        receiver = user.get_full_name() or user.get_username() or ''
+    return {
+        'id': invoice.pk,
+        'client_name': invoice.client_name or '',
+        'client_email': getattr(invoice, 'client_email', '') or '',
+        'client_phone': invoice.client_phone or '',
+        'client_address': invoice.client_address or '',
+        'grand_total': str(invoice.grand_total or 0),
+        'amount_paid': str(invoice.amount_paid or 0),
+        'balance_due': str(invoice.balance_due or 0),
+        'status': invoice.status or 'unpaid',
+        'invoice_number': invoice.invoice_number or '',
+        'received_by': receiver,
+        'custom_color': ctx.get('theme_primary_color') or getattr(
+            ctx.get('company_profile'), 'primary_color', None
+        ) or '#1976d2',
+        'currency_code': ctx.get('currency_code') or 'NGN',
+        'currency_symbol': ctx.get('currency_symbol') or '₦',
+        'transaction_id': invoice.invoice_number or '',
+    }
+
+
 def heal_receipt_payment_fields(receipt):
     """Repair stale balance/payment_type for this receipt and its whole invoice chain."""
     if not receipt or not getattr(receipt, 'invoice_id', None):
@@ -180,8 +215,16 @@ def receipt_create_view(request, invoice_id=None):
         invoice, response = get_object_or_unauthorized(request, inv_qs, pk=invoice_id)
         if response:
             return response
+    company_context = get_company_context(request.user, request)
+    profile = company_context.get('company_profile')
+    theme_color = (
+        (getattr(profile, 'primary_color', None) if profile else None)
+        or company_context.get('theme_primary_color')
+        or '#1976d2'
+    )
+
     if request.method == 'POST':
-        form = ReceiptForm(request.POST, invoice=invoice, user=request.user)
+        form = ReceiptForm(request.POST, invoice=invoice, user=request.user, default_color=theme_color)
         if form.is_valid():
             receipt = form.save(commit=False)
             # Set ownership for per-team-member isolation (required for list/dashboard visibility)
@@ -194,6 +237,8 @@ def receipt_create_view(request, invoice_id=None):
             # Explicitly set display options from POST so checkboxes always save correctly (unchecked = not in POST)
             receipt.show_bank_details = request.POST.get('show_bank_details') == 'on' or request.POST.get('show_bank_details') == 'true'
             receipt.show_signature = request.POST.get('show_signature') == 'on' or request.POST.get('show_signature') == 'true'
+            if not (receipt.custom_color or '').strip():
+                receipt.custom_color = theme_color
             # balance_after_payment / payment_type / refund_due are calculated in Receipt.save()
             # from the linked invoice (form invoice), including prior receipts.
             receipt.save()
@@ -202,19 +247,30 @@ def receipt_create_view(request, invoice_id=None):
             detail_url = reverse('receipts:detail', kwargs={'receipt_id': receipt.pk})
             return redirect(f'{detail_url}?_={receipt.updated_at.timestamp():.0f}')
     else:
-        form = ReceiptForm(invoice=invoice, user=request.user)
-    
-    # Get company context for currency
-    company_context = get_company_context(request.user, request)
-    
-    invoice_uuid_map = {str(inv.pk): str(inv.uuid) for inv in form.fields['invoice'].queryset if getattr(inv, 'uuid', None)}
+        form = ReceiptForm(invoice=invoice, user=request.user, default_color=theme_color)
+        if not form.initial.get('received_by'):
+            form.initial['received_by'] = (
+                request.user.get_full_name() or request.user.get_username() or ''
+            )
+
+    selected_invoice = invoice or (
+        form.instance.invoice if getattr(form, 'instance', None) and getattr(form.instance, 'invoice_id', None) else None
+    )
+    form_config = {
+        'currency_symbol': company_context.get('currency_symbol') or '₦',
+        'currency_code': company_context.get('currency_code') or 'NGN',
+        'existing_receipt_amount': '0',
+        'is_editing': False,
+        'receiver_name': request.user.get_full_name() or request.user.get_username() or '',
+        'selected_invoice': _invoice_payload(selected_invoice, request.user, company_context),
+    }
     context = {
         'form': form,
         'invoice': invoice,
-        'invoice_uuid_map': json.dumps(invoice_uuid_map),
+        'receipt_form_config': form_config,
         'user_currency_symbol': company_context['currency_symbol'],
         'user_currency_code': company_context['currency_code'],
-        # Theme colors
+        'receiver_name': form_config['receiver_name'],
         'theme_primary_color': company_context.get('theme_primary_color', '#1976d2'),
         'theme_secondary_color': company_context.get('theme_secondary_color', '#f8f9fa'),
         'theme_accent_color': company_context.get('theme_accent_color', '#e9ecef'),
@@ -254,8 +310,9 @@ def receipt_detail_view(request, receipt_id):
     # Get current template for colors
     current_template = get_current_template(request.user)
     
-    # Get theme colors from company profile
-    theme_primary_color = getattr(company_profile, 'primary_color', '#1976d2') if company_profile else '#1976d2'
+    # Theme colors: receipt custom color drives detail/print accents
+    company_primary = getattr(company_profile, 'primary_color', '#1976d2') if company_profile else '#1976d2'
+    theme_primary_color = _receipt_primary_color(receipt, company_primary)
     theme_secondary_color = getattr(company_profile, 'secondary_color', '#f8f9fa') if company_profile else '#f8f9fa'
     theme_accent_color = getattr(company_profile, 'accent_color', '#e9ecef') if company_profile else '#e9ecef'
     theme_text_color = getattr(company_profile, 'text_color', '#333333') if company_profile else '#333333'
@@ -270,7 +327,8 @@ def receipt_detail_view(request, receipt_id):
         'user_currency_code': company_context['currency_code'],
         'branch_display': resolve_branch(receipt, company_profile),
         'current_template': current_template,
-        # Theme colors for all templates
+        'receipt_primary_color': theme_primary_color,
+        # Theme colors for all templates (primary overridden by receipt color)
         'theme_primary_color': theme_primary_color,
         'theme_secondary_color': theme_secondary_color,
         'theme_accent_color': theme_accent_color,
@@ -287,30 +345,49 @@ def receipt_edit_view(request, receipt_id):
     receipt, response = get_object_or_unauthorized(request, qs, pk=receipt_id)
     if response:
         return response
+    company_context = get_company_context(request.user, request)
+    profile = company_context.get('company_profile')
+    theme_color = (
+        (getattr(profile, 'primary_color', None) if profile else None)
+        or company_context.get('theme_primary_color')
+        or '#1976d2'
+    )
+
     if request.method == 'POST':
-        form = ReceiptForm(request.POST, instance=receipt, user=request.user)
+        form = ReceiptForm(request.POST, instance=receipt, user=request.user, default_color=theme_color)
         if form.is_valid():
             receipt = form.save(commit=False)
             # Explicitly set display options from POST so checkboxes always save correctly
             receipt.show_bank_details = request.POST.get('show_bank_details') == 'on' or request.POST.get('show_bank_details') == 'true'
             receipt.show_signature = request.POST.get('show_signature') == 'on' or request.POST.get('show_signature') == 'true'
+            if not (receipt.custom_color or '').strip():
+                receipt.custom_color = theme_color
             receipt.save()
             messages.success(request, f'Receipt {receipt.receipt_no} updated successfully!')
             # Redirect with cache-bust so browser fetches fresh receipt (signature/bank details) without hard refresh
             detail_url = reverse('receipts:detail', kwargs={'receipt_id': receipt.pk})
             return redirect(f'{detail_url}?_={receipt.updated_at.timestamp():.0f}')
     else:
-        form = ReceiptForm(instance=receipt, user=request.user)
-    
-    # Get company context for currency
-    company_context = get_company_context(request.user, request)
-    invoice_uuid_map = {str(inv.pk): str(inv.uuid) for inv in form.fields['invoice'].queryset if getattr(inv, 'uuid', None)}
+        form = ReceiptForm(instance=receipt, user=request.user, default_color=theme_color)
+    form_config = {
+        'currency_symbol': company_context.get('currency_symbol') or '₦',
+        'currency_code': company_context.get('currency_code') or 'NGN',
+        'existing_receipt_amount': str(receipt.amount_received or 0),
+        'is_editing': True,
+        'receiver_name': request.user.get_full_name() or request.user.get_username() or '',
+        'selected_invoice': _invoice_payload(receipt.invoice, request.user, company_context),
+    }
     context = {
         'form': form,
         'receipt': receipt,
-        'invoice_uuid_map': json.dumps(invoice_uuid_map),
+        'receipt_form_config': form_config,
         'user_currency_symbol': company_context['currency_symbol'],
         'user_currency_code': company_context['currency_code'],
+        'receiver_name': form_config['receiver_name'],
+        'theme_primary_color': company_context.get('theme_primary_color', '#1976d2'),
+        'theme_secondary_color': company_context.get('theme_secondary_color', '#f8f9fa'),
+        'theme_accent_color': company_context.get('theme_accent_color', '#e9ecef'),
+        'theme_text_color': company_context.get('theme_text_color', '#333333'),
     }
     return render(request, 'receipts/receipt_form.html', context)
 
@@ -362,8 +439,8 @@ def receipt_print_view(request, receipt_id):
     # Get current template for colors
     current_template = get_current_template(request.user)
     
-    # Get theme colors from company profile
-    theme_primary_color = getattr(company_profile, 'primary_color', '#1976d2') if company_profile else '#1976d2'
+    company_primary = getattr(company_profile, 'primary_color', '#1976d2') if company_profile else '#1976d2'
+    theme_primary_color = _receipt_primary_color(receipt, company_primary)
     theme_secondary_color = getattr(company_profile, 'secondary_color', '#f8f9fa') if company_profile else '#f8f9fa'
     theme_accent_color = getattr(company_profile, 'accent_color', '#e9ecef') if company_profile else '#e9ecef'
     theme_text_color = getattr(company_profile, 'text_color', '#333333') if company_profile else '#333333'
@@ -378,7 +455,7 @@ def receipt_print_view(request, receipt_id):
         'user_currency_code': company_context['currency_code'],
         'branch_display': resolve_branch(receipt, company_profile),
         'current_template': current_template,
-        # Theme colors for all templates
+        'receipt_primary_color': theme_primary_color,
         'theme_primary_color': theme_primary_color,
         'theme_secondary_color': theme_secondary_color,
         'theme_accent_color': theme_accent_color,
@@ -417,6 +494,8 @@ def receipt_pdf_view(request, receipt_id):
     # Get current template for colors
     current_template = get_current_template(request.user)
     from apps.accounts.rbac import is_company_admin as _is_company_admin
+    company_primary = getattr(company_profile, 'primary_color', '#1976d2') if company_profile else '#1976d2'
+    receipt_primary_color = _receipt_primary_color(receipt, company_primary)
     context = {
         'receipt': receipt, 
         'company_profile': company_profile, 
@@ -428,6 +507,8 @@ def receipt_pdf_view(request, receipt_id):
         'branch_display': resolve_branch(receipt, company_profile),
         'current_template': current_template,
         'is_company_admin': _is_company_admin(request),
+        'receipt_primary_color': receipt_primary_color,
+        'theme_primary_color': receipt_primary_color,
     }
     
     try:
@@ -490,6 +571,8 @@ def receipt_email_view(request, receipt_id):
         company_signature = request.build_absolute_uri(company_signature)
     current_template = get_current_template(request.user)
     from apps.accounts.rbac import is_company_admin as _is_company_admin
+    company_primary = getattr(company_profile, 'primary_color', '#1976d2') if company_profile else '#1976d2'
+    receipt_primary_color = _receipt_primary_color(receipt, company_primary)
     context = {
         'receipt': receipt,
         'company_profile': company_profile,
@@ -501,6 +584,8 @@ def receipt_email_view(request, receipt_id):
         'branch_display': resolve_branch(receipt, company_profile),
         'current_template': current_template,
         'is_company_admin': _is_company_admin(request),
+        'receipt_primary_color': receipt_primary_color,
+        'theme_primary_color': receipt_primary_color,
     }
     try:
         html_string = render_to_string('receipts/receipt_pdf_template.html', context)

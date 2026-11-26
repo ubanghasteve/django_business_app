@@ -1,4 +1,4 @@
-{% load humanize %}
+{% load currency_filters %}{% load humanize %}
 {% with currency_code|default:"NGN" as curr_code %}{% with company_profile|default:"" as cp %}
 <!DOCTYPE html>
 <html>
@@ -279,15 +279,15 @@
             </div>
             <div class="summary-cell">
                 <div class="summary-label">Total Amount</div>
-                <div class="summary-value text-success">{{ curr_code }} {{ summary.total_amount|floatformat:2|intcomma }}</div>
+                <div class="summary-value text-success">{{ curr_code }} {{ summary.total_amount|money }}</div>
             </div>
             <div class="summary-cell">
                 <div class="summary-label">Revenue</div>
-                <div class="summary-value text-warning">{{ curr_code }} {{ summary.revenue|floatformat:2|intcomma }}</div>
+                <div class="summary-value text-warning">{{ curr_code }} {{ summary.revenue|money }}</div>
             </div>
             <div class="summary-cell">
                 <div class="summary-label">Outstanding</div>
-                <div class="summary-value text-danger">{{ curr_code }} {{ summary.outstanding|floatformat:2|intcomma }}</div>
+                <div class="summary-value text-danger">{{ curr_code }} {{ summary.outstanding|money }}</div>
             </div>
         </div>
     </div>
@@ -311,7 +311,7 @@
                         {% for day in daily_revenue|slice:":10" %}
                         <tr>
                             <td>{{ day.date }}</td>
-                            <td class="text-right">{{ curr_code }} {{ day.revenue|floatformat:2|intcomma }}</td>
+                            <td class="text-right">{{ curr_code }} {{ day.revenue|money }}</td>
                             <td class="text-right">{{ day.count }}</td>
                         </tr>
                         {% endfor %}
@@ -347,7 +347,7 @@
                                 </span>
                             </td>
                             <td class="text-right">{{ status.count }}</td>
-                            <td class="text-right">{{ curr_code }} {{ status.total|floatformat:2|intcomma }}</td>
+                            <td class="text-right">{{ curr_code }} {{ status.total|money }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -370,11 +370,11 @@
                 <table class="stats-table">
                     <tr>
                         <td>Paid Amount:</td>
-                        <td class="text-right">{{ curr_code }} {{ summary.paid_amount|floatformat:2|intcomma }}</td>
+                        <td class="text-right">{{ curr_code }} {{ summary.paid_amount|money }}</td>
                     </tr>
                     <tr>
                         <td>Avg Invoice:</td>
-                        <td class="text-right">{{ curr_code }} {{ summary.avg_invoice_value|floatformat:2|intcomma }}</td>
+                        <td class="text-right">{{ curr_code }} {{ summary.avg_invoice_value|money }}</td>
                     </tr>
                 </table>
             </div>
@@ -396,7 +396,7 @@
                         <tr>
                             <td>{{ client.client_name }}</td>
                             <td class="text-center">{{ client.invoice_count }}</td>
-                            <td class="text-right">{{ curr_code }} {{ client.total_amount|floatformat:2|intcomma }}</td>
+                            <td class="text-right">{{ curr_code }} {{ client.total_amount|money }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -430,9 +430,9 @@
                     <td><strong>{{ invoice.invoice_number }}</strong></td>
                     <td>{{ invoice.client_name }}</td>
                     <td>{{ invoice.invoice_date }}</td>
-                    <td class="text-right">{{ curr_code }} {{ invoice.grand_total|floatformat:2|intcomma }}</td>
-                    <td class="text-right">{{ curr_code }} {{ invoice.amount_paid|floatformat:2|intcomma }}</td>
-                    <td class="text-right">{{ curr_code }} {{ invoice.balance_due|floatformat:2|intcomma }}</td>
+                    <td class="text-right">{{ curr_code }} {{ invoice.grand_total|money }}</td>
+                    <td class="text-right">{{ curr_code }} {{ invoice.amount_paid|money }}</td>
+                    <td class="text-right">{{ curr_code }} {{ invoice.balance_due|money }}</td>
                     <td class="text-center">
                         <span class="badge {% if invoice.status == 'paid' %}badge-success{% elif invoice.status == 'partial' %}badge-warning{% elif invoice.status == 'delivered' %}badge-info{% else %}badge-danger{% endif %}">
                             {% if invoice.status == 'paid' %}Paid{% elif invoice.status == 'partial' %}Partial{% elif invoice.status == 'delivered' %}Delivered{% else %}Unpaid{% endif %}

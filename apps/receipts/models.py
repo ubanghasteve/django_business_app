@@ -33,7 +33,7 @@ class Receipt(models.Model):
     client_phone = models.CharField(max_length=20, blank=True, null=True)
     client_address = models.CharField(max_length=500, blank=True, null=True)
     amount_received = models.DecimalField(max_digits=64, decimal_places=2)
-    amount_in_words = models.CharField(max_length=500)
+    amount_in_words = models.CharField(max_length=2000)
     payment_method = models.CharField(max_length=100, choices=PAYMENT_CHOICES)
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     received_by = models.CharField(max_length=255)

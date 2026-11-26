@@ -80,17 +80,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     custom_color = profile.primary_color
         except Exception:
             pass
-        # Simple number to words utility (English, for Naira)
-        def number_to_words(n):
-            try:
-                from num2words import num2words
-                words = num2words(n, lang='en')
-                return f"{words} {currency_code.lower()} only"
-            except Exception:
-                return str(n)
+        from apps.core.utils import number_to_words
         # Use amount_paid for amount in words if available, otherwise use grand_total
         amount_for_words = invoice.amount_paid if invoice.amount_paid > 0 else invoice.grand_total
-        amount_in_words = number_to_words(amount_for_words)
+        amount_in_words = number_to_words(amount_for_words, currency_code)
         return Response({
             'client_name': invoice.client_name,
             'client_email': invoice.client_email,
@@ -102,10 +95,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             'status': invoice.status,
             'invoice_number': invoice.invoice_number,
             'payment_method': 'cash',  # Default, or you can customize
-            'received_by': request.user.pk,
-            'custom_color': custom_color or '#000000',
+            'received_by': request.user.get_full_name() or request.user.get_username() or '',
+            'custom_color': custom_color or '#1976d2',
             'amount_in_words': amount_in_words,
             'transaction_id': invoice.invoice_number,
             'currency_code': currency_code,
             'currency_symbol': currency_symbol,
+            'id': invoice.pk,
         })

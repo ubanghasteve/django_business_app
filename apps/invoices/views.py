@@ -1364,8 +1364,13 @@ def get_invoice_context(invoice, user, request=None):
     theme_accent_color = getattr(company_profile, 'accent_color', '#e9ecef') if company_profile else '#e9ecef'
     theme_text_color = getattr(company_profile, 'text_color', '#333333') if company_profile else '#333333'
     
-    # Get currency symbol
+    # Get currency symbol / code
     currency_symbol = getattr(company_profile, 'currency_symbol', '₦') if company_profile else '₦'
+    currency_code = getattr(company_profile, 'currency_code', 'NGN') if company_profile else 'NGN'
+
+    from apps.core.utils import number_to_words
+    amount_for_words = invoice.amount_paid if invoice.amount_paid and invoice.amount_paid > 0 else invoice.grand_total
+    amount_in_words = number_to_words(amount_for_words, currency_code)
     
     return {
         'invoice': invoice,
@@ -1377,6 +1382,8 @@ def get_invoice_context(invoice, user, request=None):
         'user_profile': user_profile,
         'current_template': current_template,  # Use current template instead of invoice.template
         'currency_symbol': currency_symbol,
+        'currency_code': currency_code,
+        'amount_in_words': amount_in_words,
         # Theme colors for all templates (including standalone print/PDF)
         'theme_primary_color': theme_primary_color,
         'theme_secondary_color': theme_secondary_color,

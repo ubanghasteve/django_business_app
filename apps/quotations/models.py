@@ -111,17 +111,17 @@ class Quotation(models.Model):
     # Client Information
     client = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, blank=True, related_name='quotations')
     
-    # Financial Fields
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    total_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
+    # Financial Fields (max_digits=64 matches invoices/receipts; supports billions–trillions+)
+    subtotal = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    total_tax = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
     tax_type = models.CharField(max_length=15, choices=TAX_TYPE_CHOICES, default='percentage', help_text="Tax calculation type")
-    tax_value = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, help_text="Tax rate (%) or fixed amount")
-    total_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
+    tax_value = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True, help_text="Tax rate (%) or fixed amount")
+    total_discount = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
     discount_type = models.CharField(max_length=15, choices=DISCOUNT_TYPE_CHOICES, default='percentage', help_text="Discount calculation type")
-    discount_value = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, help_text="Discount rate (%) or fixed amount")
-    shipping_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    other_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
+    discount_value = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True, help_text="Discount rate (%) or fixed amount")
+    shipping_fee = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    other_charges = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    grand_total = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
     
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='draft')
     terms = models.TextField(blank=True, help_text="Terms and conditions")
@@ -397,9 +397,9 @@ class QuotationItem(models.Model):
     quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE, related_name='items')
     product_service = models.CharField(max_length=250, blank=True, help_text="Product or service name")
     description = models.CharField(max_length=500, blank=True, help_text="Detailed description")
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], blank=True, default=0)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], blank=True, default=0)
-    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    quantity = models.DecimalField(max_digits=64, decimal_places=2, validators=[MinValueValidator(0)], blank=True, default=0)
+    unit_price = models.DecimalField(max_digits=64, decimal_places=2, validators=[MinValueValidator(0)], blank=True, default=0)
+    line_total = models.DecimalField(max_digits=64, decimal_places=2, default=0)
     
     # Custom fields for flexibility
     custom_fields = models.JSONField(default=dict, blank=True)

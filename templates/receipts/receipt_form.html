@@ -1,666 +1,662 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load currency_filters %}
-{% block title %}{% if receipt %}Edit Receipt{% else %}Create Receipt{% endif %}{% endblock %}
+{% block title %}{% if receipt %}Edit Receipt{% else %}New Receipt{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
-    .receipt-form-section {
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        background: #fff;
-    }
-    .receipt-form-section .card-header {
-        background: #f8f9fa;
-        border-bottom: 1px solid #e0e0e0;
-        padding: 12px 20px;
-    }
-    .receipt-form-section .card-body {
-        padding: 20px;
-    }
-    .receipt-form-section h6 {
-        color: #333;
-        font-weight: 600;
-        margin: 0;
-    }
-    .form-control, .form-select {
-        border: 1px solid #ccc !important;
-        padding: 10px 12px !important;
-        font-size: 14px;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #1976d2 !important;
-        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25) !important;
-    }
-    .input-group-text {
-        background: #f8f9fa;
-        border: 1px solid #ccc;
-        font-weight: 600;
-    }
-    label.form-label {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 5px;
-    }
-    #payment-summary {
-        border: 2px solid #0d6efd;
-        border-radius: 8px;
-        color: #ffffff;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    }
-    #payment-summary .fs-5 {
-        font-size: 1.25rem !important;
-    }
-    .btn-primary {
-        padding: 10px 30px;
-        font-weight: 600;
-    }
-    .btn-secondary {
-        padding: 10px 30px;
-        font-weight: 600;
-    }
+:root {
+  --rc-primary: var(--primary-color, {{ theme_primary_color|default:"#1976d2" }});
+  --rc-ink: #1a2332;
+  --rc-muted: #6b7280;
+  --rc-line: #e8edf3;
+  --rc-soft: #f4f7fb;
+  --rc-ok: #0f9d58;
+  --rc-warn: #c47f00;
+  --rc-danger: #c62828;
+  --rc-radius: 14px;
+}
+.receipt-page { max-width: 1100px; margin: 0 auto; padding: 0.75rem 0 5.5rem; }
+.receipt-hero {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  margin-bottom: 1rem; flex-wrap: wrap;
+}
+.receipt-hero h1 {
+  margin: 0; font-size: 1.55rem; font-weight: 700; color: var(--rc-ink); letter-spacing: -0.02em;
+}
+.receipt-hero p { margin: 0.2rem 0 0; color: var(--rc-muted); font-size: 0.92rem; }
+.receipt-shell {
+  background: #fff; border: 1px solid var(--rc-line); border-radius: calc(var(--rc-radius) + 2px);
+  box-shadow: 0 10px 30px rgba(26, 35, 50, 0.05); overflow: hidden;
+}
+.receipt-summary {
+  display: none; padding: 1rem 1.15rem 0.95rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--rc-primary) 12%, #fff), #fff 55%);
+  border-bottom: 1px solid var(--rc-line); position: sticky; top: 0; z-index: 20;
+}
+.receipt-summary.is-visible { display: block; }
+.receipt-summary.is-paid { background: linear-gradient(135deg, #e8f8ef, #fff 60%); }
+.receipt-summary.is-partial { background: linear-gradient(135deg, #fff6e5, #fff 60%); }
+.receipt-summary.is-over { background: linear-gradient(135deg, #fdecea, #fff 60%); }
+.receipt-summary-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; text-align: center;
+}
+.receipt-metric-label {
+  display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--rc-muted); font-weight: 700; margin-bottom: 0.25rem;
+}
+.receipt-metric-value {
+  display: block; font-size: clamp(1rem, 2.4vw, 1.35rem); font-weight: 800; color: var(--rc-ink);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.receipt-status-line {
+  margin-top: 0.85rem; text-align: center; font-size: 0.92rem; min-height: 1.4em;
+}
+.receipt-status-pill {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.28rem 0.7rem;
+  border-radius: 999px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.receipt-status-pill.ok { background: #e8f8ef; color: var(--rc-ok); }
+.receipt-status-pill.warn { background: #fff3d6; color: var(--rc-warn); }
+.receipt-status-pill.danger { background: #fdecea; color: var(--rc-danger); }
+.receipt-status-pill.info { background: color-mix(in srgb, var(--rc-primary) 14%, #fff); color: var(--rc-primary); }
+.receipt-body { padding: 1.15rem 1.2rem 0.4rem; }
+.receipt-section { margin-bottom: 1.15rem; padding-bottom: 1.05rem; border-bottom: 1px solid var(--rc-line); }
+.receipt-section:last-of-type { border-bottom: 0; }
+.receipt-section-title {
+  display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.85rem;
+  font-size: 0.84rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--rc-muted);
+}
+.receipt-section-title i { color: var(--rc-primary); }
+.receipt-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.85rem 1rem; }
+.rc-span-12 { grid-column: span 12; }
+.rc-span-6 { grid-column: span 6; }
+.rc-span-4 { grid-column: span 4; }
+.rc-span-3 { grid-column: span 3; }
+@media (max-width: 900px) {
+  .receipt-summary-grid { grid-template-columns: 1fr; text-align: left; }
+  .rc-span-6, .rc-span-4, .rc-span-3 { grid-column: span 12; }
+}
+.receipt-label {
+  display: block; font-size: 0.84rem; font-weight: 650; color: var(--rc-ink); margin-bottom: 0.35rem;
+}
+.receipt-label .req { color: var(--rc-danger); }
+.receipt-hint { display: block; margin-top: 0.35rem; font-size: 0.78rem; color: var(--rc-muted); }
+.receipt-input, .receipt-page .form-control, .receipt-page .form-select {
+  border: 1px solid #d7dee8 !important; border-radius: 10px !important; min-height: 44px;
+  padding: 0.55rem 0.8rem !important; font-size: 0.95rem !important; background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.receipt-input:focus, .receipt-page .form-control:focus, .receipt-page .form-select:focus {
+  border-color: var(--rc-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rc-primary) 22%, transparent) !important;
+  outline: none;
+}
+.receipt-amount-wrap {
+  display: flex; align-items: stretch; border: 1px solid #d7dee8; border-radius: 10px; overflow: hidden;
+  background: #fff; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.receipt-amount-wrap:focus-within {
+  border-color: var(--rc-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rc-primary) 22%, transparent);
+}
+.receipt-amount-wrap .currency-chip {
+  display: flex; align-items: center; padding: 0 0.85rem; background: var(--rc-soft);
+  font-weight: 800; color: var(--rc-ink); border-right: 1px solid #d7dee8;
+}
+.receipt-amount-wrap .receipt-amount-input {
+  border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
+  font-weight: 700; font-size: 1.05rem !important; font-variant-numeric: tabular-nums;
+}
+.receipt-words-input {
+  background: color-mix(in srgb, #ffb300 12%, #fff) !important; font-weight: 650 !important; color: #5c4300 !important;
+}
+.receipt-quick-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.55rem; }
+.receipt-chip {
+  border: 1px solid #d7dee8; background: #fff; color: var(--rc-ink); border-radius: 999px;
+  padding: 0.28rem 0.7rem; font-size: 0.78rem; font-weight: 650; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.receipt-chip:hover, .receipt-chip:focus {
+  border-color: var(--rc-primary); color: var(--rc-primary);
+  background: color-mix(in srgb, var(--rc-primary) 8%, #fff); outline: none;
+}
+.receipt-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.receipt-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+@media (max-width: 700px) { .receipt-toggles { grid-template-columns: 1fr; } }
+.receipt-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.8rem 0.95rem; border: 1px solid var(--rc-line); border-radius: 12px; background: var(--rc-soft);
+}
+.receipt-toggle label { margin: 0; font-weight: 650; color: var(--rc-ink); }
+.receipt-color-input { width: 100%; min-height: 44px; padding: 0.2rem !important; cursor: pointer; }
+.receipt-actions {
+  position: sticky; bottom: 0; z-index: 25; display: flex; justify-content: flex-end; gap: 0.65rem;
+  padding: 0.85rem 1.2rem; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+  border-top: 1px solid var(--rc-line);
+}
+.receipt-actions .btn {
+  min-height: 44px; border-radius: 11px; font-weight: 700; padding: 0.55rem 1.15rem;
+}
+.receipt-actions .btn-primary {
+  background: var(--rc-primary); border-color: var(--rc-primary);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--rc-primary) 28%, transparent);
+}
+.receipt-actions .btn-primary:disabled {
+  opacity: 0.55; box-shadow: none; cursor: not-allowed;
+}
+.receipt-loading {
+  display: none; align-items: center; gap: 0.45rem; color: var(--rc-muted); font-size: 0.82rem; margin-top: 0.4rem;
+}
+.receipt-loading.is-on { display: inline-flex; }
+.receipt-loading .dot {
+  width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--rc-primary);
+  animation: rcPulse 0.9s ease-in-out infinite;
+}
+@keyframes rcPulse { 0%,100% { opacity: .35; transform: scale(.85);} 50% { opacity: 1; transform: scale(1);} }
+.receipt-error { color: var(--rc-danger); font-size: 0.8rem; margin-top: 0.3rem; }
+#id_invoice { width: 100%; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-12">
-            <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white py-3">
-                    <h4 class="mb-0"><i class="fas fa-receipt me-2"></i>{% if receipt %}Edit Receipt{% else %}Create New Receipt{% endif %}</h4>
-                </div>
-                <div class="card-body">
-                    <!-- Payment Summary Card -->
-                    <div id="payment-summary" class="alert alert-info mb-4" style="display: none; font-size: 16px;">
-                        <div class="row align-items-center mb-3">
-                            <div class="col-md-12">
-                                <h5 class="alert-heading fw-bold"><i class="fas fa-calculator me-2"></i>Payment Summary</h5>
-                            </div>
-                        </div>
-                        <div class="row text-center">
-                            <div class="col-md-4 border-end">
-                                <small class="text-muted d-block mb-1" style="font-size: 14px;">Invoice Total</small>
-                                <span id="summary-invoice-total" class="fw-bold fs-4" style="font-size: 1.5rem !important;">-</span>
-                            </div>
-                            <div class="col-md-4 border-end">
-                                <small class="text-muted d-block mb-1" style="font-size: 14px;">This Receipt</small>
-                                <span id="summary-amount-received" class="fw-bold fs-4 text-primary" style="font-size: 1.5rem !important;">-</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block mb-1" style="font-size: 14px;">Balance After This Receipt</small>
-                                <span id="summary-balance-after" class="fw-bold fs-4" style="font-size: 1.5rem !important;">-</span>
-                            </div>
-                        </div>
-                        <div id="payment-status-message" class="mt-3 text-center" style="font-size: 16px;"></div>
-                    </div>
-                    
-                    <form method="post" id="receipt-form" data-sync-model="receipts" data-sync-redirect="{% url 'receipts:list' %}" {% if receipt %}data-record-uuid="{{ receipt.uuid }}"{% endif %}>
-                        {% csrf_token %}
-                        
-                        <!-- Invoice Selection -->
-                        <div class="receipt-form-section">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Invoice Information</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <label for="id_invoice" class="form-label" style="font-size: 16px;">Select Invoice {% if form.invoice.field.required %}<span class="text-danger">*</span>{% endif %}</label>
-                                            {{ form.invoice }}
-                                            {% if form.invoice.errors %}
-                                            <div class="text-danger small">{{ form.invoice.errors }}</div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Client Information -->
-                        <div class="receipt-form-section">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>Client Information</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_client_name" class="form-label" style="font-size: 16px;">Client Name {% if form.client_name.field.required %}<span class="text-danger">*</span>{% endif %}</label>
-                                                <input type="text" name="client_name" id="id_client_name" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Client Name">
-                                                {% if form.client_name.errors %}<div class="text-danger small">{{ form.client_name.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_client_phone" class="form-label" style="font-size: 16px;">Client Phone</label>
-                                                <input type="text" name="client_phone" id="id_client_phone" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Client Phone">
-                                                {% if form.client_phone.errors %}<div class="text-danger small">{{ form.client_phone.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_client_address" class="form-label" style="font-size: 16px;">Client Address</label>
-                                                <input type="text" name="client_address" id="id_client_address" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Client Address">
-                                                {% if form.client_address.errors %}<div class="text-danger small">{{ form.client_address.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Payment Details -->
-                        <div class="receipt-form-section">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Payment Details</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_amount_received" class="form-label" style="font-size: 16px;">Amount Received (Enter what customer actually paid) {% if form.amount_received.field.required %}<span class="text-danger">*</span>{% endif %}</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text" style="font-size: 16px;">{{ user_currency_symbol|default:'₦' }}</span>
-                                                    <input type="text" name="amount_received" id="id_amount_received" class="form-control" style="height: 45px; font-size: 16px; font-weight: bold;" placeholder="Enter actual amount paid by customer" autocomplete="off">
-                                                </div>
-                                                <small class="text-success fw-bold">Enter the exact amount the customer gave you - not the balance due</small>
-                                                {% if form.amount_received.errors %}<div class="text-danger small">{{ form.amount_received.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_amount_in_words" class="form-label" style="font-size: 16px;">Amount in Words</label>
-                                                <input type="text" name="amount_in_words" id="id_amount_in_words" class="form-control bg-warning bg-opacity-10 fw-bold" style="height: 45px; font-size: 14px;" readonly placeholder="Amount in Words">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_payment_method" class="form-label" style="font-size: 16px;">Payment Method {% if form.payment_method.field.required %}<span class="text-danger">*</span>{% endif %}</label>
-                                                <select name="payment_method" id="id_payment_method" class="form-select" style="height: 45px; font-size: 15px;">
-                                                    <option value="">-- Select Method --</option>
-                                                    <option value="cash">Cash</option>
-                                                    <option value="bank_transfer">Bank Transfer</option>
-                                                    <option value="cheque">Cheque</option>
-                                                    <option value="card">Card</option>
-                                                    <option value="mobile_money">Mobile Money</option>
-                                                    <option value="other">Other</option>
-                                                </select>
-                                                {% if form.payment_method.errors %}<div class="text-danger small">{{ form.payment_method.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_transaction_id" class="form-label" style="font-size: 16px;">Transaction ID</label>
-                                                <input type="text" name="transaction_id" id="id_transaction_id" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Transaction ID">
-                                                {% if form.transaction_id.errors %}<div class="text-danger small">{{ form.transaction_id.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_received_by" class="form-label" style="font-size: 16px;">Received By {% if form.received_by.field.required %}<span class="text-danger">*</span>{% endif %}</label>
-                                                <input type="text" name="received_by" id="id_received_by" class="form-control" style="height: 45px; font-size: 15px;" placeholder="Received By">
-                                                {% if form.received_by.errors %}<div class="text-danger small">{{ form.received_by.errors }}</div>{% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="id_custom_color" class="form-label" style="font-size: 16px;">Receipt Color</label>
-                                                <input type="color" name="custom_color" id="id_custom_color" class="form-control form-control-color" style="height: 45px; width: 100%;" value="#000000">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Notes -->
-                        <div class="receipt-form-section">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="mb-0"><i class="fas fa-comment me-2"></i>Note for Customer</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <textarea name="notes" id="id_notes" class="form-control" rows="3" style="font-size: 15px;" placeholder="Add a note or message for your customer (optional)">{% if form.notes.value %}{{ form.notes.value }}{% endif %}</textarea>
-                                            <small class="text-muted">This note will appear on the printed receipt</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Display Options -->
-                        <div class="receipt-form-section">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Receipt Display Options</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="form-check form-switch" style="padding: 10px;">
-                                                <input class="form-check-input" type="checkbox" name="show_bank_details" id="id_show_bank_details" checked style="width: 40px; height: 20px;">
-                                                <label class="form-check-label fw-bold" for="id_show_bank_details" style="font-size: 16px; margin-left: 10px;">Show bank details on receipt</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-check form-switch" style="padding: 10px;">
-                                                <input class="form-check-input" type="checkbox" name="show_signature" id="id_show_signature" checked style="width: 40px; height: 20px;">
-                                                <label class="form-check-label fw-bold" for="id_show_signature" style="font-size: 16px; margin-left: 10px;">Show authorized signature on receipt</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Submit Buttons -->
-                        <div class="row mt-4">
-                            <div class="col-md-12 text-end">
-                                <a href="{% url 'receipts:list' %}" class="btn btn-secondary btn-lg me-3 px-4"><i class="fas fa-times me-2"></i>Cancel</a>
-                                <button type="submit" class="btn btn-primary btn-lg px-4"><i class="fas fa-save me-2"></i>Save Receipt</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<div class="container-fluid px-3 px-md-4">
+  <div class="receipt-page">
+    <div class="receipt-hero">
+      <div>
+        <h1>{% if receipt %}Edit Receipt{% else %}New Receipt{% endif %}</h1>
+        <p>Record payment instantly — totals, balance, and amount in words update as you type.</p>
+      </div>
+      <a href="{% url 'receipts:list' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> All receipts
+      </a>
     </div>
+
+    <div class="receipt-shell">
+      <div id="payment-summary" class="receipt-summary" aria-live="polite">
+        <div class="receipt-summary-grid">
+          <div>
+            <span class="receipt-metric-label">Invoice Total</span>
+            <span id="summary-invoice-total" class="receipt-metric-value">-</span>
+          </div>
+          <div>
+            <span class="receipt-metric-label">This Receipt</span>
+            <span id="summary-amount-received" class="receipt-metric-value">-</span>
+          </div>
+          <div>
+            <span class="receipt-metric-label">Balance After</span>
+            <span id="summary-balance-after" class="receipt-metric-value">-</span>
+          </div>
+        </div>
+        <div id="payment-status-message" class="receipt-status-line"></div>
+      </div>
+
+      <form method="post" id="receipt-form" class="receipt-form"
+            data-sync-model="receipts"
+            data-sync-redirect="{% url 'receipts:list' %}"
+            {% if receipt %}data-record-uuid="{{ receipt.uuid }}"{% endif %}>
+        {% csrf_token %}
+
+        <div class="receipt-body">
+          <section class="receipt-section">
+            <h2 class="receipt-section-title"><i class="fas fa-file-invoice"></i> Invoice</h2>
+            <div class="receipt-grid">
+              <div class="rc-span-12">
+                <label class="receipt-label" for="id_invoice">Select invoice <span class="req">*</span></label>
+                {{ form.invoice }}
+                <span id="invoice-loading" class="receipt-loading"><span class="dot"></span> Loading invoice…</span>
+                {% if form.invoice.errors %}<div class="receipt-error">{{ form.invoice.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+          </section>
+
+          <section class="receipt-section">
+            <h2 class="receipt-section-title"><i class="fas fa-user"></i> Client</h2>
+            <div class="receipt-grid">
+              <div class="rc-span-4">
+                <label class="receipt-label" for="id_client_name">Name <span class="req">*</span></label>
+                {{ form.client_name }}
+                {% if form.client_name.errors %}<div class="receipt-error">{{ form.client_name.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="rc-span-4">
+                <label class="receipt-label" for="id_client_phone">Phone</label>
+                {{ form.client_phone }}
+              </div>
+              <div class="rc-span-4">
+                <label class="receipt-label" for="id_client_address">Address</label>
+                {{ form.client_address }}
+              </div>
+            </div>
+          </section>
+
+          <section class="receipt-section">
+            <h2 class="receipt-section-title"><i class="fas fa-money-bill-wave"></i> Payment</h2>
+            <div class="receipt-grid">
+              <div class="rc-span-6">
+                <label class="receipt-label" for="id_amount_received">Amount received <span class="req">*</span></label>
+                <div class="receipt-amount-wrap">
+                  <span class="currency-chip">{{ user_currency_symbol|default:'₦' }}</span>
+                  {{ form.amount_received }}
+                </div>
+                <div class="receipt-quick-actions">
+                  <button type="button" class="receipt-chip" id="btn-fill-balance" disabled>Fill balance due</button>
+                  <button type="button" class="receipt-chip" id="btn-fill-total" disabled>Fill invoice total</button>
+                  <button type="button" class="receipt-chip" id="btn-clear-amount" disabled>Clear</button>
+                </div>
+                <span class="receipt-hint">Enter what the customer actually paid. Summary updates live.</span>
+                {% if form.amount_received.errors %}<div class="receipt-error">{{ form.amount_received.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="rc-span-6">
+                <label class="receipt-label" for="id_amount_in_words">Amount in words</label>
+                {{ form.amount_in_words }}
+                <span class="receipt-hint">Updates instantly, then confirmed with the server.</span>
+              </div>
+              <div class="rc-span-4">
+                <label class="receipt-label" for="id_payment_method">Payment method <span class="req">*</span></label>
+                {{ form.payment_method }}
+                {% if form.payment_method.errors %}<div class="receipt-error">{{ form.payment_method.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="rc-span-4">
+                <label class="receipt-label" for="id_transaction_id">Transaction ID</label>
+                {{ form.transaction_id }}
+              </div>
+              <div class="rc-span-4">
+                <label class="receipt-label" for="id_received_by">Received by <span class="req">*</span></label>
+                {{ form.received_by }}
+                {% if form.received_by.errors %}<div class="receipt-error">{{ form.received_by.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="rc-span-3">
+                <label class="receipt-label" for="id_custom_color">Receipt color</label>
+                {{ form.custom_color }}
+              </div>
+            </div>
+          </section>
+
+          <section class="receipt-section">
+            <h2 class="receipt-section-title"><i class="fas fa-comment"></i> Customer note</h2>
+            {{ form.notes }}
+            <span class="receipt-hint">Appears on the printed receipt / PDF.</span>
+          </section>
+
+          <section class="receipt-section">
+            <h2 class="receipt-section-title"><i class="fas fa-sliders-h"></i> Display options</h2>
+            <div class="receipt-toggles">
+              <div class="receipt-toggle">
+                <label for="id_show_bank_details">Show bank details</label>
+                {{ form.show_bank_details }}
+              </div>
+              <div class="receipt-toggle">
+                <label for="id_show_signature">Show authorized signature</label>
+                {{ form.show_signature }}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="receipt-actions">
+          <a href="{% url 'receipts:list' %}" class="btn btn-outline-secondary">Cancel</a>
+          <button type="submit" id="btn-save-receipt" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>{% if receipt %}Update Receipt{% else %}Save Receipt{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-{# Django values live in JSON so the IDE JS checker does not flag this file #}
-<script id="receipt-form-config" type="application/json">{
-  "currency_symbol": "{{ user_currency_symbol|default:'₦'|escapejs }}",
-  "currency_code": "{{ user_currency_code|default:'NGN'|escapejs }}",
-  "existing_receipt_amount": "{{ receipt.amount_received|default:'0'|escapejs }}",
-  "is_editing": {% if receipt and receipt.pk %}true{% else %}false{% endif %}
-}</script>
+{{ receipt_form_config|json_script:"receipt-form-config" }}
 <script>
-(function() {
-    'use strict';
+(function () {
+  'use strict';
 
-    var _cfgEl = document.getElementById('receipt-form-config');
-    var _cfg = {};
-    try {
-        _cfg = JSON.parse(_cfgEl ? _cfgEl.textContent : '{}');
-    } catch (e) {
-        _cfg = {};
+  var cfg = {};
+  try {
+    cfg = JSON.parse(document.getElementById('receipt-form-config').textContent);
+  } catch (e) {
+    cfg = {
+      currency_symbol: (document.querySelector('.currency-chip') || {}).textContent || '₦',
+      currency_code: 'NGN',
+      existing_receipt_amount: '0',
+      is_editing: false,
+      receiver_name: '',
+      selected_invoice: null
+    };
+  }
+
+  var CURRENCY_SYMBOL = cfg.currency_symbol || '₦';
+  var CURRENCY_CODE = cfg.currency_code || 'NGN';
+  var EXISTING_RECEIPT_AMOUNT = normalizeAmountString(cfg.existing_receipt_amount || '0');
+  var IS_EDITING = !!cfg.is_editing;
+  var RECEIVER_NAME = cfg.receiver_name || '';
+  var invoiceCache = Object.create(null);
+  var currentInvoiceData = null;
+  var amountWordTimeout = null;
+  var wordsRequestId = 0;
+  var invoiceRequestId = 0;
+
+  var invoiceSelect = document.getElementById('id_invoice');
+  var amountReceivedInput = document.getElementById('id_amount_received');
+  var amountInWordsInput = document.getElementById('id_amount_in_words');
+  var paymentSummary = document.getElementById('payment-summary');
+  var summaryTotal = document.getElementById('summary-invoice-total');
+  var summaryReceived = document.getElementById('summary-amount-received');
+  var summaryBalance = document.getElementById('summary-balance-after');
+  var summaryMessage = document.getElementById('payment-status-message');
+  var invoiceLoading = document.getElementById('invoice-loading');
+  var saveBtn = document.getElementById('btn-save-receipt');
+  var btnFillBalance = document.getElementById('btn-fill-balance');
+  var btnFillTotal = document.getElementById('btn-fill-total');
+  var btnClearAmount = document.getElementById('btn-clear-amount');
+
+  function normalizeAmountString(value) {
+    if (value === null || value === undefined || value === '') return '0';
+    var s = String(value).replace(/,/g, '').trim();
+    if (!/^-?\d+(\.\d+)?$/.test(s)) return '0';
+    return s;
+  }
+
+  function formatNumber(num) {
+    var raw = normalizeAmountString(num);
+    var neg = raw.startsWith('-');
+    var parts = raw.replace(/^-/, '').split('.');
+    var intPart = parts[0] || '0';
+    var decPart = (parts[1] || '00').padEnd(2, '0').slice(0, 2);
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + intPart + '.' + decPart;
+  }
+
+  function numberToWordsClient(amountInput) {
+    var raw = normalizeAmountString(amountInput);
+    var parts = raw.split('.');
+    var intStr = (parts[0] || '0').replace(/^-/, '') || '0';
+    var decStr = (parts[1] || '').padEnd(2, '0').slice(0, 2);
+    var decimalPart = parseInt(decStr, 10) || 0;
+    var isNegative = raw.startsWith('-');
+    var ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    var tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    var scales = ['', 'Thousand', 'Million', 'Billion', 'Trillion', 'Quadrillion', 'Quintillion'];
+
+    function underThousand(n) {
+      if (n < 20) return ones[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + underThousand(n % 100) : '');
     }
+    function convertIntegerString(s) {
+      s = s.replace(/^0+/, '') || '0';
+      if (s === '0') return 'Zero';
+      var chunks = [];
+      while (s.length > 0) {
+        chunks.unshift(s.slice(-3));
+        s = s.slice(0, -3);
+      }
+      var words = [];
+      for (var i = 0; i < chunks.length; i++) {
+        var scaleIdx = chunks.length - 1 - i;
+        var n = parseInt(chunks[i], 10);
+        if (!n) continue;
+        var chunkWords = underThousand(n);
+        words.push(scaleIdx < scales.length && scales[scaleIdx] ? (chunkWords + ' ' + scales[scaleIdx]) : chunkWords);
+      }
+      return words.join(' ') || 'Zero';
+    }
+    var major = (CURRENCY_CODE === 'NGN') ? 'Naira' : CURRENCY_CODE;
+    var minor = (CURRENCY_CODE === 'NGN') ? 'Kobo' : 'Cents';
+    var result = convertIntegerString(intStr) + ' ' + major;
+    if (decimalPart > 0) result += ' and ' + underThousand(decimalPart) + ' ' + minor;
+    if (isNegative) result = 'Negative ' + result;
+    return result;
+  }
 
-    // Global variables
-    let currentInvoiceData = null;
-    let userEditedAmount = false;
-    let amountWordTimeout = null;
+  function setFieldValue(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.value = value == null ? '' : String(value);
+  }
 
-    // Currency / edit state from config (not inline Django tags)
-    const CURRENCY_SYMBOL = _cfg.currency_symbol || '₦';
-    const CURRENCY_CODE = _cfg.currency_code || 'NGN';
-    // When editing, invoice.amount_paid already includes this receipt — exclude it from "prior paid"
-    const EXISTING_RECEIPT_AMOUNT = parseFloat(String(_cfg.existing_receipt_amount || '0').replace(/,/g, '')) || 0;
-    const IS_EDITING_RECEIPT = !!_cfg.is_editing;
-    
-    // DOM Elements
-    const invoiceSelect = document.getElementById('id_invoice');
-    const amountReceivedInput = document.getElementById('id_amount_received');
-    const amountInWordsInput = document.getElementById('id_amount_in_words');
-    const paymentSummary = document.getElementById('payment-summary');
-    const summaryTotal = document.getElementById('summary-invoice-total');
-    const summaryReceived = document.getElementById('summary-amount-received');
-    const summaryBalance = document.getElementById('summary-balance-after');
-    const summaryMessage = document.getElementById('payment-status-message');
-    
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Invoice dropdown is rendered by Django form, just add data attribute
-        if (invoiceSelect) {
-            invoiceSelect.setAttribute('data-invoice-select', '1');
-        }
-        initializeEventListeners();
-        // Prefill payment summary when editing or when invoice is already selected
-        if (invoiceSelect && invoiceSelect.value) {
-            handleInvoiceChange();
-            // After invoice loads, restore existing amount on edit and refresh summary
-            if (IS_EDITING_RECEIPT && amountReceivedInput) {
-                const restoreAmount = function() {
-                    if (!currentInvoiceData) {
-                        setTimeout(restoreAmount, 50);
-                        return;
-                    }
-                    if (EXISTING_RECEIPT_AMOUNT > 0 && !amountReceivedInput.value) {
-                        amountReceivedInput.value = formatNumber(EXISTING_RECEIPT_AMOUNT);
-                    }
-                    const raw = (amountReceivedInput.value || '').replace(/,/g, '');
-                    updatePaymentSummary(parseFloat(raw) || EXISTING_RECEIPT_AMOUNT || 0);
-                };
-                restoreAmount();
-            }
-        }
+  function setLoading(on) {
+    if (invoiceLoading) invoiceLoading.classList.toggle('is-on', !!on);
+  }
+
+  function setChipsEnabled(on) {
+    [btnFillBalance, btnFillTotal, btnClearAmount].forEach(function (b) {
+      if (b) b.disabled = !on;
     });
-    
-    // Initialize all event listeners
-    function initializeEventListeners() {
-        // Invoice selection change
-        if (invoiceSelect) {
-            invoiceSelect.addEventListener('change', handleInvoiceChange);
-        }
-        
-        // Amount received input
-        if (amountReceivedInput) {
-            amountReceivedInput.addEventListener('input', handleAmountInput);
-            amountReceivedInput.addEventListener('blur', handleAmountBlur);
-        }
-        
-        // Form submission
-        const form = document.getElementById('receipt-form');
-        if (form) {
-            form.addEventListener('submit', handleFormSubmit);
-        }
+  }
+
+  function remainingBalance() {
+    if (!currentInvoiceData) return '0';
+    var grand = normalizeAmountString(currentInvoiceData.grand_total);
+    var prior = normalizeAmountString(currentInvoiceData.amount_paid);
+    if (IS_EDITING) {
+      var priorNum = Number(prior) - Number(EXISTING_RECEIPT_AMOUNT);
+      prior = String(Math.max(0, priorNum));
     }
-    
-    // Handle invoice selection change
-    function handleInvoiceChange() {
-        const invoiceId = invoiceSelect.value;
-        userEditedAmount = false;
-        
-        // Clear fields when no invoice selected
-        if (!invoiceId) {
-            clearFormFields();
-            hidePaymentSummary();
-            return;
-        }
-        
-        // Fetch invoice details
-        fetch(`/api/invoices/${invoiceId}/info/`, {
-            credentials: 'same-origin'
+    var rem = Number(grand) - Number(prior);
+    return String(rem);
+  }
+
+  function updateAmountInWords(amount, syncServer) {
+    if (!amountInWordsInput) return;
+    var raw = normalizeAmountString(amount);
+    if (!raw || Number(raw) <= 0) {
+      amountInWordsInput.value = '';
+      return;
+    }
+    // Instant local words
+    amountInWordsInput.value = numberToWordsClient(raw);
+    if (syncServer === false) return;
+
+    var reqId = ++wordsRequestId;
+    if (amountWordTimeout) clearTimeout(amountWordTimeout);
+    amountWordTimeout = setTimeout(function () {
+      fetch('/api/core/num2words/?amount=' + encodeURIComponent(raw) + '&currency=' + encodeURIComponent(CURRENCY_CODE), {
+        credentials: 'same-origin'
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (reqId !== wordsRequestId) return;
+          if (data && data.success && data.words) amountInWordsInput.value = data.words;
         })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Invoice data received:', data);
-            currentInvoiceData = data;
-            populateInvoiceDetails(data);
-        })
-        .catch(function(error) {
-            console.log('Error loading invoice:', error);
-            showAlert('Could not load invoice details. Please try again.', 'warning');
-        });
+        .catch(function () {});
+    }, 180);
+  }
+
+  function updatePaymentSummary(amountReceived) {
+    if (!paymentSummary) return;
+    var amountStr = normalizeAmountString(amountReceived);
+    var amount = Number(amountStr);
+    paymentSummary.classList.add('is-visible');
+    paymentSummary.classList.remove('is-paid', 'is-partial', 'is-over');
+
+    if (!currentInvoiceData) {
+      summaryTotal.textContent = '-';
+      summaryReceived.textContent = amount > 0 ? formatNumber(amountStr) : '-';
+      summaryBalance.textContent = '-';
+      summaryMessage.innerHTML = '';
+      return;
     }
-    
-    // Populate invoice details to form
-    function populateInvoiceDetails(data) {
-        if (!data) return;
-        
-        // Show payment summary
-        showPaymentSummary();
-        
-        // Client details — don't overwrite on edit if already filled
-        if (!IS_EDITING_RECEIPT) {
-            setFieldValue('id_client_name', data.client_name || '');
-            setFieldValue('id_client_phone', data.client_phone || '');
-            setFieldValue('id_client_address', data.client_address || '');
-        }
-        
-        // Calculate suggested amount based on invoice status
-        const grandTotal = parseFloat(data.grand_total) || 0;
-        const amountPaid = parseFloat(data.amount_paid) || 0;
-        const balanceDue = parseFloat(data.balance_due) || 0;
-        const status = data.status || 'unpaid';
-        
-        // Show the balance due as reference, but don't pre-fill it - let user enter actual amount
-        let alertClass = 'alert-info';
-        let message = '';
-        
-        if (status === 'paid' || amountPaid >= grandTotal) {
-            alertClass = 'alert-success';
-            message = '<span class="badge bg-success">Invoice Already Paid</span> <span class="text-muted">This invoice has been fully paid.</span>';
-        } else if (status === 'partial' || (amountPaid > 0 && amountPaid < grandTotal)) {
-            alertClass = 'alert-warning';
-            message = `<span class="badge bg-warning">Partial Payment</span> <span class="text-dark">Remaining balance: <strong>${formatNumber(balanceDue)}</strong> - You can enter any amount</span>`;
-        } else {
-            alertClass = 'alert-info';
-            message = `<span class="badge bg-primary">Unpaid</span> <span class="text-dark">Invoice total: <strong>${formatNumber(grandTotal)}</strong> - You can enter any amount</span>`;
-        }
-        
-        // Update payment summary with current amount (edit) or 0 (new)
-        const existingRaw = amountReceivedInput ? String(amountReceivedInput.value || '').replace(/,/g, '') : '';
-        const existingAmount = parseFloat(existingRaw) || (IS_EDITING_RECEIPT ? EXISTING_RECEIPT_AMOUNT : 0);
-        updatePaymentSummary(existingAmount);
-        
-        // Update summary message only when no amount entered yet on create
-        if (!existingAmount) {
-            summaryMessage.innerHTML = message;
-            paymentSummary.className = `alert ${alertClass} mb-4`;
-            summaryTotal.textContent = formatNumber(grandTotal);
-            summaryReceived.textContent = '-';
-            summaryBalance.textContent = formatNumber(balanceDue) + ' (current)';
-        }
-        
-        // Set other fields on create only
-        if (!IS_EDITING_RECEIPT) {
-            setFieldValue('id_transaction_id', data.invoice_number || '');
-            setFieldValue('id_custom_color', data.custom_color || '#000000');
-            if (data.received_by) {
-                setFieldValue('id_received_by', data.received_by.toString());
-            }
-        }
+
+    var grandTotal = Number(normalizeAmountString(currentInvoiceData.grand_total));
+    var priorPaid = Number(normalizeAmountString(currentInvoiceData.amount_paid));
+    if (IS_EDITING) priorPaid = Math.max(0, priorPaid - Number(EXISTING_RECEIPT_AMOUNT));
+    var balanceAfter = grandTotal - priorPaid - amount;
+    var alreadyPaid = priorPaid >= grandTotal && grandTotal > 0 && amount <= 0;
+
+    summaryTotal.textContent = formatNumber(grandTotal);
+    summaryReceived.textContent = amount > 0 ? formatNumber(amountStr) : '-';
+    summaryBalance.textContent = balanceAfter > 0
+      ? formatNumber(balanceAfter)
+      : (balanceAfter < 0 ? 'OVERPAID' : (amount > 0 ? 'PAID' : formatNumber(Math.max(0, grandTotal - priorPaid)) + ' (current)'));
+
+    var html = '';
+    if (alreadyPaid) {
+      paymentSummary.classList.add('is-paid');
+      html = '<span class="receipt-status-pill ok">Already paid</span> <span class="text-muted">This invoice is fully paid. New receipts will show as overpayment.</span>';
+      if (saveBtn && !IS_EDITING) saveBtn.disabled = amount <= 0;
+    } else if (amount <= 0) {
+      if (priorPaid > 0 && priorPaid < grandTotal) {
+        paymentSummary.classList.add('is-partial');
+        html = '<span class="receipt-status-pill warn">Partial so far</span> Remaining balance: <strong>' + formatNumber(grandTotal - priorPaid) + '</strong>';
+      } else {
+        paymentSummary.classList.add('is-partial');
+        html = '<span class="receipt-status-pill info">Unpaid</span> Enter the amount received to update this summary live.';
+      }
+      if (saveBtn) saveBtn.disabled = false;
+    } else if (balanceAfter > 0) {
+      paymentSummary.classList.add('is-partial');
+      html = '<span class="receipt-status-pill warn">Partial payment</span> Balance after this receipt: <strong>' + formatNumber(balanceAfter) + '</strong>';
+      if (saveBtn) saveBtn.disabled = false;
+    } else if (balanceAfter < 0) {
+      paymentSummary.classList.add('is-over');
+      html = '<span class="receipt-status-pill danger">Overpayment</span> Refund due: <strong>' + formatNumber(Math.abs(balanceAfter)) + '</strong>';
+      if (saveBtn) saveBtn.disabled = false;
+    } else {
+      paymentSummary.classList.add('is-paid');
+      html = '<span class="receipt-status-pill ok">Full payment</span> Invoice will be fully paid.';
+      if (saveBtn) saveBtn.disabled = false;
     }
-    
-    // Handle amount input - real-time updates
-    function handleAmountInput(e) {
-        // Mark that user edited the amount
-        userEditedAmount = true;
-        
-        // Get raw value without commas
-        const rawValue = e.target.value.replace(/,/g, '');
-        const numericValue = parseFloat(rawValue);
-        
-        // Validate
-        if (isNaN(numericValue) || rawValue === '') {
-            amountInWordsInput.value = '';
-            updatePaymentSummary(0);
-            return;
-        }
-        
-        // Debounce amount in words update for performance
-        if (amountWordTimeout) {
-            clearTimeout(amountWordTimeout);
-        }
-        
-        amountWordTimeout = setTimeout(function() {
-            updateAmountInWords(numericValue);
-        }, 100);
-        
-        // Update payment summary immediately
-        updatePaymentSummary(numericValue);
+    summaryMessage.innerHTML = html;
+  }
+
+  function populateInvoiceDetails(data, opts) {
+    opts = opts || {};
+    if (!data) return;
+    currentInvoiceData = data;
+    setChipsEnabled(true);
+
+    if (!IS_EDITING || opts.forceClient) {
+      setFieldValue('id_client_name', data.client_name || '');
+      setFieldValue('id_client_phone', data.client_phone || '');
+      setFieldValue('id_client_address', data.client_address || '');
     }
-    
-    // Handle amount blur - format with commas
-    function handleAmountBlur(e) {
-        const rawValue = e.target.value.replace(/,/g, '');
-        const numericValue = parseFloat(rawValue);
-        
-        if (!isNaN(numericValue) && rawValue !== '') {
-            e.target.value = formatNumber(numericValue);
-        }
+    if (!IS_EDITING) {
+      setFieldValue('id_transaction_id', data.transaction_id || data.invoice_number || '');
+      if (data.custom_color) setFieldValue('id_custom_color', data.custom_color);
+      if (!document.getElementById('id_received_by').value) {
+        setFieldValue('id_received_by', data.received_by || RECEIVER_NAME || '');
+      }
     }
-    
-    // Handle form submission
-    function handleFormSubmit(e) {
-        // Remove commas from amount before submitting
+
+    var existingRaw = amountReceivedInput ? normalizeAmountString(String(amountReceivedInput.value || '').replace(/,/g, '')) : '0';
+    var amountToUse = Number(existingRaw) > 0 ? existingRaw : (IS_EDITING ? EXISTING_RECEIPT_AMOUNT : '0');
+    if (IS_EDITING && Number(EXISTING_RECEIPT_AMOUNT) > 0 && (!amountReceivedInput.value || !String(amountReceivedInput.value).trim())) {
+      amountReceivedInput.value = formatNumber(EXISTING_RECEIPT_AMOUNT);
+      amountToUse = EXISTING_RECEIPT_AMOUNT;
+    }
+    updatePaymentSummary(amountToUse);
+    if (Number(amountToUse) > 0) updateAmountInWords(amountToUse, true);
+  }
+
+  function fetchInvoice(invoiceId) {
+    if (!invoiceId) {
+      currentInvoiceData = null;
+      setChipsEnabled(false);
+      paymentSummary.classList.remove('is-visible');
+      return;
+    }
+    if (invoiceCache[invoiceId]) {
+      populateInvoiceDetails(invoiceCache[invoiceId]);
+      return;
+    }
+    var reqId = ++invoiceRequestId;
+    setLoading(true);
+    fetch('/api/invoices/' + invoiceId + '/info/', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (reqId !== invoiceRequestId) return;
+        invoiceCache[invoiceId] = data;
+        populateInvoiceDetails(data);
+      })
+      .catch(function () {
+        if (reqId !== invoiceRequestId) return;
+        summaryMessage.innerHTML = '<span class="receipt-status-pill danger">Could not load invoice</span> Please try again.';
+        paymentSummary.classList.add('is-visible');
+      })
+      .finally(function () {
+        if (reqId === invoiceRequestId) setLoading(false);
+      });
+  }
+
+  function applyAmount(raw) {
+    if (!amountReceivedInput) return;
+    var n = normalizeAmountString(raw);
+    amountReceivedInput.value = formatNumber(n);
+    updateAmountInWords(n, true);
+    updatePaymentSummary(n);
+  }
+
+  function onAmountInput(e) {
+    var rawValue = String(e.target.value || '').replace(/,/g, '').trim();
+    if (!rawValue || !/^-?\d*(\.\d*)?$/.test(rawValue)) {
+      if (amountInWordsInput) amountInWordsInput.value = '';
+      updatePaymentSummary('0');
+      return;
+    }
+    // Allow intermediate typing like "12."
+    if (rawValue === '.' || rawValue.endsWith('.')) {
+      updatePaymentSummary(rawValue.replace(/\.$/, '') || '0');
+      return;
+    }
+    updatePaymentSummary(rawValue);
+    updateAmountInWords(rawValue, true);
+  }
+
+  function boot() {
+    if (amountReceivedInput) {
+      amountReceivedInput.addEventListener('input', onAmountInput);
+      amountReceivedInput.addEventListener('blur', function (e) {
+        var raw = String(e.target.value || '').replace(/,/g, '').trim();
+        if (raw && /^-?\d+(\.\d+)?$/.test(raw)) e.target.value = formatNumber(raw);
+      });
+    }
+    if (invoiceSelect) {
+      invoiceSelect.addEventListener('change', function () {
+        fetchInvoice(invoiceSelect.value);
+      });
+    }
+    var form = document.getElementById('receipt-form');
+    if (form) {
+      form.addEventListener('submit', function () {
         if (amountReceivedInput && amountReceivedInput.value) {
-            amountReceivedInput.value = amountReceivedInput.value.replace(/,/g, '');
+          amountReceivedInput.value = amountReceivedInput.value.replace(/,/g, '');
         }
+      });
     }
-    
-    // Update payment summary
-    function updatePaymentSummary(amountReceived) {
-        if (!paymentSummary) return;
-        
-        // Ensure we have a valid number
-        const amount = typeof amountReceived === 'number' ? amountReceived : (parseFloat(String(amountReceived).replace(/,/g, '')) || 0);
-        
-        // Show the summary
-        paymentSummary.style.display = 'block';
-        
-        // If no invoice selected, show basic info
-        if (!currentInvoiceData || !currentInvoiceData.grand_total) {
-            summaryTotal.textContent = '-';
-            summaryReceived.textContent = formatNumber(amount);
-            summaryBalance.textContent = '-';
-            return;
-        }
-        
-        // Balance after = invoice total - prior payments - this receipt
-        const grandTotal = parseFloat(currentInvoiceData.grand_total) || 0;
-        let priorPaid = parseFloat(currentInvoiceData.amount_paid) || 0;
-        if (IS_EDITING_RECEIPT) {
-            priorPaid = Math.max(0, priorPaid - EXISTING_RECEIPT_AMOUNT);
-        }
-        const balanceAfterThisReceipt = grandTotal - priorPaid - amount;
-        
-        // Display values
-        summaryTotal.textContent = formatNumber(grandTotal);
-        summaryReceived.textContent = amount > 0 ? formatNumber(amount) : '-';
-        summaryBalance.textContent = balanceAfterThisReceipt > 0
-            ? formatNumber(balanceAfterThisReceipt)
-            : (balanceAfterThisReceipt < 0 ? 'OVERPAID' : 'PAID');
-        
-        // Determine payment type and update message
-        let alertClass = 'alert-info';
-        let message = '';
-        
-        if (balanceAfterThisReceipt > 0) {
-            alertClass = 'alert-warning';
-            message = `<span class="badge bg-warning">Partial Payment</span> <span class="text-dark">Balance after this receipt: <strong>${formatNumber(balanceAfterThisReceipt)}</strong></span>`;
-        } else if (balanceAfterThisReceipt < 0) {
-            alertClass = 'alert-danger';
-            const refundDue = Math.abs(balanceAfterThisReceipt);
-            message = `<span class="badge bg-danger">Over Payment</span> <span class="text-dark">Refund due to customer: <strong>${formatNumber(refundDue)}</strong></span>`;
-        } else {
-            alertClass = 'alert-success';
-            message = `<span class="badge bg-success">Full Payment</span> <span class="text-dark"><strong>Invoice will be fully paid!</strong></span>`;
-        }
-        
-        summaryMessage.innerHTML = message;
-        paymentSummary.className = `alert ${alertClass} mb-4`;
+    if (btnFillBalance) btnFillBalance.addEventListener('click', function () { applyAmount(remainingBalance()); });
+    if (btnFillTotal) btnFillTotal.addEventListener('click', function () {
+      applyAmount(currentInvoiceData ? currentInvoiceData.grand_total : '0');
+    });
+    if (btnClearAmount) btnClearAmount.addEventListener('click', function () {
+      if (amountReceivedInput) amountReceivedInput.value = '';
+      if (amountInWordsInput) amountInWordsInput.value = '';
+      updatePaymentSummary('0');
+    });
+
+    // Instant paint from server-embedded invoice (no network wait)
+    if (cfg.selected_invoice && cfg.selected_invoice.id) {
+      invoiceCache[String(cfg.selected_invoice.id)] = cfg.selected_invoice;
+      if (invoiceSelect && !invoiceSelect.value) {
+        invoiceSelect.value = String(cfg.selected_invoice.id);
+      }
+      populateInvoiceDetails(cfg.selected_invoice);
+      // Refresh from API in background to stay in sync
+      fetchInvoice(String(cfg.selected_invoice.id));
+    } else if (invoiceSelect && invoiceSelect.value) {
+      fetchInvoice(invoiceSelect.value);
     }
-    
-    // Convert number to words - Client-side
-    function updateAmountInWords(amount) {
-        if (!amountInWordsInput) return;
-        
-        if (!amount || isNaN(amount) || amount <= 0) {
-            amountInWordsInput.value = '';
-            return;
-        }
-        
-        const words = numberToWordsClient(amount);
-        const currencyLabel = (CURRENCY_CODE === 'NGN') ? 'Naira' : CURRENCY_CODE;
-        amountInWordsInput.value = words + ' ' + currencyLabel;
+
+    if (!IS_EDITING && RECEIVER_NAME && !document.getElementById('id_received_by').value) {
+      setFieldValue('id_received_by', RECEIVER_NAME);
     }
-    
-    // Client-side number to words converter
-    function numberToWordsClient(num) {
-        if (num === 0) return 'Zero';
-        
-        const isDecimal = num % 1 !== 0;
-        let integerPart = Math.floor(num);
-        let decimalPart = 0;
-        
-        if (isDecimal) {
-            decimalPart = Math.round((num - integerPart) * 100);
-        }
-        
-        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
-                      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-        
-        function convertChunk(n) {
-            if (n < 20) return ones[n];
-            if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
-            if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertChunk(n % 100) : '');
-            if (n < 1000000) return convertChunk(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convertChunk(n % 1000) : '');
-            if (n < 1000000000) return convertChunk(Math.floor(n / 1000000)) + ' Million' + (n % 1000000 ? ' ' + convertChunk(n % 1000000) : '');
-            return convertChunk(Math.floor(n / 1000000000)) + ' Billion' + (n % 1000000000 ? ' ' + convertChunk(n % 1000000000) : '');
-        }
-        
-        let result = convertChunk(integerPart);
-        
-        if (isDecimal && decimalPart > 0) {
-            result += ' and ';
-            if (decimalPart < 20) {
-                result += ones[decimalPart];
-            } else {
-                result += tens[Math.floor(decimalPart / 10)];
-                if (decimalPart % 10) {
-                    result += ' ' + ones[decimalPart % 10];
-                }
-            }
-            result += ' Kobo';
-        }
-        
-        return result || 'Zero';
-    }
-    
-    // Format number with commas
-    function formatNumber(num) {
-        if (num === null || num === undefined || isNaN(num)) return '0.00';
-        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    
-    // Set field value safely
-    function setFieldValue(fieldId, value) {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.value = value || '';
-        }
-    }
-    
-    // Clear form fields
-    function clearFormFields() {
-        const fields = ['id_client_name', 'id_client_phone', 'id_client_address', 'id_amount_received', 
-                        'id_amount_in_words', 'id_transaction_id', 'id_received_by'];
-        
-        fields.forEach(function(fieldId) {
-            setFieldValue(fieldId, '');
-        });
-        
-        // Reset payment method dropdown
-        const paymentMethod = document.getElementById('id_payment_method');
-        if (paymentMethod) paymentMethod.selectedIndex = 0;
-        
-        currentInvoiceData = null;
-    }
-    
-    // Show payment summary
-    function showPaymentSummary() {
-        if (paymentSummary) {
-            paymentSummary.style.display = 'block';
-        }
-    }
-    
-    // Hide payment summary
-    function hidePaymentSummary() {
-        if (paymentSummary) {
-            paymentSummary.style.display = 'none';
-        }
-    }
-    
-    // Show alert message
-    function showAlert(message, type) {
-        // Could implement toast notifications here
-        console.log(`Alert [${type}]: ${message}`);
-    }
-    
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 {% endblock %}

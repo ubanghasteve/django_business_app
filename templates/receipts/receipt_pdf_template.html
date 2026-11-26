@@ -13,6 +13,16 @@
             margin: 0;
             padding: 20px;
         }
+        .receipt-accent {
+            color: {{ receipt_primary_color|default:theme_primary_color|default:"#1976d2" }};
+        }
+        .receipt-accent-bg {
+            background-color: {{ receipt_primary_color|default:theme_primary_color|default:"#1976d2" }};
+            color: #fff;
+        }
+        .receipt-accent-border {
+            border-color: {{ receipt_primary_color|default:theme_primary_color|default:"#1976d2" }};
+        }
         /* Ensure proper Unicode character rendering */
         .amount-value {
             font-family: Arial, Helvetica, "DejaVu Sans", sans-serif;
@@ -22,7 +32,7 @@
         .header {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid {{ receipt_primary_color|default:theme_primary_color|default:"#1976d2" }};
             padding-bottom: 20px;
         }
         .company-logo {
@@ -43,7 +53,7 @@
             font-weight: bold;
             text-align: center;
             margin: 20px 0;
-            color: #333;
+            color: {{ receipt_primary_color|default:theme_primary_color|default:"#1976d2" }};
         }
         .status-section {
             margin: 20px 0;
@@ -91,6 +101,7 @@
             padding: 15px;
             background-color: #f8f9fa;
             border-radius: 5px;
+            border-left: 4px solid {{ receipt_primary_color|default:theme_primary_color|default:"#1976d2" }};
         }
         .amount-row {
             display: flex;
@@ -236,7 +247,7 @@
     {% endif %}
 
     {% if bank_accounts and receipt.show_bank_details %}
-    <div class="info-section" style="margin-top: 20px; padding: 12px; background: #f8f9fa; border-left: 4px solid #1976d2;">
+    <div class="info-section" style="margin-top: 20px; padding: 12px; background: #f8f9fa; border-left: 4px solid {{ receipt_primary_color|default:theme_primary_color|default:'#1976d2' }};">
         <div style="font-weight: bold; margin-bottom: 10px;">Bank Details</div>
         {% for account in bank_accounts %}
         <div class="info-row" style="margin-bottom: {% if not forloop.last %}12px; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;{% else %}0;{% endif %}">

@@ -1,3 +1,4 @@
+{% load currency_filters %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -157,8 +158,8 @@
                         {{ item.description }}
                     </td>
                     <td>{{ item.quantity }}</td>
-                    <td>{{ currency_symbol }}{{ item.unit_price }}</td>
-                    <td>{{ currency_symbol }}{{ item.line_total }}</td>
+                    <td>{{ currency_symbol }}{{ item.unit_price|money }}</td>
+                    <td>{{ currency_symbol }}{{ item.line_total|money }}</td>
                 </tr>
             {% endfor %}
         </tbody>
@@ -167,36 +168,41 @@
     <div class="total-section">
         <div class="total-row">
             <span>Subtotal:</span>
-            <span>{{ currency_symbol }}{{ invoice.subtotal }}</span>
+            <span>{{ currency_symbol }}{{ invoice.subtotal|money }}</span>
         </div>
         {% if invoice.total_discount > 0 %}
             <div class="total-row">
                 <span>Discount:</span>
-                <span>-{{ currency_symbol }}{{ invoice.total_discount }}</span>
+                <span>-{{ currency_symbol }}{{ invoice.total_discount|money }}</span>
             </div>
         {% endif %}
         {% if invoice.total_tax > 0 %}
             <div class="total-row">
                 <span>Tax:</span>
-                <span>{{ currency_symbol }}{{ invoice.total_tax }}</span>
+                <span>{{ currency_symbol }}{{ invoice.total_tax|money }}</span>
             </div>
         {% endif %}
         {% if invoice.shipping_fee > 0 %}
             <div class="total-row">
                 <span>Shipping:</span>
-                <span>{{ currency_symbol }}{{ invoice.shipping_fee }}</span>
+                <span>{{ currency_symbol }}{{ invoice.shipping_fee|money }}</span>
             </div>
         {% endif %}
         {% if invoice.other_charges > 0 %}
             <div class="total-row">
                 <span>Other Charges:</span>
-                <span>{{ currency_symbol }}{{ invoice.other_charges }}</span>
+                <span>{{ currency_symbol }}{{ invoice.other_charges|money }}</span>
             </div>
         {% endif %}
         <div class="total-row grand-total">
             <span>Grand Total:</span>
-            <span>{{ currency_symbol }}{{ invoice.grand_total }}</span>
+            <span>{{ currency_symbol }}{{ invoice.grand_total|money }}</span>
         </div>
+        {% if amount_in_words %}
+        <div class="total-row" style="font-size: 11px; margin-top: 8px;">
+            <span><strong>Amount in Words:</strong> {{ amount_in_words }}</span>
+        </div>
+        {% endif %}
     </div>
     
     <div class="clearfix"></div>

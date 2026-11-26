@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
+{% load currency_filters %}
 
 {% block title %}Invoice {{ invoice.invoice_number }} - Multi-Purpose Business App{% endblock %}
 {% block page_title %}Invoice {{ invoice.invoice_number }}{% endblock %}
@@ -474,8 +475,8 @@ body {
                 <td>{{ item.product_service|default:"" }}</td>
                 <td>{{ item.description|default:"" }}</td>
                 <td>{% if item.quantity and item.quantity != 0 %}{% if item.quantity_display %}{{ item.quantity_display }}{% else %}{{ item.quantity|floatformat:"-2" }}{% endif %}{% endif %}</td>
-                <td class="format-currency">{% if item.unit_price and item.unit_price != 0 %}{{ currency_symbol }}{{ item.unit_price|floatformat:2 }}{% endif %}</td>
-                <td class="format-currency">{% if item.line_total and item.line_total != 0 %}{{ currency_symbol }}{{ item.line_total|floatformat:2 }}{% endif %}</td>
+                <td class="format-currency">{% if item.unit_price and item.unit_price != 0 %}{{ currency_symbol }}{{ item.unit_price|money }}{% endif %}</td>
+                <td class="format-currency">{% if item.line_total and item.line_total != 0 %}{{ currency_symbol }}{{ item.line_total|money }}{% endif %}</td>
               </tr>
               {% empty %}
               <tr>
@@ -495,27 +496,30 @@ body {
               {% endif %}
             </div>
             <div class="totals-right">
-              <p>Subtotal: <span class="format-currency">{{ currency_symbol }}{{ invoice.subtotal|floatformat:2 }}</span></p>
+              <p>Subtotal: <span class="format-currency">{{ currency_symbol }}{{ invoice.subtotal|money }}</span></p>
               <!-- Always show discount, tax, shipping, other charges, and payment details -->
               {% if invoice.total_discount != 0 %}
-                <p>Discount{% if invoice.discount_type == 'percentage' and invoice.discount_value %} ({{ invoice.discount_value|floatformat:2 }}%){% endif %}: {% if invoice.total_discount > 0 %}-{% endif %}<span class="format-currency">{{ currency_symbol }}{{ invoice.total_discount|floatformat:2 }}</span></p>
+                <p>Discount{% if invoice.discount_type == 'percentage' and invoice.discount_value %} ({{ invoice.discount_value|floatformat:2 }}%){% endif %}: {% if invoice.total_discount > 0 %}-{% endif %}<span class="format-currency">{{ currency_symbol }}{{ invoice.total_discount|money }}</span></p>
               {% endif %}
               {% if invoice.total_tax != 0 %}
-                <p>Tax/VAT{% if invoice.tax_type == 'percentage' and invoice.tax_value %} ({{ invoice.tax_value|floatformat:2 }}%){% endif %}: <span class="format-currency">{{ currency_symbol }}{{ invoice.total_tax|floatformat:2 }}</span></p>
+                <p>Tax/VAT{% if invoice.tax_type == 'percentage' and invoice.tax_value %} ({{ invoice.tax_value|floatformat:2 }}%){% endif %}: <span class="format-currency">{{ currency_symbol }}{{ invoice.total_tax|money }}</span></p>
               {% endif %}
               {% if invoice.shipping_fee != 0 %}
-                <p>Shipping: <span class="format-currency">{{ currency_symbol }}{{ invoice.shipping_fee|floatformat:2 }}</span></p>
+                <p>Shipping: <span class="format-currency">{{ currency_symbol }}{{ invoice.shipping_fee|money }}</span></p>
               {% endif %}
               {% if invoice.other_charges != 0 %}
-                <p>Other Charges: <span class="format-currency">{{ currency_symbol }}{{ invoice.other_charges|floatformat:2 }}</span></p>
+                <p>Other Charges: <span class="format-currency">{{ currency_symbol }}{{ invoice.other_charges|money }}</span></p>
               {% endif %}
-              <p class="total-final">TOTAL: <span class="format-currency">{{ currency_symbol }}{{ invoice.grand_total|floatformat:2 }}</span></p>
+              <p class="total-final">TOTAL: <span class="format-currency">{{ currency_symbol }}{{ invoice.grand_total|money }}</span></p>
+              {% if amount_in_words %}
+                <p style="margin-top: 8px; font-size: 12px; max-width: 320px;"><strong>Amount in Words:</strong> {{ amount_in_words }}</p>
+              {% endif %}
               {% if invoice.amount_paid != 0 %}
-                <p title="Only this amount counts as revenue (part payments count only what was paid).">Amount Paid: <span class="format-currency">{{ currency_symbol }}{{ invoice.amount_paid|floatformat:2|intcomma }}</span></p>
+                <p title="Only this amount counts as revenue (part payments count only what was paid).">Amount Paid: <span class="format-currency">{{ currency_symbol }}{{ invoice.amount_paid|money }}</span></p>
                 {% if invoice.balance_due > 0 %}
-                  <p title="Amount the customer still owes.">Balance Due: <span class="format-currency">{{ currency_symbol }}{{ invoice.balance_due|floatformat:2|intcomma }}</span></p>
+                  <p title="Amount the customer still owes.">Balance Due: <span class="format-currency">{{ currency_symbol }}{{ invoice.balance_due|money }}</span></p>
                 {% elif invoice.balance_to_customer > 0 %}
-                  <p title="Overpayment: amount to refund to customer.">Balance to customer (refund due): <span class="format-currency">{{ currency_symbol }}{{ invoice.balance_to_customer|floatformat:2|intcomma }}</span></p>
+                  <p title="Overpayment: amount to refund to customer.">Balance to customer (refund due): <span class="format-currency">{{ currency_symbol }}{{ invoice.balance_to_customer|money }}</span></p>
                 {% endif %}
               {% endif %}
               {% if invoice.amount_paid == 0 %}

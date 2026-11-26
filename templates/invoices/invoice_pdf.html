@@ -1,4 +1,4 @@
-{% load static %}
+{% load static currency_filters %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -338,8 +338,8 @@
                     <td>{{ item.product_service|default:"" }}</td>
                     <td>{{ item.description|default:"" }}</td>
                     <td>{% if item.quantity and item.quantity != 0 %}{% if item.quantity_display %}{{ item.quantity_display }}{% else %}{{ item.quantity|floatformat:"-2" }}{% endif %}{% endif %}</td>
-                    <td>{% if item.unit_price and item.unit_price != 0 %}{{ currency_symbol|default:"₦" }}{{ item.unit_price|floatformat:2 }}{% endif %}</td>
-                    <td>{% if item.line_total and item.line_total != 0 %}{{ currency_symbol|default:"₦" }}{{ item.line_total|floatformat:2 }}{% endif %}</td>
+                    <td>{% if item.unit_price and item.unit_price != 0 %}{{ currency_symbol|default:"₦" }}{{ item.unit_price|money }}{% endif %}</td>
+                    <td>{% if item.line_total and item.line_total != 0 %}{{ currency_symbol|default:"₦" }}{{ item.line_total|money }}{% endif %}</td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -359,24 +359,27 @@
                 {% endif %}
             </div>
             <div class="totals-right">
-                <p>Subtotal: <span>{{ currency_symbol|default:"₦" }}{{ invoice.subtotal|floatformat:2 }}</span></p>
+                <p>Subtotal: <span>{{ currency_symbol|default:"₦" }}{{ invoice.subtotal|money }}</span></p>
                 <!-- Always show discount, tax, shipping, other charges, and payment details -->
                 {% if invoice.total_discount != 0 %}
-                    <p>Discount{% if invoice.discount_type == 'percentage' and invoice.discount_value %} ({{ invoice.discount_value|floatformat:2 }}%){% endif %}: {% if invoice.total_discount > 0 %}-{% endif %}<span>{{ currency_symbol|default:"₦" }}{{ invoice.total_discount|floatformat:2 }}</span></p>
+                    <p>Discount{% if invoice.discount_type == 'percentage' and invoice.discount_value %} ({{ invoice.discount_value|floatformat:2 }}%){% endif %}: {% if invoice.total_discount > 0 %}-{% endif %}<span>{{ currency_symbol|default:"₦" }}{{ invoice.total_discount|money }}</span></p>
                 {% endif %}
                 {% if invoice.total_tax != 0 %}
-                    <p>Tax/VAT{% if invoice.tax_type == 'percentage' and invoice.tax_value %} ({{ invoice.tax_value|floatformat:2 }}%){% endif %}: <span>{{ currency_symbol|default:"₦" }}{{ invoice.total_tax|floatformat:2 }}</span></p>
+                    <p>Tax/VAT{% if invoice.tax_type == 'percentage' and invoice.tax_value %} ({{ invoice.tax_value|floatformat:2 }}%){% endif %}: <span>{{ currency_symbol|default:"₦" }}{{ invoice.total_tax|money }}</span></p>
                 {% endif %}
                 {% if invoice.shipping_fee != 0 %}
-                    <p>Shipping: <span>{{ currency_symbol|default:"₦" }}{{ invoice.shipping_fee|floatformat:2 }}</span></p>
+                    <p>Shipping: <span>{{ currency_symbol|default:"₦" }}{{ invoice.shipping_fee|money }}</span></p>
                 {% endif %}
                 {% if invoice.other_charges != 0 %}
-                    <p>Other Charges: <span>{{ currency_symbol|default:"₦" }}{{ invoice.other_charges|floatformat:2 }}</span></p>
+                    <p>Other Charges: <span>{{ currency_symbol|default:"₦" }}{{ invoice.other_charges|money }}</span></p>
                 {% endif %}
-                <p class="total-final">TOTAL: <span>{{ currency_symbol|default:"₦" }}{{ invoice.grand_total|floatformat:2 }}</span></p>
+                <p class="total-final">TOTAL: <span>{{ currency_symbol|default:"₦" }}{{ invoice.grand_total|money }}</span></p>
+                {% if amount_in_words %}
+                    <p style="margin-top: 8px; font-size: 12px; max-width: 280px;"><strong>Amount in Words:</strong> {{ amount_in_words }}</p>
+                {% endif %}
                 {% if invoice.amount_paid != 0 %}
-                    <p>Amount Paid: <span>{{ currency_symbol|default:"₦" }}{{ invoice.amount_paid|floatformat:2 }}</span></p>
-                    <p>Balance Due: <span>{{ currency_symbol|default:"₦" }}{{ invoice.balance_due|floatformat:2 }}</span></p>
+                    <p>Amount Paid: <span>{{ currency_symbol|default:"₦" }}{{ invoice.amount_paid|money }}</span></p>
+                    <p>Balance Due: <span>{{ currency_symbol|default:"₦" }}{{ invoice.balance_due|money }}</span></p>
                 {% endif %}
             </div>
         </div>

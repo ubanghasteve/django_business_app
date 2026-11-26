@@ -169,17 +169,27 @@ class CurrencyManager {
     }
 
     formatCurrency(value) {
-        if (value === null || isNaN(value)) {
+        if (value === null || value === undefined || value === '') {
             return this.currentCurrency.symbol + '0.00';
         }
-        
-        // Format with commas and 2 decimal places
-        const formatted = value.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        
-        return this.currentCurrency.symbol + formatted;
+        let raw = String(value).replace(/,/g, '').replace(/[^\d.-]/g, '').trim();
+        if (!raw || raw === '-' || raw === '.') {
+            return this.currentCurrency.symbol + '0.00';
+        }
+        const neg = raw.startsWith('-');
+        raw = raw.replace(/^-/, '');
+        const parts = raw.split('.');
+        let intPart = (parts[0] || '0').replace(/^0+(?=\d)/, '') || '0';
+        let decPart = (parts[1] || '00').padEnd(2, '0').slice(0, 2);
+        const asNum = Number((neg ? '-' : '') + intPart + '.' + decPart);
+        if (Number.isFinite(asNum) && Math.abs(asNum) <= Number.MAX_SAFE_INTEGER) {
+            return this.currentCurrency.symbol + asNum.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return this.currentCurrency.symbol + (neg ? '-' : '') + intPart + '.' + decPart;
     }
 
     addListener(callback) {

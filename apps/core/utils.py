@@ -1,6 +1,7 @@
 import calendar
 import re
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 
 from django.db import models
@@ -198,12 +199,31 @@ def generate_auto_number(doc_type, company_profile, prefix=None):
     return auto_number
 
 
+def format_decimal_amount(amount, decimal_places=2):
+    """
+    Format a money amount with thousands separators using Decimal (not float).
+    Safe for billions/trillions without precision loss.
+    """
+    try:
+        d = Decimal(str(amount if amount is not None else 0))
+    except (InvalidOperation, TypeError, ValueError):
+        d = Decimal('0')
+    if d.is_nan() or d.is_infinite():
+        d = Decimal('0')
+    quantizer = Decimal('1').scaleb(-int(decimal_places))
+    try:
+        d = d.quantize(quantizer, rounding=ROUND_HALF_UP)
+    except InvalidOperation:
+        d = Decimal('0')
+    return format(d, f',.{int(decimal_places)}f')
+
+
 def format_currency(amount, currency_symbol='$', decimal_places=2, pdf_safe=False):
     """
     Format amount as currency
     
     Args:
-        amount (float/Decimal): Amount to format
+        amount (float/Decimal/str): Amount to format
         currency_symbol (str): Currency symbol
         decimal_places (int): Number of decimal places
         pdf_safe (bool): Whether to use PDF-safe formatting
@@ -228,10 +248,120 @@ def format_currency(amount, currency_symbol='$', decimal_places=2, pdf_safe=Fals
         if currency_symbol in symbol_fallbacks:
             currency_symbol = symbol_fallbacks[currency_symbol]
     
-    # Format with commas and specified decimal places
-    formatted_amount = f"{float(amount):,.{decimal_places}f}"
-    
+    formatted_amount = format_decimal_amount(amount, decimal_places)
     return f"{currency_symbol}{formatted_amount}"
+
+
+_CURRENCY_MAJOR_NAMES = {
+    'USD': 'Dollars', 'EUR': 'Euros', 'GBP': 'Pounds', 'NGN': 'Naira',
+    'CAD': 'Canadian Dollars', 'AUD': 'Australian Dollars', 'JPY': 'Yen',
+    'INR': 'Rupees', 'CNY': 'Yuan', 'ZAR': 'Rand', 'GHS': 'Cedis',
+    'KES': 'Kenyan Shillings', 'UGX': 'Ugandan Shillings',
+    'TZS': 'Tanzanian Shillings', 'XOF': 'CFA Francs', 'XAF': 'CFA Francs',
+}
+
+_CURRENCY_MINOR_NAMES = {
+    'USD': 'Cents', 'EUR': 'Cents', 'GBP': 'Pence', 'NGN': 'Kobo',
+    'CAD': 'Cents', 'AUD': 'Cents', 'INR': 'Paise', 'GHS': 'Pesewas',
+    'ZAR': 'Cents', 'KES': 'Cents',
+}
+
+
+def number_to_words(amount, currency='USD'):
+    """
+    Convert a money amount to words. Supports billions, trillions, and beyond
+    via the num2words library (with a scale-aware fallback).
+    """
+    try:
+        d = Decimal(str(amount if amount is not None else 0))
+    except (InvalidOperation, TypeError, ValueError):
+        d = Decimal('0')
+    if d.is_nan() or d.is_infinite():
+        d = Decimal('0')
+    d = d.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    is_negative = d < 0
+    d = abs(d)
+    currency_code = (currency or 'USD').upper()
+    major_name = _CURRENCY_MAJOR_NAMES.get(currency_code, currency_code)
+    minor_name = _CURRENCY_MINOR_NAMES.get(currency_code, 'Cents')
+
+    whole = int(d)
+    fraction = int((d - Decimal(whole)) * 100)
+
+    try:
+        from num2words import num2words
+        words = num2words(whole, lang='en').replace('-', ' ').replace(',', '').title()
+        if fraction > 0:
+            frac_words = num2words(fraction, lang='en').replace('-', ' ').replace(',', '').title()
+            words = f"{words} {major_name} and {frac_words} {minor_name}"
+        else:
+            words = f"{words} {major_name}"
+    except Exception:
+        words = _number_to_words_fallback(whole, fraction, major_name, minor_name)
+
+    if is_negative:
+        words = f"Negative {words}"
+    return words
+
+
+def _number_to_words_fallback(whole, fraction, major_name, minor_name):
+    """Fallback converter with scales through Quindecillion (covers extreme amounts)."""
+    ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+    teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen',
+             'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+    tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+    scales = [
+        '', 'Thousand', 'Million', 'Billion', 'Trillion', 'Quadrillion',
+        'Quintillion', 'Sextillion', 'Septillion', 'Octillion', 'Nonillion',
+        'Decillion', 'Undecillion', 'Duodecillion', 'Tredecillion',
+        'Quattuordecillion', 'Quindecillion',
+    ]
+
+    def convert_hundreds(num):
+        if num == 0:
+            return ''
+        result = ''
+        if num >= 100:
+            result += ones[num // 100] + ' Hundred'
+            num %= 100
+            if num:
+                result += ' '
+        if num >= 20:
+            result += tens[num // 10]
+            if num % 10:
+                result += ' ' + ones[num % 10]
+        elif num >= 10:
+            result += teens[num - 10]
+        elif num > 0:
+            result += ones[num]
+        return result
+
+    def convert_number(num):
+        if num == 0:
+            return 'Zero'
+        parts = []
+        scale_index = 0
+        while num > 0 and scale_index < len(scales):
+            chunk = num % 1000
+            if chunk:
+                chunk_words = convert_hundreds(chunk)
+                if scales[scale_index]:
+                    chunk_words = f"{chunk_words} {scales[scale_index]}"
+                parts.append(chunk_words)
+            num //= 1000
+            scale_index += 1
+        if num > 0:
+            # Beyond named scales — append remaining digits in words via hundreds chunks
+            parts.append(convert_hundreds(num % 1000) if num < 1000 else str(num))
+        return ' '.join(reversed(parts)).strip()
+
+    words = convert_number(whole)
+    if fraction > 0:
+        words = f"{words} {major_name} and {convert_number(fraction)} {minor_name}"
+    else:
+        words = f"{words} {major_name}"
+    return words
 
 
 def validate_image_file(image_file, max_size_mb=5):

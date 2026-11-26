@@ -120,19 +120,19 @@ class Invoice(SyncMixin, models.Model):
     client_email = models.EmailField(blank=True)
     client_address = models.TextField(blank=True)
     
-    # Financial Fields
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    total_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
+    # Financial Fields (max_digits=64 matches receipts/accounting; supports billions–trillions+)
+    subtotal = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    total_tax = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
     tax_type = models.CharField(max_length=15, choices=TAX_TYPE_CHOICES, default='percentage', help_text="Tax calculation type")
-    tax_value = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, help_text="Tax rate (%) or fixed amount")
-    total_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
+    tax_value = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True, help_text="Tax rate (%) or fixed amount")
+    total_discount = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
     discount_type = models.CharField(max_length=15, choices=DISCOUNT_TYPE_CHOICES, default='percentage', help_text="Discount calculation type")
-    discount_value = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, help_text="Discount rate (%) or fixed amount")
-    shipping_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    other_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
-    balance_due = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True)
+    discount_value = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True, help_text="Discount rate (%) or fixed amount")
+    shipping_fee = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    other_charges = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    grand_total = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    amount_paid = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
+    balance_due = models.DecimalField(max_digits=64, decimal_places=2, default=0, blank=True)
     # How metrics use this invoice:
     # - Unpaid (amount_paid=0): status='unpaid'; revenue = 0; outstanding = grand_total.
     # - Part payment (0 < amount_paid < grand_total): status='partial'; revenue = amount_paid only; outstanding = grand_total - amount_paid.
@@ -487,11 +487,11 @@ class InvoiceItem(models.Model):
     description = models.CharField(max_length=500, blank=True)
     # Allow both positive and negative values (e.g. for adjustments/credits),
     # so we intentionally do NOT enforce a minimum value here.
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, blank=True, default=0)
+    quantity = models.DecimalField(max_digits=64, decimal_places=2, blank=True, default=0)
     # Stores the original text the user typed for quantity (e.g. "345 bags")
     quantity_display = models.CharField(max_length=100, blank=True)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, default=0)
-    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit_price = models.DecimalField(max_digits=64, decimal_places=2, blank=True, default=0)
+    line_total = models.DecimalField(max_digits=64, decimal_places=2, default=0)
     
     class Meta:
         ordering = ['id']
@@ -569,13 +569,13 @@ class InvoiceMovement(models.Model):
     )
 
     subtotal = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
         help_text="Subtotal at time of movement.",
     )
     total_tax = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
         help_text="Total tax at time of movement.",
@@ -586,12 +586,12 @@ class InvoiceMovement(models.Model):
         default='percentage',
     )
     tax_value = models.DecimalField(
-        max_digits=10,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
     )
     total_discount = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
         help_text="Total discount at time of movement.",
@@ -602,34 +602,34 @@ class InvoiceMovement(models.Model):
         default='percentage',
     )
     discount_value = models.DecimalField(
-        max_digits=10,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
     )
     shipping_fee = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
     )
     other_charges = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
     )
     grand_total = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
         help_text="Grand total at time of movement.",
     )
     amount_paid = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
         help_text="Amount paid at time of movement.",
     )
     balance_due = models.DecimalField(
-        max_digits=12,
+        max_digits=64,
         decimal_places=2,
         default=Decimal('0'),
         help_text="Balance due at time of movement.",

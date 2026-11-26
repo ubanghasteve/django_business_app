@@ -1,6 +1,6 @@
 from django import template
 from django.conf import settings
-from apps.core.utils import format_currency
+from apps.core.utils import format_currency, format_decimal_amount, number_to_words
 
 register = template.Library()
 
@@ -51,6 +51,34 @@ def currency_format(value, currency_symbol=None):
     
     return format_currency(value, symbol)
 
+
+@register.filter
+def money(value, decimal_places=2):
+    """
+    Decimal-safe money formatting with thousands separators (no currency symbol).
+    Use instead of floatformat:2|intcomma for large amounts.
+
+    Usage:
+    {{ amount|money }}
+    {{ amount|money:2 }}
+    """
+    try:
+        places = int(decimal_places)
+    except (TypeError, ValueError):
+        places = 2
+    return format_decimal_amount(value, places)
+
+
+@register.filter
+def amount_words(value, currency_code='NGN'):
+    """
+    Convert amount to words for invoices/receipts/PDFs.
+
+    Usage:
+    {{ invoice.grand_total|amount_words:user_currency_code }}
+    """
+    return number_to_words(value, currency_code or 'NGN')
+
 @register.filter
 def currency_format_with_symbol(value, company_profile=None):
     """
@@ -69,11 +97,10 @@ def currency_format_with_symbol(value, company_profile=None):
             symbol = getattr(settings, 'DEFAULT_CURRENCY_SYMBOL', '$')
         
         return format_currency(value, symbol)
-    except Exception as e:
-        # Fallback formatting if there's any error
+    except Exception:
         try:
-            return f"${float(value):,.2f}"
-        except:
+            return f"${format_decimal_amount(value)}"
+        except Exception:
             return str(value)
 
 @register.filter
